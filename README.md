@@ -1,4 +1,4 @@
-Metagenomic Sequences **H**ierarchical **T**axonomic **C**lassifier
+Metagenomic Sequences Hierarchical Taxonomic Classifier
 ========
 
-This tool classify metagenomic sequences. 
+This tool is design to classify metagenomic sequences (genes, genomes and amplicon reads) using a **H**ierarchical **T**axonomic **C**lassifier (htc).
