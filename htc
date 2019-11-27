@@ -39,6 +39,8 @@ import glob
 import tempfile
 import errno
 
+# add version of the tool ------------------------------------------------------
+tool_version = "0.0"
 
 # position of the script -------------------------------------------------------
 path_mOTUs = os.path.realpath(__file__)
@@ -76,6 +78,7 @@ def msg(name=None):
     str_msg = '''
 \00
 Program: htc - a hierarchical taxonomic classifier for metagenomic sequences
+Version: '''+tool_version+'''
 
 Usage: htc <command> [options]
 
@@ -120,6 +123,8 @@ def main(argv=None):
     parser.add_argument('-c', action='store_true', default=None, dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
     parser.add_argument('-s', action="store", default=None,dest='sequences_to_align', help='sequences that needs to be aligned')
     parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')
+
+    parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
     args = parser.parse_args()
 
