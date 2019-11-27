@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+
+# ============================================================================ #
+# htc - A hierarchical taxonomic classifier for metagenomic sequences
+#
+# Authors: Alessio Milanese (milanese@embl.de),
+#
+# Type "htc" for usage help
+#
+#  LICENSE:
+#    htc - A hierarchical taxonomic classifier for metagenomic sequences
+#    Copyright (C) 2019  A. Milanese
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# ============================================================================ #
+
+
+from __future__ import division
+import os
+import sys
+import argparse
+import shlex
+import shutil
+import time
+import subprocess
+import glob
+import tempfile
+import errno
+
+
+# position of the script -------------------------------------------------------
+path_mOTUs = os.path.realpath(__file__)
+path_array = path_mOTUs.split("/")
+relative_path = "/".join(path_array[0:-1])
+relative_path = relative_path + "/"
+
+# add /bin to the path ---------------------------------------------------------
+try:
+    if os.path.isdir(relative_path+'bin'):
+        sys.path.insert(0, relative_path+'bin')
+    else:
+        sys.stderr.write("[E::main] Error: "+relative_path+"bin directory is missing.\n")
+        sys.exit(1)
+except:
+    sys.stderr.write("[E::main] Error: "+relative_path+"bin directory is missing.\n")
+    sys.exit(1)
+try:
+    import align as align
+except:
+    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/align.py\n")
+    sys.exit(1)
+
+# ------------------------------------------------------------------------------
+#       print the help informations
+# ------------------------------------------------------------------------------
+class CapitalisedHelpFormatter(argparse.HelpFormatter):
+    def add_usage(self, usage, actions, groups, prefix=None):
+        if prefix is None:
+            prefix = ''
+        return super(CapitalisedHelpFormatter, self).add_usage(usage, actions, groups, prefix)
+
+
+def msg(name=None):
+    str_msg = '''
+\00
+Program: htc - a hierarchical taxonomic classifier for metagenomic sequences
+
+Usage: htc <command> [options]
+
+Command:
+ -- Main commands
+      train      Train a classifier and create a database, to be used with htc
+                 classify
+      classify   Classify a sequence according to a database created with htc
+                 train
+
+ -- Secondary commands
+      align      Align a sequence to a hmm or infernal model
+      create_db  Create a database given the aligned sequences
+      find_tax   Classify an aligned sequence
+
+Type htc <command> to print the help for a specific command
+        '''
+    return str_msg
+
+# ------------------------------------------------------------------------------
+def print_menu_align():
+    sys.stderr.write("\n")
+    sys.stderr.write("Usage: htc align -s <seqfile> -a <hmmfile> [options]\n\n")
+    sys.stderr.write("  -s  FILE  sequences to be aligned\n")
+    sys.stderr.write("  -a  FILE  hmmfile or cmfile to use as template for the alignment\n")
+    sys.stderr.write("  -o  FILE  output file name [stdout]\n")
+    sys.stderr.write("  -c        set if you are using a cmfile\n")
+    sys.stderr.write("  -t  INT   number of threads [1]\n")
+    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+
+
+# ------------------------------------------------------------------------------
+# MAIN
+# ------------------------------------------------------------------------------
+def main(argv=None):
+
+    parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','find_tax','create_db'])
+    parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
+    parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
+    parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
+    parser.add_argument('-c', action='store_true', default=None, dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
+    parser.add_argument('-s', action="store", default=None,dest='sequences_to_align', help='sequences that needs to be aligned')
+    parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')
+
+    args = parser.parse_args()
+
+    # print menus ----------------------------------------------------------------
+    if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
+        if (args.sequences_to_align is None) and (args.template_al is None):
+            if args.command == 'align': print_menu_align()
+            sys.exit(1)
+    # set default for args.verbose
+    if (args.verbose is None): args.verbose = 3
+
+    return 0        # success
+
+#-------------------------------- run main -------------------------------------
+if __name__ == '__main__':
+    status = main()
+    sys.exit(status)
