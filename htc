@@ -64,6 +64,22 @@ except:
     sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/align.py\n")
     sys.exit(1)
 
+# function that checks if a file exists ----------------------------------------
+def check_file_exists(file_name, isfasta = False):
+    try:
+        o = open(file_name,"r")
+        # if fasta file, then check that it starts with ">"
+        if isfasta:
+            if not(o.readline().startswith(">")):
+                sys.stderr.write("[E::main] Error. Not a fasta file: "+file_name+"\n")
+                sys.stderr.write("          Fasta file is expected to start with '>'\n")
+                o.close()
+                sys.exit(1)
+        o.close()
+    except:
+        sys.stderr.write("[E::main] Error: Cannot open file: "+file_name+"\n")
+        sys.exit(1)
+
 # ------------------------------------------------------------------------------
 #       print the help informations
 # ------------------------------------------------------------------------------
@@ -102,7 +118,7 @@ Type htc <command> to print the help for a specific command
 def print_menu_align():
     sys.stderr.write("\n")
     sys.stderr.write("Usage: htc align -s <seqfile> -a <hmmfile> [options]\n\n")
-    sys.stderr.write("  -s  FILE  sequences to be aligned\n")
+    sys.stderr.write("  -s  FILE  sequences to be aligned (fasta format)\n")
     sys.stderr.write("  -a  FILE  hmmfile or cmfile to use as template for the alignment\n")
     sys.stderr.write("  -o  FILE  output file name [stdout]\n")
     sys.stderr.write("  -c        set if you are using a cmfile\n")
@@ -141,6 +157,35 @@ def main(argv=None):
     if (args.verbose is None): args.verbose = 3
     if (args.output is None): args.output = None
     if (args.use_cm_align is None): args.use_cm_align = False
+
+    if args.verbose < 1:
+        sys.stderr.write("[E::main] Error: verbose level (-v) is less than 1\n")
+        sys.exit(1)
+    if args.threads < 1:
+        sys.stderr.write("[E::main] Error: number of threads (-t) is less than 1\n")
+        sys.exit(1)
+
+    # --------------------------------------------------------------------------
+    # ALIGN routine
+    # --------------------------------------------------------------------------
+    if args.command == 'align':
+        # check that '-s' and '-a' have been provided
+        if (args.sequences_to_align is None):
+            sys.stderr.write("[E::main] Error: missing <seqfile> (-s)\n")
+            sys.exit(1)
+        if (args.template_al is None):
+            sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
+            sys.exit(1)
+        # check that '-s' and '-a' are files
+        check_file_exists(args.sequences_to_align,isfasta = True)
+        check_file_exists(args.template_al,isfasta = False)
+
+        # call the function
+        if args.output is None:
+            for i in align.align_generator(args.sequences_to_align, args.template_al, args.use_cm_align, args.threads, args.verbose):
+                print(i)
+        else:
+            align.align_file(args.sequences_to_align, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
 
     return 0        # success
 

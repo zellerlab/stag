@@ -140,7 +140,7 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose):
 
 # ------------------------------------------------------------------------------
 # main function
-def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose , res_file):
+def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
@@ -205,7 +205,7 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose , res_file):
     except:
         sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
         sys.exit(1)
-        
+
     # check that hmmalign/cmalign finished correctly
     align_cmd.stdout.close()
     return_code = align_cmd.wait()
