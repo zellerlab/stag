@@ -128,13 +128,19 @@ def main(argv=None):
 
     args = parser.parse_args()
 
-    # print menus ----------------------------------------------------------------
+    # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
         if (args.sequences_to_align is None) and (args.template_al is None):
             if args.command == 'align': print_menu_align()
             sys.exit(1)
-    # set default for args.verbose
+
+    # --------------------------------------------------------------------------
+    # set defaults for the parameters
+    # --------------------------------------------------------------------------
+    if (args.threads is None): args.threads = 1
     if (args.verbose is None): args.verbose = 3
+    if (args.output is None): args.output = None
+    if (args.use_cm_align is None): args.use_cm_align = False
 
     return 0        # success
 
