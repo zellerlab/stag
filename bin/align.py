@@ -81,3 +81,87 @@ def convert_alignment(merged_fasta,verbose):
                 i_c = encoding_dic["others"]
         converted_ali = converted_ali + i_c
     return converted_ali
+
+# ------------------------------------------------------------------------------
+# main function
+def align(seq_file, hmm_file, use_cmalign=False, n_threads=1, verbose = 3, res_file = None):
+    """Align sequences and transform them into 1-hot encoding, ready for
+       classification.
+    Parameters
+    ----------
+     seq_file :    file with the nucleotide sequences [string]
+     hmm_file :    file with the hmm model [string]
+     use_cmalign : if True, we use cmalign. If false, we use hmmalign [bool]
+     n_threads:    number of threads to use for cmalign (hmmalign can run only
+                   on one thread) [string/int]
+     verbose:      how much info to print [int]
+     res_file:     where to save the result. If it is 'None' then it return it
+                   with yield ['None'/string]
+    Returns
+    -------
+     If (res_file != None), then it will save the aligned sequences to the
+     specified file.
+     If (res_file == None), then the result is a string like:
+     'fasta_id\taligned_sequence'
+    """
+
+    # check that the tools are available
+    if use_cmalign:
+        if not is_tool("cmalign"):
+            sys.stderr.write("[E::align] Error: cmalign is not in the path. Please install Infernal.\n")
+            sys.exit(1)
+    else:
+        if not is_tool("hmmalign"):
+            sys.stderr.write("[E::align] Error: hmmalign is not in the path. Please install HMMER3.\n")
+            sys.exit(1)
+
+    # prepare the command to run
+    cmd = "hmmalign --outformat A2M "
+    if use_cmalign:
+        cmd = "cmalign --cpu "+str(n_threads)+" --outformat A2M "
+
+    cmd = cmd + hmm_file +" "+ seq_file
+
+    if verbose > 4:
+        sys.stderr.write("Command used to align the sequences: "+cmd+"\n")
+
+    # run the command
+    CMD = shlex.split(cmd)
+    align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
+
+    # if we save the result to a file, then we open it now
+    if res_file != None:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        os.chmod(temp_file.name, 0o644)
+
+    # parse the result and return/save to file
+    for line in merged_fasta(align_cmd.stdout):
+        converted_line = convert_alignment(line,verbose)
+        if res_file == None:
+            yield converted_line
+        else:
+            temp_file.write(converted_line+"\n")
+
+    # if we save the result to a file, then we close it now
+    if res_file != None:
+        try:
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_file.close()
+        except:
+            if verbose>4: sys.stderr.write("[E::align] Error when saving the resulting file\n")
+            sys.exit(1)
+        # move temp file to the final destination
+        try:
+            #os.rename(bam_temp_file.name,args.profile_bam_file) # atomic operation
+            shutil.move(temp_file.name,res_file) #It is not atomic if the files are on different filsystems.
+        except:
+            sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
+            sys.exit(1)
+
+    # check that hmmalign/cmalign finished correctly
+    align_cmd.stdout.close()
+    return_code = align_cmd.wait()
+    if return_code:
+        sys.stderr.write("[E::align] Error. hmmalig/cmalign failed\n")
+        sys.exit(1)
