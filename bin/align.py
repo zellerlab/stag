@@ -58,15 +58,15 @@ def merged_fasta(filein):
 # Note that we select only the nucleotides that corresponds to the inner state
 # of the HMM.
 encoding_dic = {
-               "A":"00001",
-               "C":"00010",
-               "G":"00100",
-               "T":"01000",
-               "U":"01000",
-               "others":"10000"
+               "A":"0\t0\t0\t0\t1",
+               "C":"0\t0\t0\t1\t0",
+               "G":"0\t0\t1\t0\t0",
+               "T":"0\t1\t0\t0\t0",
+               "U":"0\t1\t0\t0\t0",
+               "others":"1\t0\t0\t0\t0"
                }
 def convert_alignment(merged_fasta,verbose):
-    converted_ali = merged_fasta.split("\t")[0]+"\t"
+    converted_ali = merged_fasta.split("\t")[0]
     for i in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
@@ -80,6 +80,7 @@ def convert_alignment(merged_fasta,verbose):
                 i_c = encoding_dic[i]
             else:
                 i_c = encoding_dic["others"]
+            i_c = "\t"+i_c
         converted_ali = converted_ali + i_c
     return converted_ali
 
