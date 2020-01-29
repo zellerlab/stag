@@ -23,6 +23,12 @@ import time
 import pandas as pd
 
 #===============================================================================
+# Global variables for taxonomy tree
+child_nodes = dict()
+tree_root = "tree_root"
+child_nodes[tree_root] = set()
+
+#===============================================================================
 #                                 FUNCTIONS
 #===============================================================================
 
@@ -41,3 +47,31 @@ def load_alignment_from_file(file_name):
     return alignment
 
 # function to load the taxonomy ================================================
+def load_taxonomy(file_name):
+    o = open(file_name,"r")
+
+    number_of_taxonomic_levels = len(o.readline().rstrip().split("\t"))
+    o.seek(0)
+
+    for line in o:
+        # expected line: gene1\tBacteria\tFirmicutes\t...
+        vals = line.rstrip().split("\t")
+        if number_of_taxonomic_levels != len(vals):
+            sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels\n")
+            sys.exit(1)
+
+        # we enter the first level, to the root:
+        child_nodes[tree_root].add(vals[1])
+        if not(vals[1] in child_nodes):
+            child_nodes[vals[1]] = set()
+        # we enter all remaining levels
+        for i in range(2,len(vals)):
+            # first we enter that this is a child
+            child_nodes[vals[i-1]].add(vals[i])
+            # and second, we create a node if there is not already
+            if not(vals[i] in child_nodes):
+                child_nodes[vals[i]] = set()
+        # Finally, we add the gene id
+        child_nodes[vals[-1]].add(vals[0])
+
+    o.close()
