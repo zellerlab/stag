@@ -42,7 +42,7 @@ all_gene_ids = list()
 #  - a list of genes
 def find_leaves_recoursive(node, all_leaves):
     if node in last_level_to_genes:
-        all_leaves = all_leaves + list(last_level_to_genes[node])
+        all_leaves.extend(last_level_to_genes[node])
     else:
         for c in child_nodes[node]:
             find_leaves_recoursive(c, all_leaves)
@@ -102,6 +102,52 @@ def load_taxonomy(file_name):
 
     all_gene_ids.sort() # we sort the list, so that search should be faster
     o.close()
+
+# function that train the classifier for one node ==============================
+def train_classifier(positive_examples,negative_examples,all_classifiers):
+    print(positive_examples)
+    print(negative_examples)
+    return 1 # to be implemented
+
+
+# train node and call the same function on all the children ====================
+def train_node_iteratively(node, sibilings, all_classifiers):
+    # call the function on all the children
+    # but only if they are not the last level
+    if not(node in last_level_to_genes):
+        for child in child_nodes[node]:
+            sibilings_child = list(child_nodes[node])
+            sibilings_child.remove(child)
+            train_node_iteratively(child, sibilings_child, all_classifiers)
+
+    # find genomes to use and to which class they belong to,
+    # we need positive and negative examples
+    print(node)
+    positive_examples = find_leaves(node)
+    negative_examples = list()
+    if len(sibilings) > 0:
+        for s in sibilings:
+            negative_examples = negative_examples + find_leaves(s)
+
+    # train the classifier
+    train_classifier(positive_examples,negative_examples,all_classifiers)
+
+
+# function to train all classifiers ============================================
+# this function will create a classifier for each node in the taxonomy
+# Input:
+#  - the aligned sequences as a pandas data frame
+#  - the taxonomy (global variable)
+# Output:
+#  - a dictionary, where the keys are the node names and the values are a lasso
+#                  classifier object
+def train_all_classifiers(alignment):
+    all_classifiers = dict()
+    for node in child_nodes[tree_root]:
+        sibilings = list(child_nodes[tree_root])
+        sibilings.remove(node)
+        train_node_iteratively(node, sibilings, all_classifiers)
+    return(all_classifiers)
 
 # main function ================================================================
 def create_db(aligned_seq_file, tax_file, verbose, output):
