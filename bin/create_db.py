@@ -27,11 +27,29 @@ import pandas as pd
 child_nodes = dict()
 tree_root = "tree_root"
 child_nodes[tree_root] = set()
+all_gene_ids = list()
 
 #===============================================================================
 #                                 FUNCTIONS
 #===============================================================================
 
+
+# function that find the leaves (hence gene ids) of a given node ===============
+# Input:
+#  - the node
+# Output:
+#  - a list of genes
+def find_leaves_recoursive(node, all_leaves):
+    if node in all_gene_ids:
+        all_leaves.append(node)
+    else:
+        for c in child_nodes[node]:
+            find_leaves_recoursive(c, all_leaves)
+
+def find_leaves(node):
+    all_leaves = list()
+    find_leaves_recoursive(node, all_leaves)
+    return (all_leaves)
 
 # function to load an alignment produced by the "align" option =================
 # Input:
@@ -74,7 +92,9 @@ def load_taxonomy(file_name):
                 child_nodes[vals[i]] = set()
         # Finally, we add the gene id
         child_nodes[vals[-1]].add(vals[0])
+        all_gene_ids.append(vals[0])
 
+    all_gene_ids.sort() # we sort the list, so that search should be faster
     o.close()
 
 # main function ================================================================
@@ -84,4 +104,4 @@ def create_db(aligned_seq_file, tax_file, verbose, output):
     # 2. load the alignment into a pandas dataframe
     alignment = load_alignment_from_file(aligned_seq_file)
     # 3. build a classifier for each node
-    
+    classifiers = train_all_classifiers(alignment)
