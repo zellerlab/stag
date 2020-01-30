@@ -38,20 +38,20 @@ def is_tool(name):
 # CGGTTA
 ### TO:
 # >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-def merged_fasta(filein):
+def merge_fasta(filein):
     # filein is a stream of data (from hmmalign)
     seq = ""
     for line_b in filein:
         line = line_b.decode("utf-8").rstrip()
         if line.startswith(">"):
             if seq != "":
-                yield seq
+                yield seq[1:] # we skip the 0 character, which is ">"
             seq = line+"\t"
         else:
             seq = seq + line
     # give back the last sequence
     if seq != "":
-        yield seq
+        yield seq # we skip the 0 character, which is ">"
 
 # ------------------------------------------------------------------------------
 # function to convert the nucleotide alignment into 1-hot encoding.
@@ -128,7 +128,7 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose):
     align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
 
     # parse the result and return/save to file
-    for line in merged_fasta(align_cmd.stdout):
+    for line in merge_fasta(align_cmd.stdout):
         converted_line = convert_alignment(line,verbose)
         yield converted_line
 
@@ -187,7 +187,7 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     os.chmod(temp_file.name, 0o644)
 
     # parse the result and save to temp_file
-    for line in merged_fasta(align_cmd.stdout):
+    for line in merge_fasta(align_cmd.stdout):
         converted_line = convert_alignment(line,verbose)
         temp_file.write(converted_line+"\n")
 
