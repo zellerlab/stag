@@ -27,6 +27,7 @@ import pandas as pd
 child_nodes = dict()
 tree_root = "tree_root"
 child_nodes[tree_root] = set()
+last_level_to_genes = dict()
 all_gene_ids = list()
 
 #===============================================================================
@@ -40,8 +41,8 @@ all_gene_ids = list()
 # Output:
 #  - a list of genes
 def find_leaves_recoursive(node, all_leaves):
-    if node in all_gene_ids:
-        all_leaves.append(node)
+    if node in last_level_to_genes:
+        all_leaves = all_leaves + list(last_level_to_genes[node])
     else:
         for c in child_nodes[node]:
             find_leaves_recoursive(c, all_leaves)
@@ -84,14 +85,19 @@ def load_taxonomy(file_name):
         if not(vals[1] in child_nodes):
             child_nodes[vals[1]] = set()
         # we enter all remaining levels
-        for i in range(2,len(vals)):
+        for i in range(2,len(vals)-1):
             # first we enter that this is a child
             child_nodes[vals[i-1]].add(vals[i])
             # and second, we create a node if there is not already
             if not(vals[i] in child_nodes):
                 child_nodes[vals[i]] = set()
-        # Finally, we add the gene id
-        child_nodes[vals[-1]].add(vals[0])
+        # We add the last level
+        child_nodes[vals[-2]].add(vals[-1])
+        # Finally we add from the last level to the genes ids
+        if not(vals[-1] in last_level_to_genes):
+            last_level_to_genes[vals[-1]] = set()
+        last_level_to_genes[vals[-1]].add(vals[0])
+        # and we add it to the list of gene ids
         all_gene_ids.append(vals[0])
 
     all_gene_ids.sort() # we sort the list, so that search should be faster
