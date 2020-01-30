@@ -57,7 +57,8 @@ def load_taxonomy(file_name):
         # expected line: gene1\tBacteria\tFirmicutes\t...
         vals = line.rstrip().split("\t")
         if number_of_taxonomic_levels != len(vals):
-            sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels\n")
+            sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels in:\n")
+            sys.stderr.write("  "+line+"\n")
             sys.exit(1)
 
         # we enter the first level, to the root:
@@ -75,3 +76,12 @@ def load_taxonomy(file_name):
         child_nodes[vals[-1]].add(vals[0])
 
     o.close()
+
+# main function ================================================================
+def create_db(aligned_seq_file, tax_file, verbose, output):
+    # 1. load the taxonomy into the tree (global variable)
+    load_taxonomy(tax_file)
+    # 2. load the alignment into a pandas dataframe
+    alignment = load_alignment_from_file(aligned_seq_file)
+    # 3. build a classifier for each node
+    

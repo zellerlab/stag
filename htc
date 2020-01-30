@@ -63,6 +63,11 @@ try:
 except:
     sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/align.py\n")
     sys.exit(1)
+try:
+    import create_db as create_db
+except:
+    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/create_db.py\n")
+    sys.exit(1)
 
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
@@ -124,7 +129,14 @@ def print_menu_align():
     sys.stderr.write("  -c        set if you are using a cmfile\n")
     sys.stderr.write("  -t  INT   number of threads [1]\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
-
+# ------------------------------------------------------------------------------
+def print_menu_create_db():
+    sys.stderr.write("\n")
+    sys.stderr.write("Usage: htc create_db -s <aligned_file> -a <taxonomy_file> [options]\n\n")
+    sys.stderr.write("  -s  FILE  file with 1-hot encoding MSA (result from htc align)\n")
+    sys.stderr.write("  -a  FILE  taxonomy file (tab separated)\n")
+    sys.stderr.write("  -o  FILE  output file name [stdout]\n")
+    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -148,6 +160,7 @@ def main(argv=None):
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
         if (args.sequences_to_align is None) and (args.template_al is None):
             if args.command == 'align': print_menu_align()
+            if args.command == 'create_db': print_menu_create_db()
             sys.exit(1)
 
     # --------------------------------------------------------------------------
@@ -186,6 +199,25 @@ def main(argv=None):
                 print(i)
         else:
             align.align_file(args.sequences_to_align, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
+
+    # --------------------------------------------------------------------------
+    # CREATE_DB routine
+    # --------------------------------------------------------------------------
+    if args.command == 'create_db':
+        # check that '-s' has been provided (alignment produced by htc align)
+        if (args.sequences_to_align is None):
+            sys.stderr.write("[E::main] Error: missing <aligned_file> (-s)\n")
+            sys.exit(1)
+        # check that '-a' has been provided (taxonomy file)
+        if (args.template_al is None):
+            sys.stderr.write("[E::main] Error: missing <taxonomy_file> (-a)\n")
+            sys.exit(1)
+        # check that '-s' and '-a' are files
+        check_file_exists(args.sequences_to_align,isfasta = False)
+        check_file_exists(args.template_al,isfasta = False)
+
+        # call the function to create the database
+        create_db.create_db(args.sequences_to_align, args.template_al,args.verbose, args.output)
 
     return 0        # success
 
