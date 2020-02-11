@@ -105,6 +105,15 @@ def load_taxonomy(file_name):
     all_gene_ids.sort() # we sort the list, so that search should be faster
     o.close()
 
+# function that finds positive and negative examples ===========================
+def find_training_genes(node, sibilings):
+    positive_examples = find_leaves(node)
+    negative_examples = list()
+    if len(sibilings) > 0:
+        for s in sibilings:
+            negative_examples = negative_examples + find_leaves(s)
+    return positive_examples, negative_examples
+
 # function that train the classifier for one node ==============================
 def train_classifier(positive_examples,negative_examples,all_classifiers):
     #print(positive_examples)
@@ -125,11 +134,7 @@ def train_node_iteratively(node, sibilings, all_classifiers):
     # find genomes to use and to which class they belong to,
     # we need positive and negative examples
     logging.info('   TRAIN:"%s":Find genes', node)
-    positive_examples = find_leaves(node)
-    negative_examples = list()
-    if len(sibilings) > 0:
-        for s in sibilings:
-            negative_examples = negative_examples + find_leaves(s)
+    positive_examples, negative_examples = find_training_genes(node, sibilings)
 
     # train the classifier
     logging.info('   TRAIN:"%s":Train classifier', node)
