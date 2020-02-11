@@ -85,6 +85,12 @@ def check_file_exists(file_name, isfasta = False):
         sys.stderr.write("[E::main] Error: Cannot open file: "+file_name+"\n")
         sys.exit(1)
 
+# function that checks if a file exists already, and give an error -------------
+def check_file_doesnt_exists(file_name):
+    if os.path.exists(file_name):
+        sys.stderr.write("[E::main] Error: Output file exists already: "+file_name+"\n")
+        sys.exit(1)
+
 # ------------------------------------------------------------------------------
 #       print the help informations
 # ------------------------------------------------------------------------------
@@ -132,10 +138,11 @@ def print_menu_align():
 # ------------------------------------------------------------------------------
 def print_menu_create_db():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc create_db -s <aligned_file> -a <taxonomy_file> [options]\n\n")
+    sys.stderr.write("Usage: htc create_db -s <aligned_file> -a <taxonomy_file> -o <output_DB> [options]\n\n")
     sys.stderr.write("  -s  FILE  file with 1-hot encoding MSA (result from htc align)\n")
     sys.stderr.write("  -a  FILE  taxonomy file (tab separated)\n")
-    sys.stderr.write("  -o  FILE  output file name [stdout]\n")
+    sys.stderr.write("  -o  FILE  output file name\n")
+    sys.stderr.write("  -f        force to rewrite output file\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
 
 # ------------------------------------------------------------------------------
@@ -151,6 +158,7 @@ def main(argv=None):
     parser.add_argument('-c', action='store_true', default=None, dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
     parser.add_argument('-s', action="store", default=None,dest='sequences_to_align', help='sequences that needs to be aligned')
     parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')
+    parser.add_argument('-f', action='store_true', default=None, dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -158,7 +166,7 @@ def main(argv=None):
 
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
-        if (args.sequences_to_align is None) and (args.template_al is None):
+        if (args.sequences_to_align is None) and (args.template_al is None) and (args.force_rewrite is None):
             if args.command == 'align': print_menu_align()
             if args.command == 'create_db': print_menu_create_db()
             sys.exit(1)
@@ -170,6 +178,7 @@ def main(argv=None):
     if (args.verbose is None): args.verbose = 3
     if (args.output is None): args.output = None
     if (args.use_cm_align is None): args.use_cm_align = False
+    if (args.force_rewrite is None): args.force_rewrite = False
 
     if args.verbose < 1:
         sys.stderr.write("[E::main] Error: verbose level (-v) is less than 1\n")
@@ -216,8 +225,15 @@ def main(argv=None):
         check_file_exists(args.sequences_to_align,isfasta = False)
         check_file_exists(args.template_al,isfasta = False)
 
+        # check that output is set
+        if args.output is None:
+             sys.stderr.write("[E::main] Error: missing <output_DB> (-o)\n")
+             sys.exit(1)
+        if not args.force_rewrite:
+            check_file_doesnt_exists(args.output)
+
         # call the function to create the database
-        create_db.create_db(args.sequences_to_align, args.template_al,args.verbose, args.output)
+        create_db.create_db(args.sequences_to_align, args.template_al, args.verbose, args.output)
 
     return 0        # success
 

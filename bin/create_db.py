@@ -21,6 +21,8 @@ import sys
 import random
 import time
 import pandas as pd
+import logging
+import os
 
 #===============================================================================
 # Global variables for taxonomy tree
@@ -105,8 +107,8 @@ def load_taxonomy(file_name):
 
 # function that train the classifier for one node ==============================
 def train_classifier(positive_examples,negative_examples,all_classifiers):
-    print(positive_examples)
-    print(negative_examples)
+    #print(positive_examples)
+    #print(negative_examples)
     return 1 # to be implemented
 
 
@@ -122,7 +124,7 @@ def train_node_iteratively(node, sibilings, all_classifiers):
 
     # find genomes to use and to which class they belong to,
     # we need positive and negative examples
-    print(node)
+    logging.info('   TRAIN:"%s":Find genes', node)
     positive_examples = find_leaves(node)
     negative_examples = list()
     if len(sibilings) > 0:
@@ -130,7 +132,8 @@ def train_node_iteratively(node, sibilings, all_classifiers):
             negative_examples = negative_examples + find_leaves(s)
 
     # train the classifier
-    train_classifier(positive_examples,negative_examples,all_classifiers)
+    logging.info('   TRAIN:"%s":Train classifier', node)
+    all_classifiers[node] = train_classifier(positive_examples,negative_examples,all_classifiers)
 
 
 # function to train all classifiers ============================================
@@ -151,9 +154,25 @@ def train_all_classifiers(alignment):
 
 # main function ================================================================
 def create_db(aligned_seq_file, tax_file, verbose, output):
+    # set log file
+    filename_log = os.path.realpath(output)+'.log'
+    logging.basicConfig(filename=filename_log,
+                        filemode='w',
+                        level=logging.INFO,
+                        format='[%(asctime)s] %(message)s')
+    logging.info('MAIN:start')
+
     # 1. load the taxonomy into the tree (global variable)
+    logging.info('MAIN:Load taxonomy')
     load_taxonomy(tax_file)
+    logging.info('MAIN:Finish load taxonomy')
+
     # 2. load the alignment into a pandas dataframe
+    logging.info('MAIN:Load alignment')
     alignment = load_alignment_from_file(aligned_seq_file)
+    logging.info('MAIN:Finish load alignment')
+
     # 3. build a classifier for each node
+    logging.info('MAIN:Train all classifiers')
     classifiers = train_all_classifiers(alignment)
+    logging.info('MAIN:Finish train all classifiers')
