@@ -23,6 +23,8 @@ import time
 import pandas as pd
 import logging
 import os
+from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import make_classification
 
 #===============================================================================
 # Global variables for taxonomy tree
@@ -115,30 +117,36 @@ def find_training_genes(node, sibilings):
     return positive_examples, negative_examples
 
 # function that train the classifier for one node ==============================
-def train_classifier(positive_examples,negative_examples,all_classifiers):
-    #print(positive_examples)
-    #print(negative_examples)
-    return 1 # to be implemented
+def train_classifier(positive_examples,negative_examples,all_classifiers,alignment):
+    # select the genes from the pandas dataframe
+    
+    # train classifier
+    clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
+    clf.fit(X, y)
+    return clf
 
 
 # train node and call the same function on all the children ====================
-def train_node_iteratively(node, sibilings, all_classifiers):
+def train_node_iteratively(node, sibilings, all_classifiers, alignment):
     # call the function on all the children
     # but only if they are not the last level
     if not(node in last_level_to_genes):
         for child in child_nodes[node]:
             sibilings_child = list(child_nodes[node])
             sibilings_child.remove(child)
-            train_node_iteratively(child, sibilings_child, all_classifiers)
+            train_node_iteratively(child, sibilings_child, all_classifiers, alignment)
 
     # find genomes to use and to which class they belong to,
     # we need positive and negative examples
     logging.info('   TRAIN:"%s":Find genes', node)
     positive_examples, negative_examples = find_training_genes(node, sibilings)
+    logging.info('      SEL_GENES:"%s": %s positive, %s negative', node,
+                 str(len(positive_examples)),str(len(negative_examples)))
 
     # train the classifier
     logging.info('   TRAIN:"%s":Train classifier', node)
-    all_classifiers[node] = train_classifier(positive_examples,negative_examples,all_classifiers)
+    all_classifiers[node] = train_classifier(positive_examples,negative_examples,
+                                             all_classifiers, alignment)
 
 
 # function to train all classifiers ============================================
@@ -154,7 +162,7 @@ def train_all_classifiers(alignment):
     for node in child_nodes[tree_root]:
         sibilings = list(child_nodes[tree_root])
         sibilings.remove(node)
-        train_node_iteratively(node, sibilings, all_classifiers)
+        train_node_iteratively(node, sibilings, all_classifiers, alignment)
     return(all_classifiers)
 
 # main function ================================================================
