@@ -117,9 +117,21 @@ def find_training_genes(node, sibilings):
     return positive_examples, negative_examples
 
 # function that train the classifier for one node ==============================
-def train_classifier(positive_examples,negative_examples,all_classifiers,alignment):
+def train_classifier(positive_examples,negative_examples,all_classifiers,alignment, node):
+    # check that we have at least 1 example for each class:
+    if len(negative_examples) == 0:
+        # when the node is the only child, then there are no negative examples
+        logging.info('      Warning: no negative examples for "%s', node)
+        return "no_negative_examples"
+    if len(positive_examples) == 0:
+        # There should be positive examples
+        logging.info('      Error: no positive examples for "%s', node)
+        return "ERROR_no_positive_examples"
+
     # select the genes from the pandas dataframe
-    
+    X = alignment.loc[ positive_examples + negative_examples , : ].to_numpy()
+    train_labels = ["yes"]*len(positive_examples)+["no"]*len(negative_examples)
+    y = np.asarray(train_labels)
     # train classifier
     clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
     clf.fit(X, y)
@@ -144,9 +156,9 @@ def train_node_iteratively(node, sibilings, all_classifiers, alignment):
                  str(len(positive_examples)),str(len(negative_examples)))
 
     # train the classifier
-    logging.info('   TRAIN:"%s":Train classifier', node)
+    logging.info('         TRAIN:"%s":Train classifier', node)
     all_classifiers[node] = train_classifier(positive_examples,negative_examples,
-                                             all_classifiers, alignment)
+                                             all_classifiers, alignment, node)
 
 
 # function to train all classifiers ============================================
