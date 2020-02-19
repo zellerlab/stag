@@ -51,7 +51,7 @@ def merge_fasta(filein):
             seq = seq + line
     # give back the last sequence
     if seq != "":
-        yield seq # we skip the 0 character, which is ">"
+        yield seq[1:] # we skip the 0 character, which is ">"
 
 # ------------------------------------------------------------------------------
 # function to convert the nucleotide alignment into 1-hot encoding.
