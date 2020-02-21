@@ -128,12 +128,17 @@ class Taxonomy:
     # function to remove nodes (and genes underneath), given a list of nodes ---
     # it returns the gene ids that were removed
     def remove_clades(self, node_list):
+        # remove all clades under
         list_removed_genes = list()
         for n in node_list:
             self.remove_clade_iter(n, list_removed_genes)
+        # remove all clades on top
+        for n in node_list:
             # now need to remove from the higher level in child_nodes
             for i in self.child_nodes:
                 self.child_nodes[i].discard(n) # discard does not raise a KeyError.
+        # if it was the only child, then we should remove also at higher level
+        self.remove_unused_branches()
         return list(list_removed_genes)
 
     def remove_clade_iter(self, node, list_removed_genes):
@@ -150,6 +155,24 @@ class Taxonomy:
                 self.remove_clade_iter(n, list_removed_genes)
             # remove from child_nodes
             self.child_nodes.pop(node,None)
+
+    def remove_unused_branches(self):
+        removed_any = False # this becomes True if we remove any node from
+                            # child_nodes, in which case we re-run remove_unused_branches
+        list_to_remove = list()
+        for i in self.child_nodes:
+            if len(self.child_nodes[i]) == 0:
+                removed_any = True
+                list_to_remove.append(i)
+                # remove from taxonomy at higher level
+                for j in self.child_nodes:
+                    self.child_nodes[j].discard(i)
+        # remove nodes that are empty from child_nodes
+        for n in list_to_remove:
+            self.child_nodes.pop(n,None)
+        # call remove_unused_branches again if necessary
+        if removed_any:
+            self.remove_unused_branches()
 
     # print the values in the taxonomy class -----------------------------------
     def __str__(self):
