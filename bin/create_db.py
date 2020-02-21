@@ -174,14 +174,31 @@ class Taxonomy:
         if removed_any:
             self.remove_unused_branches()
 
+    # function to remove nodes (and genes underneath), given a list of nodes ---
+    # it returns the gene ids that were removed
+    def remove_genes(self, gene_list):
+        # remove the genes from the gene list
+        self.all_gene_ids = [e for e in self.all_gene_ids if e not in gene_list]
+        # remove the genes from last_level_to_genes
+        for g in gene_list:
+            for node in self.last_level_to_genes:
+                self.last_level_to_genes[node].discard(g)
+        # Check if all the genes from one clade are removed, and hence we should
+        # remove that clade
+        list_to_remove = list()
+        for node in self.last_level_to_genes:
+            if len(self.last_level_to_genes[node]) == 0:
+                list_to_remove.append(node)
+        self.remove_clades(list_to_remove)
+
     # print the values in the taxonomy class -----------------------------------
     def __str__(self):
         to_print = "NODES:\n"
         for i in self.child_nodes:
-            to_print = to_print + "   N:" + i + ": " + str(self.child_nodes[i]) + "\n"
+            to_print = to_print + "   (N):" + i + ": " + str(self.child_nodes[i]) + "\n"
         to_print = to_print + "\nGENES:\n"
         for i in self.last_level_to_genes:
-            to_print = to_print + "   G:" + i + ": " + str(self.last_level_to_genes[i]) + "\n"
+            to_print = to_print + "   (G):" + i + ": " + str(self.last_level_to_genes[i]) + "\n"
         to_print = to_print + "\nLIST GENES:\n" + str(self.all_gene_ids) + "\n"
         to_print = to_print + "\nN LEVELS: " + str(self.number_of_taxonomic_levels) + "\n"
         return to_print
