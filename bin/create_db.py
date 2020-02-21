@@ -125,7 +125,32 @@ class Taxonomy:
             for c in self.child_nodes[node]:
                 self.find_leaves_recoursive(c, all_leaves)
 
+    # function to remove nodes (and genes underneath), given a list of nodes ---
+    # it returns the gene ids that were removed
+    def remove_clades(self, node_list):
+        set_removed_genes = set()
+        for n in node_list:
+            remove_clade_iter(n, set_removed_genes)
+            # now need to remove from the higher level in child_nodes
+            for i in self.child_nodes:
+                self.child_nodes[i].discard(n) # discard does not raise a KeyError.
+        return list(set_removed_genes)
 
+    def remove_clade_iter(self, node, set_removed_genes):
+        if node in self.last_level_to_genes:
+            # we arrived at the end of the tree, we remove the genes, but first:
+            # add to the set of removed genes
+            set_removed_genes = set_removed_genes.union(self.last_level_to_genes[node])
+            # remove the genes from the gene list
+            self.all_gene_ids = [e for e in self.all_gene_ids if e not in self.last_level_to_genes[node]]
+            # and, finally, remove the node from the last_level_to_genes dict
+            self.last_level_to_genes.pop(node,None)
+
+        for n in self.child_nodes[node]:
+            remove_clade_iter(n, set_removed_genes)
+
+        # remove from child_nodes
+        self.child_nodes.pop(node,None)
 
 
 
