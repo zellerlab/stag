@@ -151,10 +151,14 @@ class Taxonomy:
             # and, finally, remove the node from the last_level_to_genes dict
             self.last_level_to_genes.pop(node,None)
         else:
-            for n in self.child_nodes[node]:
-                self.remove_clade_iter(n, list_removed_genes)
-            # remove from child_nodes
-            self.child_nodes.pop(node,None)
+            try:
+                for n in self.child_nodes[node]:
+                    self.remove_clade_iter(n, list_removed_genes)
+                # remove from child_nodes
+                self.child_nodes.pop(node,None)
+            except KeyError as e:
+                sys.stderr.write("WARNING: key not present when removing a clade ["+str(e)+"]\n\n")
+
 
     def remove_unused_branches(self):
         removed_any = False # this becomes True if we remove any node from
