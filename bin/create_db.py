@@ -128,30 +128,40 @@ class Taxonomy:
     # function to remove nodes (and genes underneath), given a list of nodes ---
     # it returns the gene ids that were removed
     def remove_clades(self, node_list):
-        set_removed_genes = set()
+        list_removed_genes = list()
         for n in node_list:
-            remove_clade_iter(n, set_removed_genes)
+            self.remove_clade_iter(n, list_removed_genes)
             # now need to remove from the higher level in child_nodes
             for i in self.child_nodes:
                 self.child_nodes[i].discard(n) # discard does not raise a KeyError.
-        return list(set_removed_genes)
+        return list(list_removed_genes)
 
-    def remove_clade_iter(self, node, set_removed_genes):
+    def remove_clade_iter(self, node, list_removed_genes):
         if node in self.last_level_to_genes:
             # we arrived at the end of the tree, we remove the genes, but first:
             # add to the set of removed genes
-            set_removed_genes = set_removed_genes.union(self.last_level_to_genes[node])
+            list_removed_genes.extend(self.last_level_to_genes[node])
             # remove the genes from the gene list
             self.all_gene_ids = [e for e in self.all_gene_ids if e not in self.last_level_to_genes[node]]
             # and, finally, remove the node from the last_level_to_genes dict
             self.last_level_to_genes.pop(node,None)
+        else:
+            for n in self.child_nodes[node]:
+                self.remove_clade_iter(n, list_removed_genes)
+            # remove from child_nodes
+            self.child_nodes.pop(node,None)
 
-        for n in self.child_nodes[node]:
-            remove_clade_iter(n, set_removed_genes)
-
-        # remove from child_nodes
-        self.child_nodes.pop(node,None)
-
+    # print the values in the taxonomy class -----------------------------------
+    def __str__(self):
+        to_print = "NODES:\n"
+        for i in self.child_nodes:
+            to_print = to_print + "   N:" + i + ": " + str(self.child_nodes[i]) + "\n"
+        to_print = to_print + "\nGENES:\n"
+        for i in self.last_level_to_genes:
+            to_print = to_print + "   G:" + i + ": " + str(self.last_level_to_genes[i]) + "\n"
+        to_print = to_print + "\nLIST GENES:\n" + str(self.all_gene_ids) + "\n"
+        to_print = to_print + "\nN LEVELS: " + str(self.number_of_taxonomic_levels) + "\n"
+        return to_print
 
 
 
