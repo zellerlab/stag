@@ -44,13 +44,13 @@ class Taxonomy:
     def load_from_file(self):
         o = open(self.file_name,"r")
 
-        self.number_of_taxonomic_levels = len(o.readline().rstrip().split("\t"))
+        self.number_of_taxonomic_levels = len(o.readline().rstrip().split("\t")) - 2
         o.seek(0)
 
         for line in o:
             # expected line: gene1\tBacteria\tFirmicutes\t...
             vals = line.rstrip().split("\t")
-            if self.number_of_taxonomic_levels != len(vals):
+            if self.number_of_taxonomic_levels != len(vals)-2 :
                 sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels in:\n")
                 sys.stderr.write("  "+line+"\n")
                 sys.exit(1)
@@ -178,8 +178,7 @@ class Taxonomy:
         if removed_any:
             self.remove_unused_branches()
 
-    # function to remove nodes (and genes underneath), given a list of nodes ---
-    # it returns the gene ids that were removed
+    # function to remove genes from a list -------------------------------------
     def remove_genes(self, gene_list):
         # remove the genes from the gene list
         self.all_gene_ids = [e for e in self.all_gene_ids if e not in gene_list]
@@ -195,6 +194,25 @@ class Taxonomy:
                 list_to_remove.append(node)
         self.remove_clades(list_to_remove)
 
+    # function that returns all nodes at one level, ----------------------------
+    # as a dictionary of the parent nodes
+    def find_tax_level_iter(self, current_node, current_level, result):
+        if current_node in self.child_nodes:
+            for n in self.child_nodes[current_node]:
+                result[n] = current_level+1
+                self.find_tax_level_iter(n, current_level+1, result)
+    def find_node_level(self, tax_level_find):
+        # find tax level for each node
+        tax_level = dict()
+        tax_level[self.tree_root] = 0
+        self.find_tax_level_iter(self.tree_root,0,tax_level)
+        # select only the one from the correct level
+        res = dict()
+        for n in self.child_nodes:
+            if tax_level[n] == tax_level_find+1:
+                res[n] = set(self.child_nodes[n])
+        return res
+
     # print the values in the taxonomy class -----------------------------------
     def __str__(self):
         to_print = "NODES:\n"
@@ -206,6 +224,7 @@ class Taxonomy:
         to_print = to_print + "\nLIST GENES:\n" + str(self.all_gene_ids) + "\n"
         to_print = to_print + "\nN LEVELS: " + str(self.number_of_taxonomic_levels) + "\n"
         return to_print
+
 
 
 
@@ -229,7 +248,7 @@ def load_alignment_from_file(file_name):
 # function to check that taxonomy and alignment are consistent =================
 # 1. all genes in the alignment should be in the taxonomy
 def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
-    ff = "sdf"
+    ff = "dummy"
 
 
 
@@ -324,10 +343,22 @@ def train_all_classifiers(alignment, full_taxonomy):
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
 #===============================================================================
 
-def learn_function_one_level(level_to_learn):
+def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
+    # 1. Identify which clades we want to remove (test set) and which to keep
+    #    (training set)
+    this_level_clades = full_taxonomy.find_node_level(level_to_learn)
+    print(level_to_learn)
+    print(this_level_clades)
+
+    # 2. Create new taxonomy and alignment file & train the classifiers
+
     return ["dummy"]
+
 def learn_function_genes_level():
     return ["dummy"]
+
+def estimate_function(all_calc_functions):
+    return "dummy"
 
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
@@ -335,14 +366,18 @@ def learn_function_genes_level():
 def learn_taxonomy_selection_function(alignment, full_taxonomy):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
+    print(n_levels)
 
     # do the cross validation for each level
     all_calc_functions = list()
     for i in range(n_levels):
-        all_calc_functions = all_calc_functions + learn_function_one_level(i)
+        all_calc_functions = all_calc_functions + learn_function_one_level(i, alignment, full_taxonomy)
     # do the cross val. for the last level (using the genes)
     all_calc_functions = all_calc_functions + learn_function_genes_level()
+
     # estimate the function
+    f = estimate_function(all_calc_functions)
+    return f
 
 
 
