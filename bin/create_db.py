@@ -344,11 +344,25 @@ def train_all_classifiers(alignment, full_taxonomy):
 #===============================================================================
 
 def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
+    logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
     # 1. Identify which clades we want to remove (test set) and which to keep
     #    (training set)
     this_level_clades = full_taxonomy.find_node_level(level_to_learn)
-    print(level_to_learn)
-    print(this_level_clades)
+    # we use 33% of the clades for testing
+    perc_test_set = 0.33 # this cannot be higher than 0.5.
+    test_set = set()
+    training_set = set()
+    for c in this_level_clades:
+        # find how many to use for the test set:
+        aval_clades = set(this_level_clades[c])
+        n_test = round(len(aval_clades) * perc_test_set)
+        # add to test set
+        for i in range(n_test):
+            test_set.add(aval_clades.pop())
+        # the remaining clades in aval_clades go to the trainig set
+        training_set.update(aval_clades)
+    logging.info('  TEST:"%s" level:test_set (%s):%s', str(level_to_learn),str(len(test_set)),str(test_set))
+    logging.info('  TEST:"%s" level:trai_set (%s):%s', str(level_to_learn),str(len(training_set)),str(training_set))
 
     # 2. Create new taxonomy and alignment file & train the classifiers
 
@@ -366,7 +380,6 @@ def estimate_function(all_calc_functions):
 def learn_taxonomy_selection_function(alignment, full_taxonomy):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
-    print(n_levels)
 
     # do the cross validation for each level
     all_calc_functions = list()
@@ -421,6 +434,8 @@ def create_db(aligned_seq_file, tax_file, verbose, output):
     logging.info('MAIN:Finish train all classifiers')
 
     # 5. learn the function to identify the correct taxonomy level
+    logging.info('MAIN:Learn taxonomy selection function')
     learn_taxonomy_selection_function(alignment, full_taxonomy)
+    logging.info('MAIN:Finish learn taxonomy selection function')
 
     # 6. save the result
