@@ -39,21 +39,25 @@ class Taxonomy:
         self.last_level_to_genes = dict()
         self.all_gene_ids = list()
         self.number_of_taxonomic_levels = 0
+        self.annotation_per_gene = dict()
 
     # load taxonomy from the defined file --------------------------------------
     def load_from_file(self):
         o = open(self.file_name,"r")
 
-        self.number_of_taxonomic_levels = len(o.readline().rstrip().split("\t")) - 2
+        self.number_of_taxonomic_levels = len(o.readline().rstrip().split("\t")) - 1
         o.seek(0)
 
         for line in o:
             # expected line: gene1\tBacteria\tFirmicutes\t...
             vals = line.rstrip().split("\t")
-            if self.number_of_taxonomic_levels != len(vals)-2 :
+            if self.number_of_taxonomic_levels != len(vals)-1 :
                 sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels in:\n")
                 sys.stderr.write("  "+line+"\n")
                 sys.exit(1)
+
+            # we add the annotation_per_gene:
+            self.annotation_per_gene[vals[0]] = list(vals[1:])
 
             # we enter the first level, to the root:
             self.child_nodes[self.tree_root].add(vals[1])
@@ -90,7 +94,13 @@ class Taxonomy:
             temp.last_level_to_genes[i] = set(self.last_level_to_genes[i])
         temp.all_gene_ids = list(self.all_gene_ids)
         temp.number_of_taxonomic_levels = self.number_of_taxonomic_levels
+        for i in self.annotation_per_gene:
+            temp.annotation_per_gene[i] = list(self.annotation_per_gene[i])
         return temp
+
+    # return the classification of one gene
+    def extract_full_tax_from_gene(self, gene_id):
+        return self.annotation_per_gene[gene_id]
 
     # return number of levels --------------------------------------------------
     def get_n_levels(self):
@@ -209,7 +219,7 @@ class Taxonomy:
         # select only the one from the correct level
         res = dict()
         for n in self.child_nodes:
-            if tax_level[n] == tax_level_find+1:
+            if tax_level[n] == tax_level_find:
                 res[n] = set(self.child_nodes[n])
         return res
 
@@ -345,6 +355,9 @@ def train_all_classifiers(alignment, full_taxonomy):
 #===============================================================================
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
 #===============================================================================
+def predict(test_al, training_tax, classifiers_train):
+    res = list()
+    return(res)
 
 def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
     logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
@@ -373,8 +386,22 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
     training_al = alignment.loc[ training_tax.find_gene_ids(training_tax.get_root()) , : ]
     classifiers_train = train_all_classifiers(training_al, training_tax)
 
+    # 3. Classify the test set
+    test_al = alignment.loc[ removed_genes , : ]
+    pr = predict(test_al, training_tax, classifiers_train)
+    for g in pr:
+        # g is:
+        # ["geneB",["A","B","D","species8"],[0.99,0.96,0.96,0.07]]
+        correct_tax = full_taxonomy.extract_full_tax_from_gene(g[0])
+        g.append(correct_tax)
+        g.append(level_to_learn)
 
-    return ["dummy"]
+    return pr
+    # return:
+    #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
+    # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],3]
+    #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],3]
+    # .....                                                                               ]
 
 def learn_function_genes_level():
     return ["dummy"]
