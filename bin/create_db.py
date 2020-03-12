@@ -355,8 +355,53 @@ def train_all_classifiers(alignment, full_taxonomy):
 #===============================================================================
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
 #===============================================================================
+def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_so_far):
+    if training_tax.is_last_node(arrived_so_far):
+        return
+    max_perc = 0
+    max_perc_taxa = ""
+    # if there is only one child:
+    if len(training_tax.find_children_node(arrived_so_far)) == 1:
+        max_perc = 1
+        max_perc_taxa = training_tax.find_children_node(arrived_so_far)[0]
+    # if there are no children
+    if len(training_tax.find_children_node(arrived_so_far)) < 1:
+        sys.stderr.write("Error: no child\n")
+    # if there is more than one child
+    if len(training_tax.find_children_node(arrived_so_far)) > 1:
+        for n in training_tax.find_children_node(arrived_so_far):
+            clf = classifiers_train[n]
+            res = str(clf.predict(test_seq)) # either "yes" or "no"
+            predictions = clf.predict_proba(test_seq) # two predictions
+            if res == "['no']":
+                predicted_proba = np.amin(predictions) # if it predicts no, then the probability that we select is the smaller one
+            else:
+                predicted_proba = np.amax(predictions)
+            # check if the prediction is higher
+            if predicted_proba > max_perc:
+                max_perc = predicted_proba
+                max_perc_taxa = n
+
+    tax.append(max_perc_taxa)
+    perc.append(max_perc)
+    predict_iter(test_seq, training_tax, classifiers_train, tax, perc, max_perc_taxa)
+
+def predict_one_gene(test_seq, training_tax, classifiers_train):
+    tax = list()
+    perc = list()
+    # we arrived at the root, and now we classify from there
+    predict_iter(test_seq, training_tax, classifiers_train, tax, perc, training_tax.get_root())
+    return tax, perc
+
 def predict(test_al, training_tax, classifiers_train):
     res = list()
+    for i in test_al.index.values:
+        r = list()
+        r.append(i)
+        predictions, percentages = predict_one_gene([test_al.loc[ i , : ].to_numpy()], training_tax, classifiers_train)
+        r.append(predictions)
+        r.append(percentages)
+        res.append(r)
     return(res)
 
 def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
