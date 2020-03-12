@@ -246,7 +246,10 @@ def load_alignment_from_file(file_name):
     return alignment
 
 # function to check that taxonomy and alignment are consistent =================
-# 1. all genes in the alignment should be in the taxonomy
+# 1. all genes in the alignment should be in the taxonomy (and the contrary?!)
+# 2. check that the taxonomy is consistent, not to have:
+#       gene1 A  B  C  species1
+#       gene2 A  D  C  species1
 def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
     ff = "dummy"
 
@@ -365,6 +368,11 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
     logging.info('  TEST:"%s" level:trai_set (%s):%s', str(level_to_learn),str(len(training_set)),str(training_set))
 
     # 2. Create new taxonomy and alignment file & train the classifiers
+    training_tax = full_taxonomy.copy()
+    removed_genes = training_tax.remove_clades(list(test_set))
+    training_al = alignment.loc[ training_tax.find_gene_ids(training_tax.get_root()) , : ]
+    classifiers_train = train_all_classifiers(training_al, training_tax)
+
 
     return ["dummy"]
 
