@@ -116,6 +116,13 @@ class Taxonomy:
             return list(self.child_nodes[node])
         else:
             return None
+    # return the last level to genes -------------------------------------------
+    def get_last_level_to_genes(self):
+        last_level_to_genes_temp = dict()
+        for i in self.last_level_to_genes:
+            last_level_to_genes_temp[i] = set(self.last_level_to_genes[i])
+        return last_level_to_genes_temp
+
     # check if it is the last node before the genes ----------------------------
     def is_last_node(self, node):
         if node in self.last_level_to_genes:
@@ -448,8 +455,44 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
     #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],3]
     # .....                                                                               ]
 
-def learn_function_genes_level():
-    return ["dummy"]
+def learn_function_genes_level(level_to_learn, alignment, full_taxonomy):
+    logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
+    # 1. Identify which clades we want to remove (test set) and which to keep
+    #    (training set)
+    this_level_clades = full_taxonomy.get_last_level_to_genes() # now there are genes
+    # we use 33% of the genes for testing
+    perc_test_set = 0.33 # this cannot be higher than 0.5.
+    test_set = set()
+    training_set = set()
+    for c in this_level_clades:
+        # find how many to use for the test set:
+        aval_clades = set(this_level_clades[c])
+        n_test = round(len(aval_clades) * perc_test_set)
+        # add to test set
+        for i in range(n_test):
+            test_set.add(aval_clades.pop())
+        # the remaining clades in aval_clades go to the trainig set
+        training_set.update(aval_clades)
+    logging.info('  TEST:"%s" level:test_set (%s):%s', str(level_to_learn),str(len(test_set)),str(test_set))
+    logging.info('  TEST:"%s" level:trai_set (%s):%s', str(level_to_learn),str(len(training_set)),str(training_set))
+
+    # 2. Create new taxonomy and alignment file & train the classifiers
+    training_tax = full_taxonomy.copy()
+    training_tax.remove_genes(list(test_set))
+    training_al = alignment.loc[ training_set , : ]
+    classifiers_train = train_all_classifiers(training_al, training_tax)
+
+    # 3. Classify the test set
+    test_al = alignment.loc[ test_set , : ]
+    pr = predict(test_al, training_tax, classifiers_train)
+    for g in pr:
+        # g is:
+        # ["geneB",["A","B","D","species8"],[0.99,0.96,0.96,0.07]]
+        correct_tax = full_taxonomy.extract_full_tax_from_gene(g[0])
+        g.append(correct_tax)
+        g.append(level_to_learn)
+
+    return pr
 
 def estimate_function(all_calc_functions):
     return "dummy"
@@ -466,7 +509,9 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy):
     for i in range(n_levels):
         all_calc_functions = all_calc_functions + learn_function_one_level(i, alignment, full_taxonomy)
     # do the cross val. for the last level (using the genes)
-    all_calc_functions = all_calc_functions + learn_function_genes_level()
+    all_calc_functions = all_calc_functions + learn_function_genes_level(n_levels, alignment, full_taxonomy)
+
+    print(all_calc_functions)
 
     # estimate the function
     f = estimate_function(all_calc_functions)
