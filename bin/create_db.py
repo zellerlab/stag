@@ -451,8 +451,8 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
     return pr
     # return:
     #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
-    # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],3]
-    #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],3]
+    # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],2]
+    #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],2]
     # .....                                                                               ]
 
 def learn_function_genes_level(level_to_learn, alignment, full_taxonomy):
@@ -494,8 +494,47 @@ def learn_function_genes_level(level_to_learn, alignment, full_taxonomy):
 
     return pr
 
-def estimate_function(all_calc_functions):
-    return "dummy"
+def estimate_function(all_calc_functions, n_levels):
+    # The all_calc_functions looks like:
+    #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
+    # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],2]
+    #  ["geneB",["D","E","F","species8"],[0.99,0.96,0.95,0.07],["D","E","F","speciesZ"],3]
+    #  ["geneC",["G","H","I","species9"],[0.99,0.96,0.95,0.07],["G","H","I","species9"],4]
+    #   .....                                                                             ]
+    # the REMOVED_LEVEL count starting from 0 (in the first example, 2 means that
+    # "C" is removed)
+    # when we have 4 (which is outside of the taxonomy levels, {0,1,2,3}), it
+    # refers to the fact that we removed the genes
+    n_levels = len(all_calc_functions[0][1])
+    # This will contain all the empirical distributions:
+    all_values = dict()
+    # parse each line
+    for line in all_calc_functions:
+        # inizialize all levels to zero
+        if line[4] not in all_values:
+            all_values[line[4]] = dict()
+            for i in range(n_levels):
+                all_values[line[4]][i] = [0 for i in range(101)]
+        # add in the correct position
+        if line[4] in all_values:
+            # check that till the known clade we have the correct classification
+            predicted = list(line[1])
+            correct =  list(line[3])
+            for i in range(line[4],n_levels):
+                predicted[i] = "NA"
+                correct[i] = "NA"
+            s_predicted = "/".join(predicted)
+            s_correct = "/".join(correct)
+            if s_predicted != s_correct:
+                s_perc = '/'.join(str(v) for v in line[2])
+                logging.info('   LEARN_FUNCTION:WARNING:MISCLASSIFICATION: (gene):%s, (predicted): %s, (correct): %s, (perc):%s',
+                                  line[0],s_predicted, s_correct, s_perc)
+            # if they have the same taxonomy
+            if s_predicted == s_correct:
+                for i in range(n_levels):
+                    value_to_increase = int(round( line[2][i]*100 ))
+                    all_values[line[4]][i][value_to_increase] = all_values[line[4]][i][value_to_increase] + 1
+    return all_values
 
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
@@ -511,10 +550,8 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy):
     # do the cross val. for the last level (using the genes)
     all_calc_functions = all_calc_functions + learn_function_genes_level(n_levels, alignment, full_taxonomy)
 
-    print(all_calc_functions)
-
     # estimate the function
-    f = estimate_function(all_calc_functions)
+    f = estimate_function(all_calc_functions, n_levels)
     return f
 
 
@@ -560,7 +597,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output):
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
-    learn_taxonomy_selection_function(alignment, full_taxonomy)
+    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy)
     logging.info('MAIN:Finish learn taxonomy selection function')
 
     # 6. save the result
