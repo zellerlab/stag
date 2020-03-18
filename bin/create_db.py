@@ -23,6 +23,7 @@ import time
 import pandas as pd
 import logging
 import os
+import math
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
 
@@ -508,19 +509,25 @@ def estimate_function(all_calc_functions, n_levels):
     n_levels = len(all_calc_functions[0][1])
     # This will contain all the empirical distributions:
     all_values = dict()
+    # the probablity goes from 0 to 1, we discretize this into n_reg regions
+    n_reg = 10
+
     # parse each line
     for line in all_calc_functions:
+        rem_lev = line[4]
+        rem_clade = line[3][min( rem_lev,len(line[3])-1 )] # we use min, because if we removed a gene, then we put the species ID
         # inizialize all levels to zero
-        if line[4] not in all_values:
-            all_values[line[4]] = dict()
+        if rem_lev not in all_values:
+            all_values[rem_lev] = dict()
             for i in range(n_levels):
-                all_values[line[4]][i] = [0 for i in range(101)]
+                all_values[rem_lev][i] = dict()
+
         # add in the correct position
-        if line[4] in all_values:
+        if rem_lev in all_values:
             # check that till the known clade we have the correct classification
             predicted = list(line[1])
             correct =  list(line[3])
-            for i in range(line[4],n_levels):
+            for i in range(rem_lev,n_levels):
                 predicted[i] = "NA"
                 correct[i] = "NA"
             s_predicted = "/".join(predicted)
@@ -528,13 +535,45 @@ def estimate_function(all_calc_functions, n_levels):
             if s_predicted != s_correct:
                 s_perc = '/'.join(str(v) for v in line[2])
                 logging.info('   LEARN_FUNCTION:WARNING:MISCLASSIFICATION: (gene):%s, (predicted): %s, (correct): %s, (perc):%s',
-                                  line[0],s_predicted, s_correct, s_perc)
+                                  line[0],s_predicted, "/".join(line[3]), s_perc)
             # if they have the same taxonomy
             if s_predicted == s_correct:
+                # we create if needed
+                if rem_clade not in all_values[rem_lev][0]:
+                    for i in range(n_levels):
+                        all_values[rem_lev][i][rem_clade] = [0 for i in range(n_reg+1)] # we use n_reg+1 because there is also the zero
+                # and we add the counts
                 for i in range(n_levels):
-                    value_to_increase = int(round( line[2][i]*100 ))
-                    all_values[line[4]][i][value_to_increase] = all_values[line[4]][i][value_to_increase] + 1
-    return all_values
+                    value_to_increase = int(round( line[2][i]*n_reg ))
+                    all_values[rem_lev][i][rem_clade][value_to_increase] = all_values[rem_lev][i][rem_clade][value_to_increase] + 1
+    # now we have
+    # all_values[removed_level][tested_level][clade][values of the histogram]
+    # all_values          [INT]         [INT]  [STR]            [list of INT]
+    # and we need to put together the info of the different clades
+    # we save them into:
+    average_all_values = dict()
+    # and we set it up:
+    for rem_lev in all_values:
+        average_all_values[rem_lev] = dict()
+        for eval_lev in all_values[rem_lev]:
+            average_all_values[rem_lev][eval_lev] = [0 for i in range(n_reg+1)]
+    # insert the values
+    for rem_lev in all_values:
+        for eval_lev in all_values[rem_lev]:
+            for rem_clade in all_values[rem_lev][eval_lev]:
+                sum_this_clade = sum(all_values[rem_lev][eval_lev][rem_clade])
+                mult_factor = math.sqrt(sum_this_clade) # we weight clades based on the sqrt of the number of genes that there were
+                for i in range(n_reg+1):
+                    average_all_values[rem_lev][eval_lev][i] = average_all_values[rem_lev][eval_lev][i] + (all_values[rem_lev][eval_lev][rem_clade][i]/sum_this_clade * mult_factor)
+
+    # now we need to transform it to rel ab:
+    for rem_lev in average_all_values:
+        for eval_lev in average_all_values[rem_lev]:
+            sum_this_clade = sum(average_all_values[rem_lev][eval_lev])
+            for i in range(n_reg+1):
+                average_all_values[rem_lev][eval_lev][i] = average_all_values[rem_lev][eval_lev][i] / sum_this_clade
+
+    return average_all_values
 
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
