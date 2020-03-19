@@ -596,6 +596,14 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy):
 
 
 
+#===============================================================================
+#                     FUNCTIONS TO SAVE TO A DATABASE
+#===============================================================================
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, output):
+    temp = "dummy"
+
+
+
 
 
 
@@ -605,7 +613,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy):
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -640,3 +648,6 @@ def create_db(aligned_seq_file, tax_file, verbose, output):
     logging.info('MAIN:Finish learn taxonomy selection function')
 
     # 6. save the result
+    logging.info('MAIN:Save to file')
+    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, output)
+    logging.info('MAIN:Finish save to file')

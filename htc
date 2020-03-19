@@ -138,9 +138,12 @@ def print_menu_align():
 # ------------------------------------------------------------------------------
 def print_menu_create_db():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc create_db -s <aligned_file> -a <taxonomy_file> -o <output_DB> [options]\n\n")
+    sys.stderr.write("Usage: htc create_db -s <aligned_file> -x <taxonomy_file>\n")
+    sys.stderr.write("                     -a <hmmfile> -o <output_DB> [options]\n\n")
     sys.stderr.write("  -s  FILE  file with 1-hot encoding MSA (result from htc align)\n")
-    sys.stderr.write("  -a  FILE  taxonomy file (tab separated)\n")
+    sys.stderr.write("  -a  FILE  hmmfile or cmfile to used as template for the alignment\n")
+    sys.stderr.write("  -c        set if you are using a cmfile\n")
+    sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
     sys.stderr.write("  -o  FILE  output file name\n")
     sys.stderr.write("  -f        force to rewrite output file\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
@@ -158,6 +161,7 @@ def main(argv=None):
     parser.add_argument('-c', action='store_true', default=None, dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
     parser.add_argument('-s', action="store", default=None,dest='sequences_to_align', help='sequences that needs to be aligned')
     parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')
+    parser.add_argument('-x', action="store", default=None,dest='taxonomy', help='taxonomy file path')
     parser.add_argument('-f', action='store_true', default=None, dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
@@ -166,7 +170,7 @@ def main(argv=None):
 
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
-        if (args.sequences_to_align is None) and (args.template_al is None) and (args.force_rewrite is None):
+        if (args.sequences_to_align is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None):
             if args.command == 'align': print_menu_align()
             if args.command == 'create_db': print_menu_create_db()
             sys.exit(1)
@@ -217,12 +221,17 @@ def main(argv=None):
         if (args.sequences_to_align is None):
             sys.stderr.write("[E::main] Error: missing <aligned_file> (-s)\n")
             sys.exit(1)
-        # check that '-a' has been provided (taxonomy file)
+        # check that '-x' has been provided (taxonomy file)
+        if (args.taxonomy is None):
+            sys.stderr.write("[E::main] Error: missing <taxonomy_file> (-x)\n")
+            sys.exit(1)
+        # check that the hmm file is provided
         if (args.template_al is None):
-            sys.stderr.write("[E::main] Error: missing <taxonomy_file> (-a)\n")
+            sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         # check that '-s' and '-a' are files
         check_file_exists(args.sequences_to_align,isfasta = False)
+        check_file_exists(args.taxonomy,isfasta = False)
         check_file_exists(args.template_al,isfasta = False)
 
         # check that output is set
@@ -233,7 +242,7 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.sequences_to_align, args.template_al, args.verbose, args.output)
+        create_db.create_db(args.sequences_to_align, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al)
 
     return 0        # success
 
