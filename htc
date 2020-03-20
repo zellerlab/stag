@@ -69,9 +69,9 @@ except:
     sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/create_db.py\n")
     sys.exit(1)
 try:
-    import find_tax as find_tax
+    import classify as classify
 except:
-    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/find_tax.py\n")
+    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/classify.py\n")
     sys.exit(1)
 
 # function that checks if a file exists ----------------------------------------
@@ -124,7 +124,6 @@ Command:
  -- Secondary commands
       align      Align a sequence to a hmm or infernal model
       create_db  Create a database given the aligned sequences
-      find_tax   Classify an aligned sequence
 
 Type htc <command> to print the help for a specific command
         '''
@@ -153,11 +152,11 @@ def print_menu_create_db():
     sys.stderr.write("  -f        force to rewrite output file\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
 # ------------------------------------------------------------------------------
-def print_menu_find_tax():
+def print_menu_classify():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc find_tax -d <database> -i <fasta_seqs> [options]\n\n")
+    sys.stderr.write("Usage: htc classify -d <database> -i <fasta_seqs> [options]\n\n")
     sys.stderr.write("  -d  FILE  database created with create_db or train\n")
-    sys.stderr.write("  -i  FILE  sequences to taxonomically annoate (fasta format)\n")
+    sys.stderr.write("  -i  FILE  sequences to taxonomically annotate (fasta format)\n")
     sys.stderr.write("  -o  FILE  output file name [stdout]\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
 
@@ -168,7 +167,7 @@ def print_menu_find_tax():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','find_tax','create_db'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db'])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
@@ -190,7 +189,7 @@ def main(argv=None):
             if (args.fasta_input is None) and (args.database is None):
                 if args.command == 'align': print_menu_align()
                 if args.command == 'create_db': print_menu_create_db()
-                if args.command == 'find_tax': print_menu_find_tax()
+                if args.command == 'classify': print_menu_classify()
                 sys.exit(1)
 
 
@@ -263,9 +262,9 @@ def main(argv=None):
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al)
 
     # --------------------------------------------------------------------------
-    # FIND_TAX routine
+    # CLASSIFY routine
     # --------------------------------------------------------------------------
-    if args.command == 'find_tax':
+    if args.command == 'classify':
         # check that '-i' has been provided (alignment produced by htc align)
         if (args.fasta_input is None):
             sys.stderr.write("[E::main] Error: missing <fasta_seqs> (-i)\n")
@@ -279,7 +278,7 @@ def main(argv=None):
         check_file_exists(args.database,isfasta = False)
 
         # call the function
-        find_tax.find_tax(args.database, args.fasta_input, args.verbose, args.output)
+        classify.classify(args.database, args.fasta_input, args.verbose, args.output)
 
 
 
