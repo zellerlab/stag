@@ -68,6 +68,11 @@ try:
 except:
     sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/create_db.py\n")
     sys.exit(1)
+try:
+    import find_tax as find_tax
+except:
+    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/find_tax.py\n")
+    sys.exit(1)
 
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
@@ -128,8 +133,8 @@ Type htc <command> to print the help for a specific command
 # ------------------------------------------------------------------------------
 def print_menu_align():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc align -s <seqfile> -a <hmmfile> [options]\n\n")
-    sys.stderr.write("  -s  FILE  sequences to be aligned (fasta format)\n")
+    sys.stderr.write("Usage: htc align -i <fasta_seqs> -a <hmmfile> [options]\n\n")
+    sys.stderr.write("  -i  FILE  sequences to be aligned (fasta format)\n")
     sys.stderr.write("  -a  FILE  hmmfile or cmfile to use as template for the alignment\n")
     sys.stderr.write("  -o  FILE  output file name [stdout]\n")
     sys.stderr.write("  -c        set if you are using a cmfile\n")
@@ -144,9 +149,18 @@ def print_menu_create_db():
     sys.stderr.write("  -a  FILE  hmmfile or cmfile to used as template for the alignment\n")
     sys.stderr.write("  -c        set if you are using a cmfile\n")
     sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
-    sys.stderr.write("  -o  FILE  output file name\n")
+    sys.stderr.write("  -o  FILE  output file name (HDF5 format)\n")
     sys.stderr.write("  -f        force to rewrite output file\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_find_tax():
+    sys.stderr.write("\n")
+    sys.stderr.write("Usage: htc find_tax -d <database> -i <fasta_seqs> [options]\n\n")
+    sys.stderr.write("  -d  FILE  database created with create_db or train\n")
+    sys.stderr.write("  -i  FILE  sequences to taxonomically annoate (fasta format)\n")
+    sys.stderr.write("  -o  FILE  output file name [stdout]\n")
+    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -159,10 +173,12 @@ def main(argv=None):
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
     parser.add_argument('-c', action='store_true', default=None, dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
-    parser.add_argument('-s', action="store", default=None,dest='sequences_to_align', help='sequences that needs to be aligned')
+    parser.add_argument('-s', action="store", default=None,dest='aligned_sequences', help='sequences that needs to be aligned')
     parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')
     parser.add_argument('-x', action="store", default=None,dest='taxonomy', help='taxonomy file path')
     parser.add_argument('-f', action='store_true', default=None, dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
+    parser.add_argument('-i', action="store", dest='fasta_input', default=None, help='input fasta sequences')
+    parser.add_argument('-d', action="store", dest='database', default=None, help='file containing the database')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -170,17 +186,19 @@ def main(argv=None):
 
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
-        if (args.sequences_to_align is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None):
-            if args.command == 'align': print_menu_align()
-            if args.command == 'create_db': print_menu_create_db()
-            sys.exit(1)
+        if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None):
+            if (args.fasta_input is None) and (args.database is None):
+                if args.command == 'align': print_menu_align()
+                if args.command == 'create_db': print_menu_create_db()
+                if args.command == 'find_tax': print_menu_find_tax()
+                sys.exit(1)
+
 
     # --------------------------------------------------------------------------
     # set defaults for the parameters
     # --------------------------------------------------------------------------
     if (args.threads is None): args.threads = 1
     if (args.verbose is None): args.verbose = 3
-    if (args.output is None): args.output = None
     if (args.use_cm_align is None): args.use_cm_align = False
     if (args.force_rewrite is None): args.force_rewrite = False
 
@@ -195,30 +213,30 @@ def main(argv=None):
     # ALIGN routine
     # --------------------------------------------------------------------------
     if args.command == 'align':
-        # check that '-s' and '-a' have been provided
-        if (args.sequences_to_align is None):
-            sys.stderr.write("[E::main] Error: missing <seqfile> (-s)\n")
+        # check that '-i' and '-a' have been provided
+        if (args.fasta_input is None):
+            sys.stderr.write("[E::main] Error: missing <seqfile> (-i)\n")
             sys.exit(1)
         if (args.template_al is None):
             sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         # check that '-s' and '-a' are files
-        check_file_exists(args.sequences_to_align,isfasta = True)
+        check_file_exists(args.fasta_input,isfasta = True)
         check_file_exists(args.template_al,isfasta = False)
 
         # call the function
         if args.output is None:
-            for i in align.align_generator(args.sequences_to_align, args.template_al, args.use_cm_align, args.threads, args.verbose):
+            for i in align.align_generator(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose):
                 print(i)
         else:
-            align.align_file(args.sequences_to_align, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
+            align.align_file(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
 
     # --------------------------------------------------------------------------
     # CREATE_DB routine
     # --------------------------------------------------------------------------
     if args.command == 'create_db':
         # check that '-s' has been provided (alignment produced by htc align)
-        if (args.sequences_to_align is None):
+        if (args.aligned_sequences is None):
             sys.stderr.write("[E::main] Error: missing <aligned_file> (-s)\n")
             sys.exit(1)
         # check that '-x' has been provided (taxonomy file)
@@ -230,7 +248,7 @@ def main(argv=None):
             sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         # check that '-s' and '-a' are files
-        check_file_exists(args.sequences_to_align,isfasta = False)
+        check_file_exists(args.aligned_sequences,isfasta = False)
         check_file_exists(args.taxonomy,isfasta = False)
         check_file_exists(args.template_al,isfasta = False)
 
@@ -242,7 +260,29 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.sequences_to_align, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al)
+        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al)
+
+    # --------------------------------------------------------------------------
+    # FIND_TAX routine
+    # --------------------------------------------------------------------------
+    if args.command == 'find_tax':
+        # check that '-i' has been provided (alignment produced by htc align)
+        if (args.fasta_input is None):
+            sys.stderr.write("[E::main] Error: missing <fasta_seqs> (-i)\n")
+            sys.exit(1)
+        # check that '-d' has been provided (taxonomy file)
+        if (args.database is None):
+            sys.stderr.write("[E::main] Error: missing <database> (-d)\n")
+            sys.exit(1)
+        # check that they are files
+        check_file_exists(args.fasta_input,isfasta = True)
+        check_file_exists(args.database,isfasta = False)
+
+        # call the function
+        find_tax.find_tax(args.database, args.fasta_input, args.verbose, args.output)
+
+
+
 
     return 0        # success
 
