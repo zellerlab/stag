@@ -15,7 +15,6 @@ Scripts that creates the database of classifiers
 # Output:
 #  - a database file (hdf5) that can be used by htc classify
 
-from sklearn.linear_model import LogisticRegression
 import numpy as np
 import sys
 import random
@@ -26,6 +25,7 @@ import os
 import math
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
+import h5py
 
 #===============================================================================
 #                          CLASS FOR THE TAXONOMY
@@ -600,7 +600,48 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy):
 #                     FUNCTIONS TO SAVE TO A DATABASE
 #===============================================================================
 def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, output):
-    temp = "dummy"
+    # where to save the file
+    f = h5py.File(output, "w")
+
+    # first we save the hmm file -----------------------------------------------
+    line = ""
+    o = open(hmm_file_path,"r")
+    for i in o:
+        line = line + i
+    o.close()
+    string_dt = h5py.special_dtype(vlen=str)
+    f.create_dataset('hmm_file',data=np.array([line],"S"+str(len(line)+100)),dtype=string_dt)
+
+    # second, save the use_cmalign info ----------------------------------------
+    f.create_dataset('use_cmalign',data=np.array([use_cmalign]),dtype=bool)
+
+    # third, we save the taxonomy ---------------------------------------------
+    f.create_group("taxonomy")
+    for i in full_taxonomy.child_nodes:
+        f.create_dataset("taxonomy/"+i, data=np.array(list(full_taxonomy.child_nodes[i]),"S1000"),dtype=string_dt)
+
+    # fourth, the taxonomy function --------------------------------------------
+    f.create_group("tax_function")
+    for r in tax_function:
+        f.create_group("tax_function/"+str(r))
+        for e in tax_function[r]:
+            f.create_dataset("tax_function/"+str(r)+"/"+str(e),
+                             data = np.array(tax_function[r][e],dtype = np.float64),
+                             dtype = np.float64)
+
+    # fifth, save the classifiers ----------------------------------------------
+    f.create_group("classifiers")
+    for c in classifiers:
+        if classifiers[c] != "no_negative_examples":
+            f.create_dataset("classifiers/"+c, data=classifiers[c].coef_,dtype=np.float64)
+        else:
+            # in this case, it always predict 1, we save it as an array of
+            # with the string "no_negative_examples"
+            f.create_dataset("classifiers/"+c,data=np.array(["no_negative_examples"],"S40"),dtype=string_dt)
+
+    # close hdm5 file ----------------------------------------------------------
+    f.flush()
+    f.close()
 
 
 
