@@ -43,8 +43,8 @@ import errno
 tool_version = "0.0"
 
 # position of the script -------------------------------------------------------
-path_mOTUs = os.path.realpath(__file__)
-path_array = path_mOTUs.split("/")
+path_htc = os.path.realpath(__file__)
+path_array = path_htc.split("/")
 relative_path = "/".join(path_array[0:-1])
 relative_path = relative_path + "/"
 
