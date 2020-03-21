@@ -278,7 +278,7 @@ def main(argv=None):
         check_file_exists(args.database,isfasta = False)
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.verbose, args.output)
+        classify.classify(args.database, args.fasta_input, args.verbose, args.threads, args.output)
 
 
 

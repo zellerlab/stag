@@ -12,6 +12,27 @@ import os
 import h5py
 import tempfile
 
+# load align routine -----------------------------------------------------------
+path_this = os.path.realpath(__file__)
+path_array = path_this.split("/")
+relative_path = "/".join(path_array[0:-1])
+# add /bin to the path ---------------------------------------------------------
+try:
+    if os.path.isdir(relative_path):
+        sys.path.insert(0, relative_path)
+    else:
+        sys.stderr.write("[E::main] Error: "+relative_path+" directory is missing.\n")
+        sys.exit(1)
+except:
+    sys.stderr.write("[E::main] Error: "+relative_path+" directory is missing.\n")
+    sys.exit(1)
+
+try:
+    import align as align
+except:
+    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"/align.py\n")
+    sys.exit(1)
+
 #===============================================================================
 #                            LOAD THE HDF5 DATABASE
 #===============================================================================
@@ -27,7 +48,7 @@ def load_DB(hdf5_DB_path):
     hmm_file.close()
 
     # second if we need to use cm_align ----------------------------------------
-    use_cmalign = f['use_cmalign'] # bool
+    use_cmalign = f['use_cmalign'][0] # bool
 
     # third: taxonomy ----------------------------------------------------------
     taxonomy = dict()
@@ -55,14 +76,25 @@ def load_DB(hdf5_DB_path):
 
 
 
+#===============================================================================
+#                       TAXONOMY ANNOTATE SEQUENCES
+#===============================================================================
+def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
+    dummy = "dummy"
+
+
 
 #===============================================================================
 #                                      MAIN
 #===============================================================================
 
-def classify(database, aligned_sequences, verbose, output):
+def classify(database, fasta_input, verbose, threads, output):
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
+
+    # align the sequences and classify them
+    for al_seq in align.align_generator(fasta_input,hmm_file_path, use_cmalign, threads, verbose):
+        classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose)
 
     # analyse the aligned sequences
 
