@@ -12,6 +12,7 @@ import os
 import errno
 import sys
 import tempfile
+import numpy as np
 
 #===============================================================================
 #                                 FUNCTIONS
@@ -84,19 +85,42 @@ def convert_alignment(merged_fasta,verbose):
         converted_ali = converted_ali + i_c
     return converted_ali
 
+def convert_alignment_numpy(merged_fasta,verbose):
+    gene_id = merged_fasta.split("\t")[0]
+    converted_ali = list()
+    for i in merged_fasta.split("\t")[1]:
+        # 1-hot encoding
+        # the ACGTU are converted, everything else that is upper case, is considered
+        # as a gap ('-').
+        # for example also 'N' is converted to "-" -> "1,0,0,0,0"
+        # Note that the upper case letters and "-" represents alignment to the
+        # hidden state of the HMM.
+        i_c = ""
+        if not i.islower():
+            if i in encoding_dic:
+                i_c = encoding_dic[i]
+            else:
+                i_c = encoding_dic["others"]
+            i_c = "\t"+i_c
+        converted_ali.append(i_c)
+    to_return = dict()
+    to_return[gene_id] = np.array(converted_ali,dtype=bool)
+    return to_return
+
 # ------------------------------------------------------------------------------
 # main function as a generator
-def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose):
+def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
     ----------
      seq_file :    file with the nucleotide sequences [string]
      hmm_file :    file with the hmm model [string]
-     use_cmalign : if True, we use cmalign. If false, we use hmmalign [bool]
+     use_cmalign:  if True, we use cmalign. If false, we use hmmalign [bool]
      n_threads:    number of threads to use for cmalign (hmmalign can run only
                    on one thread) [string/int]
      verbose:      how much info to print [int]
+     return_numpy: True if you want to return a numpy array instead of a string
     Returns
     -------
      Returns a generator with:
@@ -129,7 +153,10 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose):
 
     # parse the result and return/save to file
     for line in merge_fasta(align_cmd.stdout):
-        converted_line = convert_alignment(line,verbose)
+        if return_numpy:
+            converted_line = convert_alignment_numpy(line,verbose)
+        else:
+            converted_line = convert_alignment(line,verbose)
         yield converted_line
 
     # check that hmmalign/cmalign finished correctly

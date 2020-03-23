@@ -4,10 +4,13 @@ Scripts that find the taxonomy of an aligned sequence
 
 # Author: Alessio Milanese <milanese.alessio@gmail.com>
 
+# Requirements:
+# - numpy
+# - h5py
+
 import numpy as np
 import sys
 import time
-import pandas as pd
 import os
 import h5py
 import tempfile
@@ -79,8 +82,25 @@ def load_DB(hdf5_DB_path):
 #===============================================================================
 #                       TAXONOMY ANNOTATE SEQUENCES
 #===============================================================================
-def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
+def predict_iter(test_seq, taxonomy, tax_function, classifiers, tax, perc, arrived_so_far):
     dummy = "dummy"
+
+def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
+    # al_seq is a dictionary with one element, example:
+    # {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
+
+    # name of the gene
+    res_string = list(al_seq.keys())[0]
+    # sequence in numoy format
+    test_seq = al_seq[res_string]
+
+    # now we evaluate across the taxonomy
+    tax = list()
+    perc = list()
+    # we arrived at the root, and now we classify from there
+    predict_iter(test_seq, taxonomy, tax_function, classifiers, tax, perc, "tree_root")
+    res_string = res_string + "/".join(tax) + "/".join(perc)
+    return res_string
 
 
 
@@ -93,10 +113,13 @@ def classify(database, fasta_input, verbose, threads, output):
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
 
     # align the sequences and classify them
-    for al_seq in align.align_generator(fasta_input,hmm_file_path, use_cmalign, threads, verbose):
-        classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose)
+    list_to_print = list()
+    for al_seq in align.align_generator(fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
+        list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
 
-    # analyse the aligned sequences
+    # save or print the sequences
+    for i in list_to_print:
+        print(i)
 
     # delete the hmm temp file that was created
     os.remove(hmm_file_path)

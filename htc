@@ -225,7 +225,7 @@ def main(argv=None):
 
         # call the function
         if args.output is None:
-            for i in align.align_generator(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose):
+            for i in align.align_generator(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False):
                 print(i)
         else:
             align.align_file(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
