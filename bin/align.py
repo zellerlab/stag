@@ -101,8 +101,7 @@ def convert_alignment_numpy(merged_fasta,verbose):
                 i_c = encoding_dic[i]
             else:
                 i_c = encoding_dic["others"]
-            i_c = "\t"+i_c
-        converted_ali.append(i_c)
+            converted_ali.extend(i_c.split("\t"))
     to_return = dict()
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
     return to_return
