@@ -82,8 +82,40 @@ def load_DB(hdf5_DB_path):
 #===============================================================================
 #                       TAXONOMY ANNOTATE SEQUENCES
 #===============================================================================
-def predict_iter(test_seq, taxonomy, tax_function, classifiers, tax, perc, arrived_so_far):
-    dummy = "dummy"
+def run_lasso_prediction(seq, coeff):
+    sm = coeff*seq
+    np_sum = (sm).sum()
+    score = 1/(1+np.exp(-np_sum))
+    return score
+
+# given many taxa (all sibilings) and a sequence, it finds taxa with the highest
+# score. Returns the taxa name and the score
+def find_best_score(test_seq, sibilings, classifiers):
+    best_score = -1
+    best_taxa = ""
+    # check that sibilings is not empty:
+    if len(sibilings) < 1:
+        sys.stderr.write("Error. no sibilings")
+    # if there is only one sibiling:
+    if len(sibilings) == 1:
+        best_score = 1
+        best_taxa = sibilings[0]
+    if len(sibilings) > 1:
+        for s in sibilings:
+            this_score = run_lasso_prediction(test_seq, classifiers[s])
+            if this_score > best_score:
+                best_score = this_score
+                best_taxa = s
+    return best_taxa, str(best_score)
+
+def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
+    # last iterative step
+    if arrived_so_far in taxonomy:
+        t,p = find_best_score(test_seq, taxonomy[arrived_so_far], classifiers)
+        tax.append(t)
+        perc.append(p)
+        predict_iter(test_seq, taxonomy, classifiers, tax, perc, t)
+
 
 def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # al_seq is a dictionary with one element, example:
@@ -98,8 +130,8 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     tax = list()
     perc = list()
     # we arrived at the root, and now we classify from there
-    predict_iter(test_seq, taxonomy, tax_function, classifiers, tax, perc, "tree_root")
-    res_string = res_string + "/".join(tax) + "/".join(perc)
+    predict_iter(test_seq, taxonomy, classifiers, tax, perc, "tree_root")
+    res_string = res_string + "\t" + "/".join(tax) + "\t" + "/".join(perc)
     return res_string
 
 
