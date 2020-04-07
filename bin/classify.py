@@ -60,10 +60,8 @@ def load_DB(hdf5_DB_path):
 
     # fourth: tax_function -----------------------------------------------------
     tax_function = dict()
-    for r in f['tax_function']:
-        tax_function[int(r)] = dict()
-        for e in f['tax_function/'+r]:
-            tax_function[int(r)][int(e)] = list(f["tax_function/"+r+"/"+e])
+    for c in f['tax_function']:
+        tax_function[int(c)] = np.array(f["tax_function/"+c],dtype = np.float64)
 
     # fifth: the classifiers ---------------------------------------------------
     classifiers = dict()
@@ -106,7 +104,7 @@ def find_best_score(test_seq, sibilings, classifiers):
             if this_score > best_score:
                 best_score = this_score
                 best_taxa = s
-    return best_taxa, str(best_score)
+    return best_taxa, best_score
 
 def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
     # last iterative step
@@ -117,6 +115,28 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
         predict_iter(test_seq, taxonomy, classifiers, tax, perc, t)
 
 
+#===============================================================================
+#                      CALCULATE EMPIRICAL PROBABILITY
+#===============================================================================
+def calc_empirical_vals(perc, tax_function):
+    prob_per_level = list()
+    max_v = 0
+    sel_lev = -1
+    for l in sorted(list(tax_function)):
+        seq = np.asarray(perc)
+        prob_this_level = run_lasso_prediction(seq, tax_function[l])
+        if prob_this_level > max_v:
+            max_v = prob_this_level
+            sel_lev = l
+        prob_per_level.append(str(prob_this_level))
+
+    return sel_lev-1, prob_per_level
+
+
+#===============================================================================
+#                             CLASSIFY ONE SEQUENCE
+#===============================================================================
+
 def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # al_seq is a dictionary with one element, example:
     # {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
@@ -126,12 +146,18 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # sequence in numoy format
     test_seq = al_seq[res_string]
 
-    # now we evaluate across the taxonomy
+    # now we evaluate across the taxonomy --------------------------------------
     tax = list()
     perc = list()
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, taxonomy, classifiers, tax, perc, "tree_root")
-    res_string = res_string + "\t" + "/".join(tax) + "\t" + "/".join(perc)
+
+    # now we have the raw prediction, we compare to  ---------------------------
+    # the empirical values to obtain a better result
+    sel_lev, prob_per_level = calc_empirical_vals(perc, tax_function)
+
+    # return the result --------------------------------------------------------
+    res_string = res_string + "\t" + "/".join(tax[0:sel_lev]) + "\t" + "/".join(tax) + "\t" + str(sel_lev) + "\t" + "/".join(prob_per_level)
     return res_string
 
 

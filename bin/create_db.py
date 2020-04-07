@@ -302,8 +302,12 @@ def train_classifier(positive_examples,negative_examples,all_classifiers,alignme
         return "ERROR_no_positive_examples"
 
     # select the genes from the pandas dataframe
-    X = alignment.loc[ positive_examples + negative_examples , : ].to_numpy()
-    train_labels = ["yes"]*len(positive_examples)+["no"]*len(negative_examples)
+    X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
+    train_labels = ["no"]*len(negative_examples)+["yes"]*len(positive_examples)
+    # NOTE: we put first the negative class (0) because then the classifier will
+    #       use this order. And when we will use only the coefficients, it will
+    #       give the probability prediction of the secodn class
+
     y = np.asarray(train_labels)
     # train classifier
     clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
@@ -500,80 +504,111 @@ def estimate_function(all_calc_functions, n_levels):
     #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
     # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],2]
     #  ["geneB",["D","E","F","species8"],[0.99,0.96,0.95,0.07],["D","E","F","speciesZ"],3]
-    #  ["geneC",["G","H","I","species9"],[0.99,0.96,0.95,0.07],["G","H","I","species9"],4]
+    #  ["geneC",["G","H","I","species9"],[0.99,0.96,0.95,0.94],["G","H","I","species9"],4]
     #   .....                                                                             ]
     # the REMOVED_LEVEL count starting from 0 (in the first example, 2 means that
     # "C" is removed)
     # when we have 4 (which is outside of the taxonomy levels, {0,1,2,3}), it
     # refers to the fact that we removed the genes
+
+    # some removed clades have more genes than others, we remove some genes from
+    # the most abundant clades
     n_levels = len(all_calc_functions[0][1])
     # This will contain all the empirical distributions:
     all_values = dict()
-    # the probablity goes from 0 to 1, we discretize this into n_reg regions
-    n_reg = 10
 
     # parse each line
+    line_pass_filter = dict()
+    cont = -1
     for line in all_calc_functions:
+        cont = cont + 1
         rem_lev = line[4]
         rem_clade = line[3][min( rem_lev,len(line[3])-1 )] # we use min, because if we removed a gene, then we put the species ID
         # inizialize all levels to zero
         if rem_lev not in all_values:
             all_values[rem_lev] = dict()
-            for i in range(n_levels):
-                all_values[rem_lev][i] = dict()
 
-        # add in the correct position
-        if rem_lev in all_values:
-            # check that till the known clade we have the correct classification
-            predicted = list(line[1])
-            correct =  list(line[3])
-            for i in range(rem_lev,n_levels):
-                predicted[i] = "NA"
-                correct[i] = "NA"
-            s_predicted = "/".join(predicted)
-            s_correct = "/".join(correct)
-            if s_predicted != s_correct:
-                s_perc = '/'.join(str(v) for v in line[2])
-                logging.info('   LEARN_FUNCTION:WARNING:MISCLASSIFICATION: (gene):%s, (predicted): %s, (correct): %s, (perc):%s',
-                                  line[0],s_predicted, "/".join(line[3]), s_perc)
-            # if they have the same taxonomy
-            if s_predicted == s_correct:
-                # we create if needed
-                if rem_clade not in all_values[rem_lev][0]:
-                    for i in range(n_levels):
-                        all_values[rem_lev][i][rem_clade] = [0 for i in range(n_reg+1)] # we use n_reg+1 because there is also the zero
-                # and we add the counts
-                for i in range(n_levels):
-                    value_to_increase = int(round( line[2][i]*n_reg ))
-                    all_values[rem_lev][i][rem_clade][value_to_increase] = all_values[rem_lev][i][rem_clade][value_to_increase] + 1
+        # check that till the known clade we have the correct classification
+        predicted = list(line[1])
+        correct =  list(line[3])
+        for i in range(rem_lev,n_levels):
+            predicted[i] = "NA"
+            correct[i] = "NA"
+        s_predicted = "/".join(predicted)
+        s_correct = "/".join(correct)
+        if s_predicted != s_correct:
+            s_perc = '/'.join(str(v) for v in line[2])
+            logging.info('   LEARN_FUNCTION:WARNING:MISCLASSIFICATION: (gene):%s, (predicted): %s, (correct): %s, (perc):%s',
+                              line[0],s_predicted, "/".join(line[3]), s_perc)
+        # if they have the same taxonomy
+        if s_predicted == s_correct:
+            if rem_clade not in all_values[rem_lev]:
+                all_values[rem_lev][rem_clade] = 0
+            all_values[rem_lev][rem_clade] = all_values[rem_lev][rem_clade] + 1
+            # we keep track of which lines passed the filter
+            if rem_lev not in line_pass_filter:
+                line_pass_filter[rem_lev] = list()
+            line_pass_filter[rem_lev].append(cont)
+
     # now we have
-    # all_values[removed_level][tested_level][clade][values of the histogram]
-    # all_values          [INT]         [INT]  [STR]            [list of INT]
-    # and we need to put together the info of the different clades
-    # we save them into:
-    average_all_values = dict()
-    # and we set it up:
-    for rem_lev in all_values:
-        average_all_values[rem_lev] = dict()
-        for eval_lev in all_values[rem_lev]:
-            average_all_values[rem_lev][eval_lev] = [0 for i in range(n_reg+1)]
-    # insert the values
-    for rem_lev in all_values:
-        for eval_lev in all_values[rem_lev]:
-            for rem_clade in all_values[rem_lev][eval_lev]:
-                sum_this_clade = sum(all_values[rem_lev][eval_lev][rem_clade])
-                mult_factor = math.sqrt(sum_this_clade) # we weight clades based on the sqrt of the number of genes that there were
-                for i in range(n_reg+1):
-                    average_all_values[rem_lev][eval_lev][i] = average_all_values[rem_lev][eval_lev][i] + (all_values[rem_lev][eval_lev][rem_clade][i]/sum_this_clade * mult_factor)
+    # all_values[removed_level][removed_clade] -> number of genes
+    # all_values          [INT]         [INT]                [INT]
 
-    # now we need to transform it to rel ab:
-    for rem_lev in average_all_values:
-        for eval_lev in average_all_values[rem_lev]:
-            sum_this_clade = sum(average_all_values[rem_lev][eval_lev])
-            for i in range(n_reg+1):
-                average_all_values[rem_lev][eval_lev][i] = average_all_values[rem_lev][eval_lev][i] / sum_this_clade
+    # we find max number of genes per each level
+    selected_lines = list()
+    selected_lines_rem_level = list()
+    for l in all_values:
+        n_genes_per_clade = list()
+        for i in all_values[l]:
+            n_genes_per_clade.append(all_values[l][i])
+        # we set the number of maximum genes per clade
+        n_max = np.percentile(np.array(n_genes_per_clade), 75) # return 75th percentile
+        logging.info('   LEARN_FUNCTION:NUMBER_PER_CLADE: level:%s, number:%s',
+                          str(l),str(n_max))
+        # we set to 0 the count of genes per clade
+        for i in all_values[l]:
+            all_values[l][i] = 0
+        # we shuffle the list and start to add
+        random.shuffle(line_pass_filter[l])
+        for i in line_pass_filter[l]:
+            line = all_calc_functions[i]
+            rem_lev = line[4]
+            rem_clade = line[3][min( rem_lev,len(line[3])-1 )] # we use min, because if we removed a gene, then we put the species ID
+            if all_values[l][rem_clade] < n_max:
+                all_values[l][rem_clade] = all_values[l][rem_clade] + 1
+                selected_lines.append(line[2])
+                selected_lines_rem_level.append(rem_lev)
 
-    return average_all_values
+    # now we use the selected lines to train a classifier for each level
+    all_classifiers = dict()
+    levels = list(line_pass_filter.keys())
+    for l in levels:
+        # we create the feature matrix
+        # NOTE: we always need the negative class to be first
+        correct_order_lines = list()
+        correct_order_labels = list()
+        cont = 0
+        for i in selected_lines_rem_level:
+            if i != l:
+                correct_order_lines.append(selected_lines[cont])
+                correct_order_labels.append(0)
+            cont = cont + 1
+        cont = 0
+        for i in selected_lines_rem_level:
+            if i == l:
+                correct_order_lines.append(selected_lines[cont])
+                correct_order_labels.append(1)
+            cont = cont + 1
+
+        X = np.array([np.array(xi) for xi in correct_order_lines])
+        y = np.asarray(correct_order_labels)
+        # train classifier
+        clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
+        clf.fit(X, y)
+        all_classifiers[l] = clf
+
+    return all_classifiers
+
 
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
@@ -622,12 +657,8 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
 
     # fourth, the taxonomy function --------------------------------------------
     f.create_group("tax_function")
-    for r in tax_function:
-        f.create_group("tax_function/"+str(r))
-        for e in tax_function[r]:
-            f.create_dataset("tax_function/"+str(r)+"/"+str(e),
-                             data = np.array(tax_function[r][e],dtype = np.float64),
-                             dtype = np.float64)
+    for c in tax_function:
+        f.create_dataset("tax_function/"+str(c), data=tax_function[c].coef_,dtype=np.float64)
 
     # fifth, save the classifiers ----------------------------------------------
     f.create_group("classifiers")
