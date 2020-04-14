@@ -135,11 +135,14 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_
         if not is_tool("hmmalign"):
             sys.stderr.write("[E::align] Error: hmmalign is not in the path. Please install HMMER3.\n")
             sys.exit(1)
+    if not is_tool("esl-reformat"):
+        sys.stderr.write("[E::align] Error: esl-reformat is not in the path. Please install Easel.\n")
+        sys.exit(1)
 
     # prepare the command to run
-    cmd = "hmmalign --outformat A2M "
+    cmd = "hmmalign "
     if use_cmalign:
-        cmd = "cmalign --cpu "+str(n_threads)+" --outformat A2M "
+        cmd = "cmalign --cpu "+str(n_threads)+" "
 
     cmd = cmd + hmm_file +" "+ seq_file
 
@@ -150,8 +153,13 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_
     CMD = shlex.split(cmd)
     align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
 
+    # command to parse the alignment from STOCKHOLM to fasta format
+    cmd2 = "esl-reformat a2m -"
+    CMD2 = shlex.split(cmd2)
+    parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
+
     # parse the result and return/save to file
-    for line in merge_fasta(align_cmd.stdout):
+    for line in merge_fasta(parse_cmd.stdout):
         if return_numpy:
             converted_line = convert_alignment_numpy(line,verbose)
         else:
@@ -163,6 +171,12 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_
     return_code = align_cmd.wait()
     if return_code:
         sys.stderr.write("[E::align] Error. hmmalig/cmalign failed\n")
+        sys.exit(1)
+    # check that converting the file worked correctly
+    parse_cmd.stdout.close()
+    return_code = parse_cmd.wait()
+    if return_code:
+        sys.stderr.write("[E::align] Error. esl-reformat failed\n")
         sys.exit(1)
 
 # ------------------------------------------------------------------------------
@@ -194,10 +208,14 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
             sys.stderr.write("[E::align] Error: hmmalign is not in the path. Please install HMMER3.\n")
             sys.exit(1)
 
+    if not is_tool("esl-reformat"):
+        sys.stderr.write("[E::align] Error: esl-reformat is not in the path. Please install Easel.\n")
+        sys.exit(1)
+
     # prepare the command to run
-    cmd = "hmmalign --outformat A2M "
+    cmd = "hmmalign "
     if use_cmalign:
-        cmd = "cmalign --cpu "+str(n_threads)+" --outformat A2M "
+        cmd = "cmalign --cpu "+str(n_threads)+" "
 
     cmd = cmd + hmm_file +" "+ seq_file
 
@@ -208,12 +226,17 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     CMD = shlex.split(cmd)
     align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
 
+    # command to parse the alignment from STOCKHOLM to fasta format
+    cmd2 = "esl-reformat a2m -"
+    CMD2 = shlex.split(cmd2)
+    parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
+
     # open the temporary file where to save the result
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
 
     # parse the result and save to temp_file
-    for line in merge_fasta(align_cmd.stdout):
+    for line in merge_fasta(parse_cmd.stdout):
         converted_line = convert_alignment(line,verbose)
         temp_file.write(converted_line+"\n")
 
@@ -238,4 +261,10 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     return_code = align_cmd.wait()
     if return_code:
         sys.stderr.write("[E::align] Error. hmmalig/cmalign failed\n")
+        sys.exit(1)
+    # check that converting the file worked correctly
+    parse_cmd.stdout.close()
+    return_code = parse_cmd.wait()
+    if return_code:
+        sys.stderr.write("[E::align] Error. esl-reformat failed\n")
         sys.exit(1)
