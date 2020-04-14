@@ -3,10 +3,53 @@ Scripts that checks the input files for the database
 """
 
 import sys
+import os
+import subprocess
+import tempfile
+import shlex
 
 # there are two input files to check:
 # - the taxonomy file
 # - the fasta file
+
+
+# ------------------------------------------------------------------------------
+# function to check if a specific tool exists
+def is_tool(name):
+    try:
+        devnull = open(os.devnull)
+        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return False
+    return True
+
+
+# ------------------------------------------------------------------------------
+# function to convert a fasta file with multiple lines into a one line separated
+# by a "\t"
+# Example:
+# >test_fasta_header
+# ATTGCGATTTCT
+# CGGTATCGGTAT
+# CGGTTA
+### TO:
+# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
+def merge_fasta(filein):
+    # filein is a stream of data (from hmmalign)
+    seq = ""
+    for line_b in filein:
+        line = line_b.decode("utf-8").rstrip()
+        if line.startswith(">"):
+            if seq != "":
+                yield seq[1:] # we skip the 0 character, which is ">"
+            seq = line+"\t"
+        else:
+            seq = seq + line
+    # give back the last sequence
+    if seq != "":
+        yield seq[1:] # we skip the 0 character, which is ">"
+
 
 # ------------------------------------------------------------------------------
 # 1. check taxonomy
@@ -39,7 +82,7 @@ def check_taxonomy(tax_path):
     # variable with gene ids (test4)
     gene_ids = list()
 
-    sys.stderr.write("Check number of taxonomy levels...")
+    sys.stderr.write("Check number of taxonomy levels.....................")
     found_error1 = False
     for i in o:
         vals = i.rstrip().split("\t")
@@ -61,11 +104,11 @@ def check_taxonomy(tax_path):
                 parent[current_n].add(parent_n)
     o.close()
     if not found_error1:
-        sys.stderr.write("               correct")
+        sys.stderr.write("correct")
 
     # 2. check that the names are unique for one level (i.e. two levels do not
     #    have the same id)
-    sys.stderr.write("\nCheck if the names are unique across levels...")
+    sys.stderr.write("\nCheck if the names are unique across levels.........")
     found_error2 = False
     for i in range(number_of_taxonomic_levels-2):
         for j in range(i+1,number_of_taxonomic_levels-1):
@@ -75,18 +118,18 @@ def check_taxonomy(tax_path):
                     sys.stderr.write("\n ERROR: '"+str(v)+"' is present in both level "+str(i)+" and "+str(j)+"\n")
                     found_error2 = True
     if not found_error2:
-        sys.stderr.write("   correct")
+        sys.stderr.write("correct")
 
     # 3. check that there is no “convergent evolution”.
     #    For example, the same genus cannot appear in two different families.
-    sys.stderr.write("\nCheck if there are multiple parents...")
+    sys.stderr.write("\nCheck if there are multiple parents.................")
     found_error3 = False
     for c in parent:
         if len(parent[c]) > 1:
             sys.stderr.write("\n ERROR: Node '"+c+"' has multiple parents: "+str(parent[c]))
             found_error3 = True
     if not found_error3:
-        sys.stderr.write("           correct")
+        sys.stderr.write("correct")
 
     # 4. check the gene ids (that they are unique)
     sys.stderr.write("\nFound "+str(len(gene_ids))+" genes (lines)\n")
@@ -102,7 +145,7 @@ def check_taxonomy(tax_path):
 # ------------------------------------------------------------------------------
 # 2. check sequences
 def check_sequences(file_name):
-    sys.stderr.write("Check that the sequences are in fasta format...")
+    sys.stderr.write("Check that the sequences are in fasta format........")
     try:
         o = open(file_name,"r")
     except:
@@ -120,13 +163,13 @@ def check_sequences(file_name):
         sys.stderr.write("\n ERROR: Not a fasta file\n")
         return True
 
-    sys.stderr.write("  correct\n")
+    sys.stderr.write("correct\n")
     return False # if we arrive here, there were no errors
 
 # ------------------------------------------------------------------------------
 # 3. check correspondence between fasta file and sequence file
 def check_correspondence(file_name, gene_ids_from_tax):
-    sys.stderr.write("Check correspondences between tax gene ids,\n                              and sequences...")
+    sys.stderr.write("Check correspondences of gene ids...................")
     try:
         o = open(file_name,"r")
     except:
@@ -148,9 +191,117 @@ def check_correspondence(file_name, gene_ids_from_tax):
         return True
 
     if not found_error:
-        sys.stderr.write("   correct\n")
+        sys.stderr.write("correct\n")
 
     return found_error
+
+
+# ------------------------------------------------------------------------------
+# 4. check that the tool is in the path and check the alignment
+def check_tool(seq_file, hmm_file, use_cmalign):
+    if use_cmalign:
+        sys.stderr.write("Check that 'cmalign' is in the path.................")
+        if not is_tool("cmalign"):
+            sys.stderr.write("\n ERROR: cmalign is not in the path. Please install Infernal.\n")
+            return True
+    else:
+        sys.stderr.write("Check that 'hmmalign' is in the path................")
+        if not is_tool("hmmalign"):
+            sys.stderr.write("\n ERROR: hmmalign is not in the path. Please install HMMER3.\n")
+            return True
+    # if we arrive here, then the tool is in the path:
+    sys.stderr.write("correct\n")
+
+
+    # check that the file is correct -------------------------------------------
+    # we create a temporary file with the first tree fasta sequences:
+    sys.stderr.write("Try to run alignment tool...........................")
+    sys.stderr.flush()
+    temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(temp_file.name, 0o644)
+
+    o = open(seq_file,"r")
+    count = 0
+    for line in o:
+        if line.startswith(">"):
+            count = count + 1
+        if count < 4:
+            temp_file.write(line)
+
+    try:
+        temp_file.flush()
+        os.fsync(temp_file.fileno())
+        temp_file.close()
+    except:
+        if verbose>4: sys.stderr.write("\n Error when saving the temp file\n")
+        sys.exit(1)
+
+    # we create the command to call
+    cmd = "hmmalign --outformat A2M "
+    if use_cmalign:
+        cmd = "cmalign --outformat A2M "
+
+    cmd = cmd + hmm_file +" "+ temp_file.name
+
+    # we call the command
+    CMD = shlex.split(cmd)
+    align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
+
+    all_lines = list()
+    for line in merge_fasta(align_cmd.stdout):
+        all_lines.append(line)
+
+    align_cmd.stdout.close()
+    return_code = align_cmd.wait()
+    if return_code:
+        os.remove(temp_file.name)
+        return True
+
+    # remove temporary file
+    os.remove(temp_file.name)
+    # if we arrive here, then the tool is in the path:
+    sys.stderr.write("correct\n")
+
+
+
+
+    # check alignment quality --------------------------------------------------
+    sys.stderr.write("Check alignment quality:\n")
+
+    # number of internal HMM states
+    n_internal_states = 0
+    for i in all_lines[0].split("\t")[1]:
+        # gap (deletions) are counted
+        if i == "-":
+            n_internal_states = n_internal_states + 1
+        else:
+            # and capital letters
+            if i.isupper():
+                n_internal_states = n_internal_states + 1
+    sys.stderr.write(" Internal states: "+str(n_internal_states)+"\n")
+
+    count = 0
+    for al in all_lines:
+        count = count + 1
+        sys.stderr.write("\n Sequence "+str(count)+":\n")
+        # count occurences
+        mat_i_s = 0 # internal states that match (even mismatch is counted I guess), they are upper case letters
+        deletions = 0 # number of deletions (they are "-")
+        insetions = 0 # insertions are lower case letters
+        for i in all_lines[count-1].split("\t")[1]:
+            if i == "-":
+                deletions = deletions + 1
+            else:
+                if i.isupper():
+                    mat_i_s = mat_i_s + 1
+                if i.islower():
+                    insetions = insetions + 1
+        # print
+        sys.stderr.write("   Internal states matches: "+str(mat_i_s)+" ("+str(round(mat_i_s/n_internal_states * 100))+"%)\n")
+        sys.stderr.write("   Deletions: "+str(deletions)+" ("+str(round(deletions/n_internal_states * 100))+"%)\n")
+        sys.stderr.write("   Insertions: "+str(insetions)+"\n")
+
+
 
 #===============================================================================
 #                                      MAIN
@@ -168,6 +319,10 @@ def check_input_files(seq_file, tax_file, hmm_file, cmalign):
     # 3. check correspondences between tax and fasta file
     sys.stderr.write("\n------ CHECK CORRESPONDENCES:\n")
     found_error_corr = check_correspondence(seq_file, gene_ids)
+
+    # 4. test tool and alignment
+    sys.stderr.write("\n------ CHECK TOOL:\n")
+    found_error_tool = check_tool(seq_file, hmm_file, cmalign)
 
     sys.stderr.write("\n")
 
