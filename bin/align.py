@@ -13,6 +13,7 @@ import errno
 import sys
 import tempfile
 import numpy as np
+import re
 
 #===============================================================================
 #                                 FUNCTIONS
@@ -106,15 +107,75 @@ def convert_alignment_numpy(merged_fasta,verbose):
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
     return to_return
 
+# function that read genes and return them as one line -------------------------
+def yield_genes(seq_file):
+    o = open(seq_file,"r")
+    seq = ""
+    for line in o:
+        if line.startswith(">"):
+            if seq != "":
+                yield seq[1:] # we skip the 0 character, which is ">"
+            seq = line.rstrip()+"\t"
+        else:
+            seq = seq + line.rstrip()
+    o.close()
+    # give back the last sequence
+    if seq != "":
+        yield seq[1:] # we skip the 0 character, which is ">"
+
+# function that transform a protein MSA to a nucleotide MSA --------------------
+# if check_length is True, then we check that
+# len(protein) == len(gene)*3 OR len(protein)-3 == len(gene)*3
+def proteinAl_2_geneAl(protein_alignment, gene_sequence, check_length):
+    gene_id = gene_sequence.split("\t")[0]
+
+    protein_alignment = protein_alignment.split("\t")[1]
+    gene_sequence = gene_sequence.split("\t")[1]
+
+    # check that the lenght is correct
+    correct_length = True
+    only_AA_from_ali = re.sub(r'\-', '', protein_alignment)
+    if check_length:
+        if len(only_AA_from_ali)*3 != len(gene_sequence)-3:
+            # some proteins do not have the '*' at the end
+            if len(only_AA_from_ali)*3 != len(gene_sequence):
+                sys.stderr.write("Error, length of genes/alignment is not correct")
+                sys.stderr.write(" (protein: "+str(len(only_AA_from_ali)*3)+", gene: "+str(len(gene_sequence))+")")
+                correct_length = False
+                return None
+
+    # convert alignment
+    pos_gene = 0
+    al_gene = ""
+    for i in protein_alignment:
+        found = False
+        if i == "-":
+            al_gene = al_gene + "---"
+            found = True
+        if i.isupper():
+            al_gene = al_gene + gene_sequence[pos_gene] + gene_sequence[pos_gene+1] + gene_sequence[pos_gene+2]
+            pos_gene = pos_gene + 3
+            found = True
+        if i.islower():
+            found = True
+            # since we have to remove the lower case letter, we do not
+            # add those to the alignment, but we anyway increase pos_gene
+            pos_gene = pos_gene + 3
+        if not found:
+            sys.stderr.write("Error, character not identified\n")
+
+    return gene_id + "\t" + al_gene
+
 # ------------------------------------------------------------------------------
 # main function as a generator
-def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy):
+def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
     ----------
-     seq_file :    file with the nucleotide sequences [string]
-     hmm_file :    file with the hmm model [string]
+     seq_file:     file with the nucleotide sequences [string]
+     protein_file:  file with the protein sequences [string or None]
+     hmm_file:     file with the hmm model [string]
      use_cmalign:  if True, we use cmalign. If false, we use hmmalign [bool]
      n_threads:    number of threads to use for cmalign (hmmalign can run only
                    on one thread) [string/int]
@@ -144,7 +205,10 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_
     if use_cmalign:
         cmd = "cmalign --cpu "+str(n_threads)+" "
 
-    cmd = cmd + hmm_file +" "+ seq_file
+    if protein_file == None:
+        cmd = cmd + hmm_file +" "+ seq_file
+    else:
+        cmd = cmd + hmm_file +" "+ protein_file
 
     if verbose > 4:
         sys.stderr.write("Command used to align the sequences: "+cmd+"\n")
@@ -158,13 +222,26 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_
     CMD2 = shlex.split(cmd2)
     parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
 
-    # parse the result and return/save to file
-    for line in merge_fasta(parse_cmd.stdout):
-        if return_numpy:
-            converted_line = convert_alignment_numpy(line,verbose)
-        else:
-            converted_line = convert_alignment(line,verbose)
-        yield converted_line
+    # parse the result and return/save to file - NORMAL ------------------------
+    if protein_file == None:
+        for line in merge_fasta(parse_cmd.stdout):
+            if return_numpy:
+                converted_line = convert_alignment_numpy(line,verbose)
+            else:
+                converted_line = convert_alignment(line,verbose)
+            yield converted_line
+
+    # parse the result and return/save to file - WITH PROTEINS -----------------
+    if protein_file != None:
+        for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
+            line = proteinAl_2_geneAl(protein_line, gene_line, True)
+            if return_numpy:
+                converted_line = convert_alignment_numpy(line,verbose)
+            else:
+                converted_line = convert_alignment(line,verbose)
+            yield converted_line
+
+
 
     # check that hmmalign/cmalign finished correctly
     align_cmd.stdout.close()
@@ -181,12 +258,13 @@ def align_generator(seq_file, hmm_file, use_cmalign, n_threads, verbose, return_
 
 # ------------------------------------------------------------------------------
 # main function
-def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
+def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
     ----------
      seq_file :    file with the nucleotide sequences [string]
+     protein_file:  file with the protein sequences [string or None]
      hmm_file :    file with the hmm model [string]
      use_cmalign : if True, we use cmalign. If false, we use hmmalign [bool]
      n_threads:    number of threads to use for cmalign (hmmalign can run only
@@ -217,7 +295,10 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     if use_cmalign:
         cmd = "cmalign --cpu "+str(n_threads)+" "
 
-    cmd = cmd + hmm_file +" "+ seq_file
+    if protein_file == None:
+        cmd = cmd + hmm_file +" "+ seq_file
+    else:
+        cmd = cmd + hmm_file +" "+ protein_file
 
     if verbose > 4:
         sys.stderr.write("Command used to align the sequences: "+cmd+"\n")
@@ -235,10 +316,18 @@ def align_file(seq_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
 
-    # parse the result and save to temp_file
-    for line in merge_fasta(parse_cmd.stdout):
-        converted_line = convert_alignment(line,verbose)
-        temp_file.write(converted_line+"\n")
+    # parse the result and return/save to file - NORMAL ------------------------
+    if protein_file == None:
+        for line in merge_fasta(parse_cmd.stdout):
+            converted_line = convert_alignment(line,verbose)
+            temp_file.write(converted_line+"\n")
+    # parse the result and return/save to file - WITH PROTEINS -----------------
+    if protein_file != None:
+        for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
+            line = proteinAl_2_geneAl(protein_line, gene_line, True)
+            converted_line = convert_alignment(line,verbose)
+            temp_file.write(converted_line+"\n")
+
 
     # if we save the result to a file, then we close it now
     try:

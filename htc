@@ -140,11 +140,13 @@ def print_menu_align():
     sys.stderr.write("\n")
     sys.stderr.write("Usage: htc align -i <fasta_seqs> -a <hmmfile> [options]\n\n")
     sys.stderr.write("  -i  FILE  sequences to be aligned (fasta format)\n")
+    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
     sys.stderr.write("  -a  FILE  hmmfile or cmfile to use as template for the alignment\n")
     sys.stderr.write("  -o  FILE  output file name [stdout]\n")
     sys.stderr.write("  -c        set if you are using a cmfile\n")
     sys.stderr.write("  -t  INT   number of threads [1]\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+    sys.stderr.write("Note: if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_create_db():
     sys.stderr.write("\n")
@@ -192,6 +194,7 @@ def main(argv=None):
     parser.add_argument('-x', action="store", default=None,dest='taxonomy', help='taxonomy file path')
     parser.add_argument('-f', action='store_true', default=None, dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
     parser.add_argument('-i', action="store", dest='fasta_input', default=None, help='input fasta sequences')
+    parser.add_argument('-p', action="store", dest='protein_fasta_input', default=None, help='input fasta sequences, in protein format. Corresponding to the -i sequences')
     parser.add_argument('-d', action="store", dest='database', default=None, help='file containing the database')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
@@ -201,7 +204,7 @@ def main(argv=None):
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None):
-            if (args.fasta_input is None) and (args.database is None):
+            if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None):
                 if args.command == 'align': print_menu_align()
                 if args.command == 'create_db': print_menu_create_db()
                 if args.command == 'classify': print_menu_classify()
@@ -239,12 +242,16 @@ def main(argv=None):
         check_file_exists(args.fasta_input,isfasta = True)
         check_file_exists(args.template_al,isfasta = False)
 
+        # if -p is provided, then check that it is a fasta file
+        if not(args.protein_fasta_input is None):
+            check_file_exists(args.protein_fasta_input,isfasta = True)
+
         # call the function
         if args.output is None:
-            for i in align.align_generator(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False):
+            for i in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False):
                 print(i)
         else:
-            align.align_file(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
+            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
 
     # --------------------------------------------------------------------------
     # CREATE_DB routine
