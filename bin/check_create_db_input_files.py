@@ -82,7 +82,7 @@ def check_taxonomy(tax_path):
     # variable with gene ids (test4)
     gene_ids = list()
 
-    sys.stderr.write("Check number of taxonomy levels.....................")
+    sys.stderr.write("Check number of taxonomy levels.......................")
     found_error1 = False
     for i in o:
         vals = i.rstrip().split("\t")
@@ -108,7 +108,7 @@ def check_taxonomy(tax_path):
 
     # 2. check that the names are unique for one level (i.e. two levels do not
     #    have the same id)
-    sys.stderr.write("\nCheck if the names are unique across levels.........")
+    sys.stderr.write("\nCheck if the names are unique across levels...........")
     found_error2 = False
     for i in range(number_of_taxonomic_levels-2):
         for j in range(i+1,number_of_taxonomic_levels-1):
@@ -122,7 +122,7 @@ def check_taxonomy(tax_path):
 
     # 3. check that there is no “convergent evolution”.
     #    For example, the same genus cannot appear in two different families.
-    sys.stderr.write("\nCheck if there are multiple parents.................")
+    sys.stderr.write("\nCheck if there are multiple parents...................")
     found_error3 = False
     for c in parent:
         if len(parent[c]) > 1:
@@ -145,7 +145,7 @@ def check_taxonomy(tax_path):
 # ------------------------------------------------------------------------------
 # 2. check sequences
 def check_sequences(file_name):
-    sys.stderr.write("Check that the sequences are in fasta format........")
+    sys.stderr.write("Check that the sequences are in fasta format..........")
     try:
         o = open(file_name,"r")
     except:
@@ -167,9 +167,86 @@ def check_sequences(file_name):
     return False # if we arrive here, there were no errors
 
 # ------------------------------------------------------------------------------
+# 2.b if there is a protein file, then we check that it is correct and that it
+#     maps correctly to the gene file
+def check_protein_file(seq_file, protein_file):
+    # general check of the protein file
+    sys.stderr.write("Check that the protein sequences are in fasta format..")
+    try:
+        o = open(protein_file,"r")
+    except:
+        sys.stderr.write("\n ERROR: cannot open file\n")
+        return True
+    # check that it is a fasta file
+    try:
+        if not(o.readline().startswith(">")):
+            sys.stderr.write("\n ERROR: Not a fasta file\n")
+            o.close()
+            return True
+    except:
+        o.close()
+        sys.stderr.write("\n ERROR: Not a fasta file\n")
+        return True
+
+    sys.stderr.write("correct\n")
+
+    # find length of genes
+    sys.stderr.write("Load gene file: ")
+    gene_lengths = list()
+    gene_ids = list()
+    o = open(seq_file,"r")
+    cont = -1
+    for i in o:
+        if i.startswith(">"):
+            cont = cont + 1
+            gene_lengths.append(0)
+            gene_ids.append(i.rstrip())
+        else:
+            gene_lengths[cont] = gene_lengths[cont] + len(i.rstrip())
+    o.close()
+    sys.stderr.write("   found "+str(len(gene_lengths))+" genes\n")
+
+    # find length of proteins
+    sys.stderr.write("Load protein file: ")
+    protein_lengths = list()
+    protein_ids = list()
+    o = open(protein_file,"r")
+    cont = -1
+    for i in o:
+        if i.startswith(">"):
+            cont = cont + 1
+            protein_lengths.append(0)
+            protein_ids.append(i.rstrip())
+        else:
+            protein_lengths[cont] = protein_lengths[cont] + len(i.rstrip())
+    o.close()
+    sys.stderr.write("found "+str(len(protein_lengths))+" proteins\n")
+
+    # check number of sequences is the same:
+    if len(gene_lengths) != len(protein_lengths):
+        sys.stderr.write("\n ERROR: different number of sequences\n")
+        return True
+
+
+    # check that the lengths make sense
+    sys.stderr.write("Check the gene/protein match lengths..................")
+    found_error = False
+    count = -1
+    for g_len, p_len in zip(gene_lengths, protein_lengths):
+        count = count + 1
+        if g_len != p_len*3:
+            if (g_len-3) != p_len*3:
+                found_error = True
+                sys.stderr.write("\n ERROR: different lengths for gene: "+gene_ids[cont]+"; protein: "+protein_ids[cont]+"\n")
+
+    if not found_error:
+        sys.stderr.write("correct\n")
+    return found_error
+
+# ------------------------------------------------------------------------------
 # 3. check correspondence between fasta file and sequence file
 def check_correspondence(file_name, gene_ids_from_tax):
-    sys.stderr.write("Check correspondences of gene ids...................")
+    sys.stderr.write("Check correspondences of gene ids to the tax ids......")
     try:
         o = open(file_name,"r")
     except:
@@ -200,22 +277,31 @@ def check_correspondence(file_name, gene_ids_from_tax):
 # 4. check that the tool is in the path and check the alignment
 def check_tool(seq_file, hmm_file, use_cmalign):
     if use_cmalign:
-        sys.stderr.write("Check that 'cmalign' is in the path.................")
+        sys.stderr.write("Check that 'cmalign' is in the path...................")
         if not is_tool("cmalign"):
             sys.stderr.write("\n ERROR: cmalign is not in the path. Please install Infernal.\n")
             return True
     else:
-        sys.stderr.write("Check that 'hmmalign' is in the path................")
+        sys.stderr.write("Check that 'hmmalign' is in the path..................")
         if not is_tool("hmmalign"):
             sys.stderr.write("\n ERROR: hmmalign is not in the path. Please install HMMER3.\n")
             return True
     # if we arrive here, then the tool is in the path:
     sys.stderr.write("correct\n")
 
+    # check esl-reformat
+    sys.stderr.write("Check that 'esl-reformat' is in the path..............")
+    if not is_tool("esl-reformat"):
+        sys.stderr.write("\n ERROR: esl-reformat is not in the path. Please install Easel.\n")
+        return True
+    # if we arrive here, then the tool is in the path:
+    sys.stderr.write("correct\n")
+
+
 
     # check that the file is correct -------------------------------------------
     # we create a temporary file with the first tree fasta sequences:
-    sys.stderr.write("Try to run alignment tool...........................")
+    sys.stderr.write("Try to run alignment tool.............................")
     sys.stderr.flush()
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
@@ -266,7 +352,7 @@ def check_tool(seq_file, hmm_file, use_cmalign):
 
 
     # check alignment quality --------------------------------------------------
-    sys.stderr.write("Check alignment quality:\n")
+    sys.stderr.write("\nCheck alignment quality:\n")
 
     # number of internal HMM states
     n_internal_states = 0
@@ -307,7 +393,7 @@ def check_tool(seq_file, hmm_file, use_cmalign):
 #                                      MAIN
 #===============================================================================
 
-def check_input_files(seq_file, tax_file, hmm_file, cmalign):
+def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign):
     # 1. check taxonomy alone
     sys.stderr.write("------ CHECK TAXONOMY FILE:\n")
     found_error_tax, gene_ids = check_taxonomy(tax_file)
@@ -316,15 +402,24 @@ def check_input_files(seq_file, tax_file, hmm_file, cmalign):
     sys.stderr.write("\n------ CHECK FASTA FILE:\n")
     found_error_seq = check_sequences(seq_file)
 
+    # 2.b check correspondence between protein and gene file
+    found_error_prot = False
+    if protein_file != None:
+        sys.stderr.write("\n------ CHECK PROTEIN AND GENE FILE:\n")
+        found_error_prot = check_protein_file(seq_file, protein_file)
+
     # 3. check correspondences between tax and fasta file
     sys.stderr.write("\n------ CHECK CORRESPONDENCES:\n")
     found_error_corr = check_correspondence(seq_file, gene_ids)
 
     # 4. test tool and alignment
     sys.stderr.write("\n------ CHECK TOOL:\n")
-    found_error_tool = check_tool(seq_file, hmm_file, cmalign)
+    if protein_file != None:
+        found_error_tool = check_tool(protein_file, hmm_file, cmalign)
+    else:
+        found_error_tool = check_tool(seq_file, hmm_file, cmalign)
 
     sys.stderr.write("\n")
 
-    if (found_error_tax or found_error_seq):
+    if (found_error_tax or found_error_seq or found_error_prot or found_error_corr or found_error_tool):
         sys.exit(1)

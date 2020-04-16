@@ -173,6 +173,7 @@ def print_menu_check_input():
     sys.stderr.write("Usage: htc check_input -i <fasta_seqs> -x <taxonomy_file>\n")
     sys.stderr.write("                       -a <hmmfile> [options]\n\n")
     sys.stderr.write("  -i  FILE  sequences to be aligned (fasta format)\n")
+    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
     sys.stderr.write("  -a  FILE  hmmfile or cmfile to used as template for the alignment\n")
     sys.stderr.write("  -c        set if you are using a cmfile\n")
     sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
@@ -316,7 +317,7 @@ def main(argv=None):
         if (args.template_al is None):
             sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
-        check_create_db_input_files.check_input_files(args.fasta_input, args.taxonomy, args.template_al, args.use_cm_align)
+        check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy, args.template_al, args.use_cm_align)
 
 
     return 0        # success
