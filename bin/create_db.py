@@ -264,12 +264,42 @@ def load_alignment_from_file(file_name):
     return alignment
 
 # function to check that taxonomy and alignment are consistent =================
-# 1. all genes in the alignment should be in the taxonomy (and the contrary?!)
-# 2. check that the taxonomy is consistent, not to have:
-#       gene1 A  B  C  species1
-#       gene2 A  D  C  species1
+# 1. all genes in the alignment should be in the taxonomy,
+# 2. the taxonomy can have more genes, than the one that are present in the
+#    alignment, but we need to remove them, since the selection of the genes
+#    for training and testing is done at the level of the taxonomy
 def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
-    ff = "dummy"
+    genes_in_alignment = list(alignment.index.values)
+    genes_taxonomy = full_taxonomy.find_gene_ids(full_taxonomy.get_root())
+    logging.info('   CHECK: genes in alignment: %s', str(len(genes_in_alignment)))
+    logging.info('   CHECK: genes in taxonomy:  %s', str(len(genes_taxonomy)))
+
+    # check that all genes in the alignment are in the taxonomy ----------------
+    if not(set(genes_in_alignment).issubset(set(genes_taxonomy))):
+        sys.stderr.write("Error: some genes in the alignment have no taxonomy.\n")
+        sys.stderr.write("       Use the command 'check_input' to find more information.\n")
+        logging.info(' Error: some genes in the alignment have no taxonomy.')
+        sys.exit(1)
+    else:
+        logging.info('   CHECK: check all genes in the alignment have a taxonomy: correct')
+
+    # check if we need to remove some genes from the taxonomy ------------------
+    not_needed_gene_tax = set(genes_taxonomy).difference(set(genes_in_alignment))
+    if len(not_needed_gene_tax) == 0:
+        logging.info('   CHECK: check genes that we need to remove from the taxonomy: None')
+    else:
+        logging.info('   CHECK: check genes that we need to remove from the taxonomy: %s', str(len(not_needed_gene_tax)))
+        full_taxonomy.remove_genes(list(not_needed_gene_tax))
+
+    # double check that the number of genes is the same in the alignment and in
+    # the taxonomy
+    genes_taxonomy = full_taxonomy.find_gene_ids(full_taxonomy.get_root())
+    if len(genes_taxonomy) != len(genes_in_alignment):
+        sys.stderr.write("Error: even after correction, the genes in the taxonomy and the alignment do not agree\n")
+        logging.info(' Error: even after correction, the genes in the taxonomy and the alignment do not agree.')
+        sys.exit(1)
+
+
 
 
 
@@ -287,6 +317,7 @@ def find_training_genes(node, sibilings, full_taxonomy):
     if len(sibilings) > 0:
         for s in sibilings:
             negative_examples = negative_examples + full_taxonomy.find_gene_ids(s)
+    # "positive_examples" and "negative_examples" are list of gene ids
     return positive_examples, negative_examples
 
 # function that train the classifier for one node ==============================
@@ -311,6 +342,9 @@ def train_classifier(positive_examples,negative_examples,all_classifiers,alignme
     y = np.asarray(train_labels)
     # train classifier
     clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
+    print(X)
+    print(np.where(np.isnan(X)))
+    print(y)
     clf.fit(X, y)
     return clf
 
@@ -706,8 +740,9 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     logging.info('MAIN:Finish load alignment')
 
     # 3. check that the taxonomy and the alignment are consistent
-    # TODO
+    logging.info('MAIN:Check taxonomy and alignment')
     check_taxonomy_alignment_consistency(alignment, full_taxonomy)
+    logging.info('MAIN:Finish check-up')
 
     # 4. build a classifier for each node
     logging.info('MAIN:Train all classifiers')
