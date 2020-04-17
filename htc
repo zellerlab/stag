@@ -165,6 +165,7 @@ def print_menu_classify():
     sys.stderr.write("Usage: htc classify -d <database> -i <fasta_seqs> [options]\n\n")
     sys.stderr.write("  -d  FILE  database created with create_db or train\n")
     sys.stderr.write("  -i  FILE  sequences to taxonomically annotate (fasta format)\n")
+    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
     sys.stderr.write("  -o  FILE  output file name [stdout]\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
 # ------------------------------------------------------------------------------
@@ -300,9 +301,12 @@ def main(argv=None):
         # check that they are files
         check_file_exists(args.fasta_input,isfasta = True)
         check_file_exists(args.database,isfasta = False)
+        # if -p is provided, then check that it is a fasta file
+        if not(args.protein_fasta_input is None):
+            check_file_exists(args.protein_fasta_input,isfasta = True)
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.verbose, args.threads, args.output)
+        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine

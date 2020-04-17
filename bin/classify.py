@@ -166,13 +166,13 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, verbose, threads, output):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output):
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
 
     # align the sequences and classify them
     list_to_print = list()
-    for al_seq in align.align_generator(fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
+    for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
         list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
 
     # save or print the sequences
