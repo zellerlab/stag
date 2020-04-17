@@ -342,9 +342,6 @@ def train_classifier(positive_examples,negative_examples,all_classifiers,alignme
     y = np.asarray(train_labels)
     # train classifier
     clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
-    print(X)
-    print(np.where(np.isnan(X)))
-    print(y)
     clf.fit(X, y)
     return clf
 
