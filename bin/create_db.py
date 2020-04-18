@@ -51,7 +51,7 @@ class Taxonomy:
 
         for line in o:
             # expected line: gene1\tBacteria\tFirmicutes\t...
-            vals = line.rstrip().split("\t")
+            vals = line.rstrip().replace("/","-").split("\t")
             if self.number_of_taxonomic_levels != len(vals)-1 :
                 sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels in:\n")
                 sys.stderr.write("  "+line+"\n")
