@@ -634,7 +634,7 @@ def estimate_function(all_calc_functions, n_levels):
         X = np.array([np.array(xi) for xi in correct_order_lines])
         y = np.asarray(correct_order_labels)
         # train classifier
-        clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear')
+        clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear',max_iter = 5000)
         clf.fit(X, y)
         all_classifiers[l] = clf
 
@@ -676,7 +676,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
         line = line + i
     o.close()
     string_dt = h5py.special_dtype(vlen=str)
-    f.create_dataset('hmm_file',data=np.array([line],"S"+str(len(line)+100)),dtype=string_dt)
+    f.create_dataset('hmm_file',data=np.array([line],"S"+str(len(line)+100)),dtype=string_dt, compression="gzip")
 
     # second, save the use_cmalign info ----------------------------------------
     f.create_dataset('use_cmalign',data=np.array([use_cmalign]),dtype=bool)
@@ -684,22 +684,22 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
     # third, we save the taxonomy ---------------------------------------------
     f.create_group("taxonomy")
     for i in full_taxonomy.child_nodes:
-        f.create_dataset("taxonomy/"+i, data=np.array(list(full_taxonomy.child_nodes[i]),"S1000"),dtype=string_dt)
+        f.create_dataset("taxonomy/"+i, data=np.array(list(full_taxonomy.child_nodes[i]),"S1000"),dtype=string_dt, compression="gzip")
 
     # fourth, the taxonomy function --------------------------------------------
     f.create_group("tax_function")
     for c in tax_function:
-        f.create_dataset("tax_function/"+str(c), data=tax_function[c].coef_,dtype=np.float64)
+        f.create_dataset("tax_function/"+str(c), data=tax_function[c].coef_,dtype=np.float64, compression="gzip")
 
     # fifth, save the classifiers ----------------------------------------------
     f.create_group("classifiers")
     for c in classifiers:
         if classifiers[c] != "no_negative_examples":
-            f.create_dataset("classifiers/"+c, data=classifiers[c].coef_,dtype=np.float64)
+            f.create_dataset("classifiers/"+c, data=classifiers[c].coef_,dtype=np.float64, compression="gzip", compression_opts=8)
         else:
             # in this case, it always predict 1, we save it as an array of
             # with the string "no_negative_examples"
-            f.create_dataset("classifiers/"+c,data=np.array(["no_negative_examples"],"S40"),dtype=string_dt)
+            f.create_dataset("classifiers/"+c,data=np.array(["no_negative_examples"],"S40"),dtype=string_dt, compression="gzip")
 
     # close hdm5 file ----------------------------------------------------------
     f.flush()
