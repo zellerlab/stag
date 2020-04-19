@@ -67,6 +67,14 @@ encoding_dic = {
                "U":"0\t1\t0\t0\t0",
                "others":"1\t0\t0\t0\t0"
                }
+encoding_dic_numpy = {
+               "A":[False,False,False,False,True],
+               "C":[False,False,False,True,False],
+               "G":[False,False,True,False,False],
+               "T":[False,True,False,False,False],
+               "U":[False,True,False,False,False],
+               "others":[True,False,False,False,False]
+               }
 def convert_alignment(merged_fasta,verbose):
     converted_ali = merged_fasta.split("\t")[0]
     for i in merged_fasta.split("\t")[1]:
@@ -98,11 +106,10 @@ def convert_alignment_numpy(merged_fasta,verbose):
         # hidden state of the HMM.
         i_c = ""
         if not i.islower():
-            if i in encoding_dic:
-                i_c = encoding_dic[i]
+            if i in encoding_dic_numpy:
+                converted_ali.extend(encoding_dic_numpy[i])
             else:
-                i_c = encoding_dic["others"]
-            converted_ali.extend(i_c.split("\t"))
+                converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
     return to_return

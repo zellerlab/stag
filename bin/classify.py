@@ -143,7 +143,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 
     # name of the gene
     res_string = list(al_seq.keys())[0]
-    # sequence in numoy format
+    # sequence in numpy format
     test_seq = al_seq[res_string]
 
     # now we evaluate across the taxonomy --------------------------------------
