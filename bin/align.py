@@ -104,7 +104,6 @@ def convert_alignment_numpy(merged_fasta,verbose):
         # for example also 'N' is converted to "-" -> "1,0,0,0,0"
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
-        i_c = ""
         if not i.islower():
             if i in encoding_dic_numpy:
                 converted_ali.extend(encoding_dic_numpy[i])
