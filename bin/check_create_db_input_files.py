@@ -93,6 +93,9 @@ def check_taxonomy(tax_path):
     # variable with gene ids (test4)
     gene_ids = list()
 
+    # full tax per gene
+    full_taxonomy = dict()
+
     sys.stderr.write("Check number of taxonomy levels.......................")
     found_error1 = False
     for i in o:
@@ -102,6 +105,8 @@ def check_taxonomy(tax_path):
             sys.stderr.write("Line with different number of tax levels ("+str(len(vals))+" instead of "+str(number_of_taxonomic_levels)+"): "+i)
             found_error1 = True
         else:
+            # save taxonomy
+            full_taxonomy[vals[0]] = vals[-1]
             # set up for test 4
             gene_ids.append(vals[0])
             # set up for test 2
@@ -155,7 +160,7 @@ def check_taxonomy(tax_path):
         sys.stderr.write("There are only "+str(len(gene_ids_unique))+" unique gene ids\n")
 
     # if there is any error, return True
-    return (found_error1 or found_error2 or found_error3 or found_error4),gene_ids_unique
+    return (found_error1 or found_error2 or found_error3 or found_error4),gene_ids_unique,full_taxonomy
 
 # ------------------------------------------------------------------------------
 # 2. check sequences
@@ -182,7 +187,32 @@ def check_sequences(file_name):
         return True
 
     sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
-    return False # if we arrive here, there were no errors
+
+    # check duplicates ---------------------------------------------------------
+    duplicates_info = dict()
+    o = open(file_name,"r")
+    gene_id = ""
+    n_genes = 0
+    for i in o:
+        if i.startswith(">"):
+            if gene_id != "":
+                if not seq in duplicates_info:
+                    duplicates_info[seq] = list()
+                duplicates_info[seq].append(gene_id)
+            gene_id = i.rstrip()
+            seq = ""
+            n_genes = n_genes + 1
+        else:
+            seq = seq + i.rstrip()
+    if not seq in duplicates_info:
+        duplicates_info[seq] = list()
+    duplicates_info[seq].append(gene_id)
+    o.close()
+
+    sys.stderr.write("Number of genes: "+str(n_genes) + "\n")
+    sys.stderr.write("Number of unique genes: "+str(len(duplicates_info)) + "\n")
+
+    return False, duplicates_info # if we arrive here, there were no errors
 
 # ------------------------------------------------------------------------------
 # 2.b if there is a protein file, then we check that it is correct and that it
@@ -268,7 +298,7 @@ def check_protein_file(seq_file, protein_file):
 
 # ------------------------------------------------------------------------------
 # 3. check correspondence between fasta file and sequence file
-def check_correspondence(file_name, gene_ids_from_tax):
+def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_taxonomy):
     sys.stderr.write("Check correspondences of gene ids to the tax ids......")
     try:
         o = open(file_name,"r")
@@ -296,7 +326,25 @@ def check_correspondence(file_name, gene_ids_from_tax):
     if not found_error:
         sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
 
-    return found_error
+
+    # check that genes with same sequence have the same taxonomy ---------------
+    sys.stderr.write("Check taxonomy of genes with same sequence............")
+    found_error2 = False
+    for i in duplicates_info:
+        if len(duplicates_info[i]) > 1:
+            species_0 = full_taxonomy[duplicates_info[i][0][1:]]
+            for j in duplicates_info[i]:
+                if full_taxonomy[j[1:]] != species_0:
+                    found_error2 = True
+                    sys.stderr.write(f"\n{bcolors.WARNING}{bcolors.BOLD}{bcolors.UNDERLINE}   WARNING:{bcolors.ENDC} ")
+                    sys.stderr.write(str(duplicates_info[i])+"\n")
+
+    if not found_error2:
+        sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
+    else:
+        sys.stderr.write(f"\n{bcolors.WARNING}{bcolors.BOLD}{bcolors.UNDERLINE} WARNING:{bcolors.ENDC} ")
+        sys.stderr.write("Some genes have same sequence, but different taxonomy.\n")
+    return (found_error or found_error2)
 
 
 # ------------------------------------------------------------------------------
@@ -438,11 +486,11 @@ def check_tool(seq_file, hmm_file, use_cmalign):
 def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign):
     # 1. check taxonomy alone
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK TAXONOMY FILE:{bcolors.ENDC}\n")
-    found_error_tax, gene_ids = check_taxonomy(tax_file)
+    found_error_tax, gene_ids, full_taxonomy = check_taxonomy(tax_file)
 
     # 2. check that the seq file is a proper fasta file
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK FASTA FILE:{bcolors.ENDC}\n")
-    found_error_seq = check_sequences(seq_file)
+    found_error_seq, duplicates_info = check_sequences(seq_file)
 
     # 2.b check correspondence between protein and gene file
     found_error_prot = False
@@ -452,7 +500,7 @@ def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign):
 
     # 3. check correspondences between tax and fasta file
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK CORRESPONDENCES:{bcolors.ENDC}\n")
-    found_error_corr = check_correspondence(seq_file, gene_ids)
+    found_error_corr = check_correspondence(seq_file, gene_ids, duplicates_info, full_taxonomy)
 
     # 4. test tool and alignment
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK TOOL:{bcolors.ENDC}\n")

@@ -259,8 +259,12 @@ class Taxonomy:
 # It works also on .gz files
 def load_alignment_from_file(file_name):
     alignment = pd.read_csv(file_name,delimiter='\t',index_col = 0, header=None)
+    logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
     alignment = alignment.astype('bool') # apparently you cannot load directly
                                          # bool if the rownames are not bool
+    # we remove duplicates
+    alignment = alignment.drop_duplicates()
+    logging.info('   LOAD_AL: Number of genes, after removing duplicates: %s', str(len(list(alignment.index.values))))
     return alignment
 
 # function to check that taxonomy and alignment are consistent =================
