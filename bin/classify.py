@@ -176,13 +176,21 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #===============================================================================
 
 def classify(database, fasta_input, protein_fasta_input, verbose, threads, output):
+    t0 = time.time()
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
+    if verbose>2:
+        time_after_loading = time.time()
+        sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")
 
     # align the sequences and classify them
     list_to_print = list()
     for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
         list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
+
+    if verbose>2:
+        time_after_classification = time.time()
+        sys.stderr.write("Classify sequences: " + str("{0:.2f}".format(time_after_classification - time_after_loading))+" sec\n")
 
     # delete the hmm temp file that was created --------------------------------
     os.remove(hmm_file_path)
