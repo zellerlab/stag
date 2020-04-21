@@ -315,14 +315,108 @@ def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
 #===============================================================================
 
 # function that finds positive and negative examples ===========================
-def find_training_genes(node, sibilings, full_taxonomy):
+def find_training_genes(node, sibilings, full_taxonomy, alignment):
     positive_examples = full_taxonomy.find_gene_ids(node)
     negative_examples = list()
     if len(sibilings) > 0:
         for s in sibilings:
             negative_examples = negative_examples + full_taxonomy.find_gene_ids(s)
     # "positive_examples" and "negative_examples" are list of gene ids
-    return positive_examples, negative_examples
+
+    if len(negative_examples) == 0:
+        # it means that there was only one child, and we cannot do anything
+        return positive_examples, negative_examples
+
+    # From here, it means that there is at least one sibiling ==================
+    # We make classes more balanced
+    positive_examples_subsample = list(positive_examples)
+    negative_examples_subsample = list(negative_examples)
+    # 1. max 500 positive samples ----------------------------------------------
+    if len(positive_examples_subsample) > 500:
+        positive_examples_subsample = random.sample(positive_examples_subsample, 500)
+    # 2. max 1000 negative samples ---------------------------------------------
+    if len(negative_examples_subsample) > 1000:
+        negative_examples_subsample = random.sample(negative_examples_subsample, 1000)
+    # 3. max 20 times more negative than positive ------------------------------
+    if len(negative_examples_subsample) > len(positive_examples_subsample)*20:
+        negative_examples_subsample = random.sample(negative_examples_subsample, len(positive_examples_subsample)*20)
+    # 4. we want to have at least 5 times more negative than positive ----------
+    missing_neg = 0 # how many negative sequences we need to add
+    if len(sibilings) == 1:
+        # if there is only one other sibiling, we choose only 3 times more negative
+        if len(negative_examples_subsample) > len(positive_examples_subsample)*3:
+            negative_examples_subsample = random.sample(negative_examples_subsample, len(positive_examples_subsample)*3)
+    if len(negative_examples_subsample) < len(positive_examples_subsample)*5:
+        missing_neg = len(positive_examples_subsample)*5 - len(negative_examples_subsample)
+    # add negative examples if necessary
+    if missing_neg > 0:
+        # positive examples
+        X_clade = alignment.loc[positive_examples, : ].to_numpy()
+        # always have 5 positive classes
+        n_positive_class = len(X_clade)
+        for i in range(n_positive_class,5):
+            rr = random.choice(range(0,n_positive_class))
+            X_clade = np.vstack((X_clade,X_clade[rr,]))
+
+        # find possible genes to add additionaly to negarives
+        possible_neg = set(alignment.index.values).difference(set(positive_examples + negative_examples))
+        if len(possible_neg) == 0: # if it is possible to add negatives
+                                   # note that at the highest level, it's not possible
+            X_poss_na = alignment.loc[possible_neg, : ].to_numpy()
+            len_poss_na = len(X_poss_na)
+
+            # choose 5 random positive clades
+            X_check_sim = X_clade[random.sample(range(len(X_clade)),5),]
+
+            m_for_diff_0 = np.tile(X_check_sim[0,],(len_poss_na,1))
+            m_for_diff_1 = np.tile(X_check_sim[1,],(len_poss_na,1))
+            m_for_diff_2 = np.tile(X_check_sim[2,],(len_poss_na,1))
+            m_for_diff_3 = np.tile(X_check_sim[3,],(len_poss_na,1))
+            m_for_diff_4 = np.tile(X_check_sim[4,],(len_poss_na,1))
+
+            differences_0 = np.sum(np.bitwise_xor(m_for_diff_0, X_poss_na), axis=1)
+            differences_1 = np.sum(np.bitwise_xor(m_for_diff_1, X_poss_na), axis=1)
+            differences_2 = np.sum(np.bitwise_xor(m_for_diff_2, X_poss_na), axis=1)
+            differences_3 = np.sum(np.bitwise_xor(m_for_diff_3, X_poss_na), axis=1)
+            differences_4 = np.sum(np.bitwise_xor(m_for_diff_4, X_poss_na), axis=1)
+
+            non_zero_0 = np.sum(differences_0 != 0)
+            differences_0 = np.where(differences_0 == 0,  np.nan, differences_0)
+            corr_ord_0 = np.argsort(differences_0)[0:non_zero_0+1]
+
+            non_zero_1 = np.sum(differences_1 != 0)
+            differences_1 = np.where(differences_1 == 0,  np.nan, differences_1)
+            corr_ord_1 = np.argsort(differences_1)[0:non_zero_1+1]
+
+            non_zero_2 = np.sum(differences_2 != 0)
+            differences_2 = np.where(differences_2 == 0,  np.nan, differences_2)
+            corr_ord_2 = np.argsort(differences_2)[0:non_zero_2+1]
+
+            non_zero_3 = np.sum(differences_3 != 0)
+            differences_3 = np.where(differences_3 == 0,  np.nan, differences_3)
+            corr_ord_3 = np.argsort(differences_3)[0:non_zero_3+1]
+
+            non_zero_4 = np.sum(differences_4 != 0)
+            differences_4 = np.where(differences_4 == 0,  np.nan, differences_4)
+            corr_ord_4 = np.argsort(differences_4)[0:non_zero_4+1]
+
+            to_add = list()
+            for (a,b,c,d,e) in zip(list(corr_ord_0),list(corr_ord_1),list(corr_ord_2),list(corr_ord_3),list(corr_ord_4)):
+                if not(a in to_add): to_add.append(a)
+                if not(b in to_add): to_add.append(b)
+                if not(c in to_add): to_add.append(c)
+                if not(d in to_add): to_add.append(d)
+                if not(e in to_add): to_add.append(e)
+                if len(to_add) > missing_neg:
+                    break # stop if we have enough similar genes
+
+            # add list_genomes_to_add to the X_na
+            for i in to_add:
+                negative_examples_subsample.append(possible_neg[i])
+
+
+
+    return positive_examples_subsample, negative_examples_subsample
 
 # function that train the classifier for one node ==============================
 def train_classifier(positive_examples,negative_examples,all_classifiers,alignment, node):
@@ -364,7 +458,7 @@ def train_node_iteratively(node, sibilings, all_classifiers, alignment, full_tax
     # find genomes to use and to which class they belong to,
     # we need positive and negative examples
     logging.info('   TRAIN:"%s":Find genes', node)
-    positive_examples, negative_examples = find_training_genes(node, sibilings, full_taxonomy)
+    positive_examples, negative_examples = find_training_genes(node, sibilings, full_taxonomy, alignment)
     logging.info('      SEL_GENES:"%s": %s positive, %s negative', node,
                  str(len(positive_examples)),str(len(negative_examples)))
 
