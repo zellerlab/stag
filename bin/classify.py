@@ -14,6 +14,7 @@ import time
 import os
 import h5py
 import tempfile
+import shutil
 
 # load align routine -----------------------------------------------------------
 path_this = os.path.realpath(__file__)
@@ -130,6 +131,9 @@ def calc_empirical_vals(perc, tax_function):
             sel_lev = l
         prob_per_level.append(str(prob_this_level))
 
+    # note that sel_lev represents which level was removed, so
+    # 0 means that we cannot assign even at the lowest level
+    # (there is one predictor more than the number of levels)
     return sel_lev-1, prob_per_level
 
 
@@ -156,8 +160,13 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # the empirical values to obtain a better result
     sel_lev, prob_per_level = calc_empirical_vals(perc, tax_function)
 
+    # transform perc to string
+    perc_text = list()
+    for i in perc:
+        perc_text.append(str(i))
+
     # return the result --------------------------------------------------------
-    res_string = res_string + "\t" + "/".join(tax[0:sel_lev]) + "\t" + "/".join(tax) + "\t" + str(sel_lev) + "\t" + "/".join(prob_per_level)
+    res_string = res_string + "\t" + "/".join(tax[0:sel_lev+1]) + "\t" + "/".join(tax) + "\t" + str(sel_lev) + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
     return res_string
 
 
@@ -175,9 +184,35 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
         list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
 
-    # save or print the sequences
-    for i in list_to_print:
-        print(i)
-
-    # delete the hmm temp file that was created
+    # delete the hmm temp file that was created --------------------------------
     os.remove(hmm_file_path)
+
+    # print the sequences ------------------------------------------------------
+    if not(output is None):
+        outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        os.chmod(outfile.name, 0o644)
+    else:
+        outfile = sys.stdout
+
+    outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\n")
+    for i in list_to_print:
+        outfile.write(i+"\n")
+
+    # close
+    if not(output is None):
+        try:
+            outfile.flush()
+            os.fsync(outfile.fileno())
+            outfile.close()
+        except:
+            sys.stderr.write("[E::main] Error: failed to save the result\n")
+            sys.exit(1)
+        try:
+            #os.rename(outfile.name,output) # atomic operation
+            shutil.move(outfile.name,output) #It is not atomic if the files are on different filsystems.
+        except:
+            sys.stderr.write("[E::main] Error: failed to save the profile\n")
+            sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
+            sys.exit(1)
+
+    sys.exit(0) # correct
