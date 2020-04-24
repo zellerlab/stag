@@ -158,6 +158,7 @@ def print_menu_create_db():
     sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
     sys.stderr.write("  -o  FILE  output file name (HDF5 format)\n")
     sys.stderr.write("  -f        force to rewrite output file\n")
+    sys.stderr.write("  -C  FILE  save intermediate cross validation results [None]\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify():
@@ -191,6 +192,7 @@ def print_menu_train():
     sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
     sys.stderr.write("  -o  FILE  output file name (HDF5 format)\n")
     sys.stderr.write("  -S  FILE  save intermediate alignment file [None]\n")
+    sys.stderr.write("  -C  FILE  save intermediate cross validation results [None]\n")
     sys.stderr.write("  -f        force to rewrite output file\n")
     sys.stderr.write("  -t  INT   number of threads [1]\n")
     sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
@@ -215,13 +217,14 @@ def main(argv=None):
     parser.add_argument('-p', action="store", dest='protein_fasta_input', default=None, help='input fasta sequences, in protein format. Corresponding to the -i sequences')
     parser.add_argument('-d', action="store", dest='database', default=None, help='file containing the database')
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
+    parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
     args = parser.parse_args()
 
     # print menus --------------------------------------------------------------
-    if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None):
+    if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None):
             if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None):
                 if args.command == 'align': print_menu_align()
@@ -302,7 +305,7 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al)
+        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -345,7 +348,7 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al)
+        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val)
 
         # what to do with intermediate alignment -------------------------------
         if args.intermediate_al is None:

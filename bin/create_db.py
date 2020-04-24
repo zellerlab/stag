@@ -26,6 +26,8 @@ import math
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
 import h5py
+import tempfile
+import shutil
 
 #===============================================================================
 #                          CLASS FOR THE TAXONOMY
@@ -742,7 +744,7 @@ def estimate_function(all_calc_functions, n_levels):
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
 # level a new gene should be assigned to.
-def learn_taxonomy_selection_function(alignment, full_taxonomy):
+def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
 
@@ -753,10 +755,35 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy):
     # do the cross val. for the last level (using the genes)
     all_calc_functions = all_calc_functions + learn_function_genes_level(n_levels, alignment, full_taxonomy)
 
-    # estimate the function
+    # save all_calc_functions if necessary -------------------------------------
+    if not (save_cross_val_data is None):
+        outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        outfile.write("gene\tpredicted\tprob\tground_truth\tremoved_level\n")
+        os.chmod(outfile.name, 0o644)
+        for vals in all_calc_functions:
+            to_print = vals[0] + "\t" + "/".join(vals[1]) + "\t" # "geneB",["D","E","F","species8"]
+            to_print = to_print + "/".join(str(x) for x in vals[2]) + "\t" # [0.99,0.96,0.95,0.07]
+            to_print = to_print + "/".join(vals[3]) + "\t" # ["G","H","I","species9"]
+            to_print = to_print + str(vals[4]) # removed level
+            outfile.write(to_print+"\n")
+        # save
+        try:
+            outfile.flush()
+            os.fsync(outfile.fileno())
+            outfile.close()
+        except:
+            sys.stderr.write("[E::main] Error: failed to save the cross validation results\n")
+        try:
+            #os.rename(outfile.name,output) # atomic operation
+            shutil.move(outfile.name,save_cross_val_data) #It is not atomic if the files are on different filsystems.
+        except:
+            sys.stderr.write("[E::main] Error: failed to save the cross validation results\n")
+            sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
+            sys.exit(1)
+
+    # estimate the function ----------------------------------------------------
     f = estimate_function(all_calc_functions, n_levels)
     return f
-
 
 
 
@@ -814,7 +841,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -846,7 +873,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
-    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy)
+    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data)
     logging.info('MAIN:Finish learn taxonomy selection function')
 
     # 6. save the result
