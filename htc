@@ -66,6 +66,8 @@ class bco:
     LightMagenta = "\033[95m"
     LightCyan    = "\033[96m"
 
+
+
 # add /bin to the path ---------------------------------------------------------
 try:
     if os.path.isdir(relative_path+'bin'):
@@ -107,6 +109,15 @@ except Exception as e:
     sys.stderr.write("fail to load the script: "+relative_path+"bin/check_create_db_input_files.py\n")
     sys.stderr.write(str(e)+"\n")
     sys.exit(1)
+try:
+    import correct_seq as correct_seq
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/correct_seq.py\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+
+
 
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
@@ -162,6 +173,7 @@ def msg(name=None):
       {bco.Blue}align{bco.ResetAll}        Align a sequence to a hmm or infernal model
       {bco.Blue}create_db{bco.ResetAll}    Create a database given the aligned sequences
       {bco.Blue}check_input{bco.ResetAll}  Check the input for the train command
+      {bco.Blue}correct_seq{bco.ResetAll}  Correct sequences that are in wrong orientation
 
 Type htc <command> to print the help for a specific command
         '''
@@ -229,6 +241,17 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.Blue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
     sys.stderr.write(f"{bco.LightBlue}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_correct_seq():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} {bco.Green}htc{bco.ResetAll} correct_seq {bco.Blue}-i{bco.ResetAll} <fasta_seqs> {bco.Blue}-a{bco.ResetAll} <hmmfile> [options]\n\n")
+    sys.stderr.write(f"  {bco.Blue}-i{bco.ResetAll}  FILE  sequences to be aligned (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to use as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.Blue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[5]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -236,7 +259,7 @@ def print_menu_train():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq'])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
@@ -250,6 +273,7 @@ def main(argv=None):
     parser.add_argument('-d', action="store", dest='database', default=None, help='file containing the database')
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
+    parser.add_argument('-m', action='store', type=int, default=None, dest='min_perc_state', help='Minimum number of mapping states, i.e. how many features of the classifier we cover')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -257,13 +281,14 @@ def main(argv=None):
 
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None):
-        if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None):
+        if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
             if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None):
                 if args.command == 'align': print_menu_align()
                 if args.command == 'create_db': print_menu_create_db()
                 if args.command == 'classify': print_menu_classify()
                 if args.command == 'check_input': print_menu_check_input()
                 if args.command == 'train': print_menu_train()
+                if args.command == 'correct_seq': print_menu_correct_seq()
                 sys.exit(1)
 
 
@@ -272,6 +297,7 @@ def main(argv=None):
     # --------------------------------------------------------------------------
     if (args.threads is None): args.threads = 1
     if (args.verbose is None): args.verbose = 3
+    if (args.min_perc_state is None): args.min_perc_state = 5
     if (args.use_cm_align is None): args.use_cm_align = False
     if (args.force_rewrite is None): args.force_rewrite = False
 
@@ -282,6 +308,10 @@ def main(argv=None):
     if args.threads < 1:
         sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
         sys.stderr.write("number of threads (-t) is less than 1\n")
+        sys.exit(1)
+    if args.min_perc_state < 0 or args.min_perc_state > 100:
+        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write("-m should be between 0 and 100. It represents the percentage\nof internal states covered by the sequence (i.e. the number of features).\n")
         sys.exit(1)
 
     # --------------------------------------------------------------------------
@@ -444,6 +474,31 @@ def main(argv=None):
             sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy, args.template_al, args.use_cm_align)
+
+
+    # --------------------------------------------------------------------------
+    # CORRECT_SEQ routine
+    # --------------------------------------------------------------------------
+    # check if the sequences are in correct orientation, if they are not, then
+    # take reverse complement. Save to -o all the seqeunces is correct order
+    if args.command == 'correct_seq':
+        # check that '-i' and '-a' have been provided
+        if (args.fasta_input is None):
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <seqfile> (-i)\n")
+            sys.exit(1)
+        if (args.template_al is None):
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
+            sys.exit(1)
+        # check that '-s' and '-a' are files
+        check_file_exists(args.fasta_input,isfasta = True)
+        check_file_exists(args.template_al,isfasta = False)
+
+        # call the function
+        correct_seq.correct_seq(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.min_perc_state, args.output)
+
+
 
 
     return 0        # success
