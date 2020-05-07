@@ -48,35 +48,64 @@ path_array = path_htc.split("/")
 relative_path = "/".join(path_array[0:-1])
 relative_path = relative_path + "/"
 
+# colors for the shell ---------------------------------------------------------
+class bco:
+    ResetAll = "\033[0m"
+    Bold       = "\033[1m"
+    Underlined = "\033[4m"
+    Green        = "\033[32m"
+    Yellow       = "\033[33m"
+    Blue         = "\033[34m"
+    Red          = "\033[31m"
+    Magenta      = "\033[35m"
+    Cyan         = "\033[36m"
+    LightRed     = "\033[91m"
+    LightGreen   = "\033[92m"
+    LightYellow  = "\033[93m"
+    LightBlue    = "\033[94m"
+    LightMagenta = "\033[95m"
+    LightCyan    = "\033[96m"
+
 # add /bin to the path ---------------------------------------------------------
 try:
     if os.path.isdir(relative_path+'bin'):
         sys.path.insert(0, relative_path+'bin')
     else:
-        sys.stderr.write("[E::main] Error: "+relative_path+"bin directory is missing.\n")
+        sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write(relative_path+"bin directory is missing.\n")
         sys.exit(1)
-except:
-    sys.stderr.write("[E::main] Error: "+relative_path+"bin directory is missing.\n")
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write(relative_path+"bin directory is missing.\n")
+    sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
     import align as align
-except:
-    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/align.py\n")
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/align.py\n")
+    sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
     import create_db as create_db
-except:
-    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/create_db.py\n")
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/create_db.py\n")
+    sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
     import classify as classify
-except:
-    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/classify.py\n")
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/classify.py\n")
+    sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
     import check_create_db_input_files as check_create_db_input_files
-except:
-    sys.stderr.write("[E::main] Error: fail to load the script: "+relative_path+"bin/check_create_db_input_files.py\n")
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/check_create_db_input_files.py\n")
+    sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 
 # function that checks if a file exists ----------------------------------------
@@ -86,19 +115,22 @@ def check_file_exists(file_name, isfasta = False):
         # if fasta file, then check that it starts with ">"
         if isfasta:
             if not(o.readline().startswith(">")):
-                sys.stderr.write("[E::main] Error. Not a fasta file: "+file_name+"\n")
+                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+                sys.stderr.write("Not a fasta file: "+file_name+"\n")
                 sys.stderr.write("          Fasta file is expected to start with '>'\n")
                 o.close()
                 sys.exit(1)
         o.close()
     except:
-        sys.stderr.write("[E::main] Error: Cannot open file: "+file_name+"\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write("Cannot open file: "+file_name+"\n")
         sys.exit(1)
 
 # function that checks if a file exists already, and give an error -------------
 def check_file_doesnt_exists(file_name):
     if os.path.exists(file_name):
-        sys.stderr.write("[E::main] Error: Output file exists already: "+file_name+"\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write("Output file exists already: "+file_name+"\n")
         sys.exit(1)
 
 # ------------------------------------------------------------------------------
@@ -112,24 +144,24 @@ class CapitalisedHelpFormatter(argparse.HelpFormatter):
 
 
 def msg(name=None):
-    str_msg = '''
+    str_msg = f'''
 \00
-Program: htc - a hierarchical taxonomic classifier for metagenomic sequences
-Version: '''+tool_version+'''
+{bco.LightBlue}{bco.Bold}Program:{bco.ResetAll} htc - a hierarchical taxonomic classifier for metagenomic sequences
+{bco.LightBlue}{bco.Bold}Version:{bco.ResetAll} '''+tool_version+f'''
 
-Usage: htc <command> [options]
+{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} htc <command> [options]
 
-Command:
- -- Main commands
-      train       Train a classifier and create a database, to be used with htc
-                  classify
-      classify    Classify a sequence according to a database created with htc
-                  train
+{bco.LightBlue}{bco.Bold}Command:{bco.ResetAll}
+ {bco.LightGreen}-- Main commands{bco.ResetAll}
+      {bco.Blue}train{bco.ResetAll}        Train a classifier and create a database, to be used with htc
+                   classify
+      {bco.Blue}classify{bco.ResetAll}     Classify a sequence according to a database created with htc
+                   train
 
- -- Secondary commands
-      align       Align a sequence to a hmm or infernal model
-      create_db   Create a database given the aligned sequences
-      check_input Check the input for the train command
+ {bco.LightGreen}-- Secondary commands{bco.ResetAll}
+      {bco.Blue}align{bco.ResetAll}        Align a sequence to a hmm or infernal model
+      {bco.Blue}create_db{bco.ResetAll}    Create a database given the aligned sequences
+      {bco.Blue}check_input{bco.ResetAll}  Check the input for the train command
 
 Type htc <command> to print the help for a specific command
         '''
@@ -138,65 +170,65 @@ Type htc <command> to print the help for a specific command
 # ------------------------------------------------------------------------------
 def print_menu_align():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc align -i <fasta_seqs> -a <hmmfile> [options]\n\n")
-    sys.stderr.write("  -i  FILE  sequences to be aligned (fasta format)\n")
-    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
-    sys.stderr.write("  -a  FILE  hmmfile or cmfile to use as template for the alignment\n")
-    sys.stderr.write("  -o  FILE  output file name [stdout]\n")
-    sys.stderr.write("  -c        set if you are using a cmfile\n")
-    sys.stderr.write("  -t  INT   number of threads [1]\n")
-    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
-    sys.stderr.write("Note: if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
+    sys.stderr.write(f"{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} {bco.Green}htc{bco.ResetAll} align {bco.Blue}-i{bco.ResetAll} <fasta_seqs> {bco.Blue}-a{bco.ResetAll} <hmmfile> [options]\n\n")
+    sys.stderr.write(f"  {bco.Blue}-i{bco.ResetAll}  FILE  sequences to be aligned (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-p{bco.ResetAll}  FILE  protein sequences, corresponding to -i {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to use as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.Blue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"{bco.LightBlue}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_create_db():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc create_db -s <aligned_file> -x <taxonomy_file>\n")
-    sys.stderr.write("                     -a <hmmfile> -o <output_DB> [options]\n\n")
-    sys.stderr.write("  -s  FILE  file with 1-hot encoding MSA (result from htc align)\n")
-    sys.stderr.write("  -a  FILE  hmmfile or cmfile to used as template for the alignment\n")
-    sys.stderr.write("  -c        set if you are using a cmfile\n")
-    sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
-    sys.stderr.write("  -o  FILE  output file name (HDF5 format)\n")
-    sys.stderr.write("  -f        force to rewrite output file\n")
-    sys.stderr.write("  -C  FILE  save intermediate cross validation results [None]\n")
-    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+    sys.stderr.write(f"{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} {bco.Green}htc{bco.ResetAll} create_db {bco.Blue}-s{bco.ResetAll} <aligned_file> {bco.Blue}-x{bco.ResetAll} <taxonomy_file>\n")
+    sys.stderr.write(f"                     {bco.Blue}-a{bco.ResetAll} <hmmfile> {bco.Blue}-o{bco.ResetAll} <output_DB> [options]\n\n")
+    sys.stderr.write(f"  {bco.Blue}-s{bco.ResetAll}  FILE  file with 1-hot encoding MSA (result from htc align) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to used as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.Blue}-x{bco.ResetAll}  FILE  taxonomy file (tab separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-f{bco.ResetAll}        force to rewrite output file\n")
+    sys.stderr.write(f"  {bco.Blue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc classify -d <database> -i <fasta_seqs> [options]\n\n")
-    sys.stderr.write("  -d  FILE  database created with create_db or train\n")
-    sys.stderr.write("  -i  FILE  sequences to taxonomically annotate (fasta format)\n")
-    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
-    sys.stderr.write("  -o  FILE  output file name [stdout]\n")
-    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+    sys.stderr.write(f"{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} {bco.Green}htc{bco.ResetAll} classify {bco.Blue}-d{bco.ResetAll} <database> {bco.Blue}-i{bco.ResetAll} <fasta_seqs> [options]\n\n")
+    sys.stderr.write(f"  {bco.Blue}-d{bco.ResetAll}  FILE  database created with create_db or train {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-i{bco.ResetAll}  FILE  sequences to taxonomically annotate (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-p{bco.ResetAll}  FILE  protein sequences, corresponding to -i {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_check_input():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc check_input -i <fasta_seqs> -x <taxonomy_file>\n")
-    sys.stderr.write("                       -a <hmmfile> [options]\n\n")
-    sys.stderr.write("  -i  FILE  sequences to be aligned (fasta format)\n")
-    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
-    sys.stderr.write("  -a  FILE  hmmfile or cmfile to used as template for the alignment\n")
-    sys.stderr.write("  -c        set if you are using a cmfile\n")
-    sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
-    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
+    sys.stderr.write(f"{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} {bco.Green}htc{bco.ResetAll} check_input {bco.Blue}-i{bco.ResetAll} <fasta_seqs> {bco.Blue}-x{bco.ResetAll} <taxonomy_file>\n")
+    sys.stderr.write(f"                       {bco.Blue}-a{bco.ResetAll} <hmmfile> [options]\n\n")
+    sys.stderr.write(f"  {bco.Blue}-i{bco.ResetAll}  FILE  sequences to be aligned (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-p{bco.ResetAll}  FILE  protein sequences, corresponding to -i {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to used as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.Blue}-x{bco.ResetAll}  FILE  taxonomy file (tab separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_train():
     sys.stderr.write("\n")
-    sys.stderr.write("Usage: htc train -i <fasta_seqs> -x <taxonomy_file>\n")
-    sys.stderr.write("                 -a <hmmfile> -o <output_DB> [options]\n\n")
-    sys.stderr.write("  -i  FILE  sequences to be aligned (fasta format)\n")
-    sys.stderr.write("  -p  FILE  protein sequences, corresponding to -i [None]\n")
-    sys.stderr.write("  -a  FILE  hmmfile or cmfile to used as template for the alignment\n")
-    sys.stderr.write("  -c        set if you are using a cmfile\n")
-    sys.stderr.write("  -x  FILE  taxonomy file (tab separated)\n")
-    sys.stderr.write("  -o  FILE  output file name (HDF5 format)\n")
-    sys.stderr.write("  -S  FILE  save intermediate alignment file [None]\n")
-    sys.stderr.write("  -C  FILE  save intermediate cross validation results [None]\n")
-    sys.stderr.write("  -f        force to rewrite output file\n")
-    sys.stderr.write("  -t  INT   number of threads [1]\n")
-    sys.stderr.write("  -v  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging [3]\n\n")
-    sys.stderr.write("Note: if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
+    sys.stderr.write(f"{bco.LightBlue}{bco.Bold}Usage:{bco.ResetAll} {bco.Green}htc{bco.ResetAll} train {bco.Blue}-i{bco.ResetAll} <fasta_seqs> {bco.Blue}-x{bco.ResetAll} <taxonomy_file>\n")
+    sys.stderr.write(f"                 {bco.Blue}-a{bco.ResetAll} <hmmfile> {bco.Blue}-o{bco.ResetAll} <output_DB> [options]\n\n")
+    sys.stderr.write(f"  {bco.Blue}-i{bco.ResetAll}  FILE  sequences to be aligned (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-p{bco.ResetAll}  FILE  protein sequences, corresponding to -i {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to used as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.Blue}-x{bco.ResetAll}  FILE  taxonomy file (tab separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-f{bco.ResetAll}        force to rewrite output file\n")
+    sys.stderr.write(f"  {bco.Blue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.Blue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"{bco.LightBlue}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -244,10 +276,12 @@ def main(argv=None):
     if (args.force_rewrite is None): args.force_rewrite = False
 
     if args.verbose < 1:
-        sys.stderr.write("[E::main] Error: verbose level (-v) is less than 1\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write("verbose level (-v) is less than 1\n")
         sys.exit(1)
     if args.threads < 1:
-        sys.stderr.write("[E::main] Error: number of threads (-t) is less than 1\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write("number of threads (-t) is less than 1\n")
         sys.exit(1)
 
     # --------------------------------------------------------------------------
@@ -256,10 +290,12 @@ def main(argv=None):
     if args.command == 'align':
         # check that '-i' and '-a' have been provided
         if (args.fasta_input is None):
-            sys.stderr.write("[E::main] Error: missing <seqfile> (-i)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <seqfile> (-i)\n")
             sys.exit(1)
         if (args.template_al is None):
-            sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         # check that '-s' and '-a' are files
         check_file_exists(args.fasta_input,isfasta = True)
@@ -282,15 +318,18 @@ def main(argv=None):
     if args.command == 'create_db':
         # check that '-s' has been provided (alignment produced by htc align)
         if (args.aligned_sequences is None):
-            sys.stderr.write("[E::main] Error: missing <aligned_file> (-s)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <aligned_file> (-s)\n")
             sys.exit(1)
         # check that '-x' has been provided (taxonomy file)
         if (args.taxonomy is None):
-            sys.stderr.write("[E::main] Error: missing <taxonomy_file> (-x)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <taxonomy_file> (-x)\n")
             sys.exit(1)
         # check that the hmm file is provided
         if (args.template_al is None):
-            sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         # check that '-s' and '-a' are files
         check_file_exists(args.aligned_sequences,isfasta = False)
@@ -299,8 +338,9 @@ def main(argv=None):
 
         # check that output is set
         if args.output is None:
-             sys.stderr.write("[E::main] Error: missing <output_DB> (-o)\n")
-             sys.exit(1)
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <output_DB> (-o)\n")
+            sys.exit(1)
         if not args.force_rewrite:
             check_file_doesnt_exists(args.output)
 
@@ -314,10 +354,12 @@ def main(argv=None):
         # FIRST: ALIGN ---------------------------------------------------------
         # check that '-i' and '-a' have been provided
         if (args.fasta_input is None):
-            sys.stderr.write("[E::main] Error: missing <seqfile> (-i)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <seqfile> (-i)\n")
             sys.exit(1)
         if (args.template_al is None):
-            sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         # check that '-s' and '-a' are files
         check_file_exists(args.fasta_input,isfasta = True)
@@ -336,14 +378,16 @@ def main(argv=None):
         # SECOND: CREATE_DB ----------------------------------------------------
         # check that '-x' has been provided (taxonomy file)
         if (args.taxonomy is None):
-            sys.stderr.write("[E::main] Error: missing <taxonomy_file> (-x)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <taxonomy_file> (-x)\n")
             sys.exit(1)
         check_file_exists(args.taxonomy,isfasta = False)
 
         # check that output is set
         if args.output is None:
-             sys.stderr.write("[E::main] Error: missing <output_DB> (-o)\n")
-             sys.exit(1)
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <output_DB> (-o)\n")
+            sys.exit(1)
         if not args.force_rewrite:
             check_file_doesnt_exists(args.output)
 
@@ -365,11 +409,13 @@ def main(argv=None):
     if args.command == 'classify':
         # check that '-i' has been provided (alignment produced by htc align)
         if (args.fasta_input is None):
-            sys.stderr.write("[E::main] Error: missing <fasta_seqs> (-i)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <fasta_seqs> (-i)\n")
             sys.exit(1)
         # check that '-d' has been provided (taxonomy file)
         if (args.database is None):
-            sys.stderr.write("[E::main] Error: missing <database> (-d)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <database> (-d)\n")
             sys.exit(1)
         # check that they are files
         check_file_exists(args.fasta_input,isfasta = True)
@@ -386,13 +432,16 @@ def main(argv=None):
     # --------------------------------------------------------------------------
     if args.command == 'check_input':
         if (args.fasta_input is None):
-            sys.stderr.write("[E::main] Error: missing <fasta_seqs> (-i)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <fasta_seqs> (-i)\n")
             sys.exit(1)
         if (args.taxonomy is None):
-            sys.stderr.write("[E::main] Error: missing <taxonomy_file> (-x)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <taxonomy_file> (-x)\n")
             sys.exit(1)
         if (args.template_al is None):
-            sys.stderr.write("[E::main] Error: missing <hmmfile>/<cmfile> (-a)\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
         check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy, args.template_al, args.use_cm_align)
 
