@@ -10,7 +10,7 @@ Scripts that creates the database of classifiers
 #       >gene1\t0001010001010000100101000...
 #       >gene2\t0000110001010100100101001...
 #  - a taxonomy file that describes the taxonomy of the genes:
-#       gene1\tBacteria\tFirmicutes\t...
+#       gene1\tBacteria;Firmicutes;...
 #
 # Output:
 #  - a database file (hdf5) that can be used by htc classify
@@ -48,12 +48,15 @@ class Taxonomy:
     def load_from_file(self):
         o = open(self.file_name,"r")
 
-        self.number_of_taxonomic_levels = len(o.readline().rstrip().split("\t")) - 1
+        first_line = o.readline().rstrip().split("\t")
+        first_line = [first_line[0]]+first_line[1].split(";")
         o.seek(0)
+        self.number_of_taxonomic_levels = len(first_line) - 1
 
         for line in o:
             # expected line: gene1\tBacteria\tFirmicutes\t...
             vals = line.rstrip().replace("/","-").split("\t")
+            vals = [vals[0]]+vals[1].split(";")
             if self.number_of_taxonomic_levels != len(vals)-1 :
                 sys.stderr.write("Error: taxonomy file does not have the same number of taxonomic levels in:\n")
                 sys.stderr.write("  "+line+"\n")

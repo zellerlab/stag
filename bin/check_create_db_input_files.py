@@ -72,13 +72,15 @@ def check_taxonomy(tax_path):
         return True
 
     # 1. check the number of levels is consistent
-    number_of_taxonomic_levels = len(o.readline().rstrip().split("\t"))
+    first_line = o.readline().rstrip().split("\t")
+    first_line = [first_line[0]]+first_line[1].split(";")
     o.seek(0)
+    number_of_taxonomic_levels = len(first_line)
 
     sys.stderr.write("Detected "+str(number_of_taxonomic_levels-1)+" taxonomic levels\n")
     if number_of_taxonomic_levels < 2:
         sys.stderr.write(f"{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
-        sys.stderr.write("We need at least one level (Like: 'gene_ID\\tlevel1\\tlevel2')\n")
+        sys.stderr.write("We need at least one level (Like: 'gene_ID\\tlevel1;level2')\n")
         sys.stderr.write("        For first line we detected only gene id: '"+o.readline().rstrip()+"'\n")
         return True
 
@@ -99,7 +101,8 @@ def check_taxonomy(tax_path):
     sys.stderr.write("Check number of taxonomy levels.......................")
     found_error1 = False
     for i in o:
-        vals = i.rstrip().split("\t")
+        vals = i.rstrip().replace("/","-").split("\t")
+        vals = [vals[0]]+vals[1].split(";")
         if len(vals) != number_of_taxonomic_levels:
             sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
             sys.stderr.write("Line with different number of tax levels ("+str(len(vals))+" instead of "+str(number_of_taxonomic_levels)+"): "+i)
