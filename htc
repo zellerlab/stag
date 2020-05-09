@@ -132,9 +132,10 @@ def check_file_exists(file_name, isfasta = False):
                 o.close()
                 sys.exit(1)
         o.close()
-    except:
+    except Exception as e:
         sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
         sys.stderr.write("Cannot open file: "+file_name+"\n")
+        sys.stderr.write(str(e)+"\n")
         sys.exit(1)
 
 # function that checks if a file exists already, and give an error -------------
