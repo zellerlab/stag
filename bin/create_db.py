@@ -633,7 +633,7 @@ def learn_function_genes_level(level_to_learn, alignment, full_taxonomy):
 
     return pr
 
-def estimate_function(all_calc_functions, n_levels):
+def estimate_function(all_calc_functions):
     # The all_calc_functions looks like:
     #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
     # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],2]
@@ -737,7 +737,7 @@ def estimate_function(all_calc_functions, n_levels):
         X = np.array([np.array(xi) for xi in correct_order_lines])
         y = np.asarray(correct_order_labels)
         # train classifier
-        clf = LogisticRegression(random_state=0, penalty = "l1", solver='liblinear',max_iter = 5000)
+        clf = LogisticRegression(random_state=0, penalty = "none", solver='saga',max_iter = 5000)
         clf.fit(X, y)
         all_classifiers[l] = clf
 
@@ -785,7 +785,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
             sys.exit(1)
 
     # estimate the function ----------------------------------------------------
-    f = estimate_function(all_calc_functions, n_levels)
+    f = estimate_function(all_calc_functions)
     return f
 
 
@@ -817,7 +817,9 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
     # fourth, the taxonomy function --------------------------------------------
     f.create_group("tax_function")
     for c in tax_function:
-        f.create_dataset("tax_function/"+str(c), data=tax_function[c].coef_,dtype=np.float64, compression="gzip")
+        # we append the intercept at the head (will have position 0)
+        vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
+        f.create_dataset("tax_function/"+str(c), data=vals, dtype=np.float64, compression="gzip")
 
     # fifth, save the classifiers ----------------------------------------------
     f.create_group("classifiers")

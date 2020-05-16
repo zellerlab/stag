@@ -119,13 +119,23 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 #===============================================================================
 #                      CALCULATE EMPIRICAL PROBABILITY
 #===============================================================================
+def run_prediction_no_penalty(seq, coeff_raw):
+    # the first value of the coeff is the intercept
+    coeff = coeff_raw[1:]
+    intercept = coeff_raw[0]
+    # calculate
+    sm = coeff*seq + intercept
+    np_sum = (sm).sum()
+    score = 1/(1+np.exp(-np_sum))
+    return score
+
 def calc_empirical_vals(perc, tax_function):
     prob_per_level = list()
     max_v = 0
     sel_lev = -1
     for l in sorted(list(tax_function)):
         seq = np.asarray(perc)
-        prob_this_level = run_lasso_prediction(seq, tax_function[l])
+        prob_this_level = run_prediction_no_penalty(seq, tax_function[l])
         if prob_this_level > max_v:
             max_v = prob_this_level
             sel_lev = l
