@@ -183,7 +183,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
         perc_text.append(str(i))
 
     # return the result --------------------------------------------------------
-    res_string = res_string + "\t" + "/".join(tax[0:sel_lev+1]) + "\t" + "/".join(tax) + "\t" + str(sel_lev) + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
+    res_string = res_string + "\t" + ";".join(tax[0:sel_lev+1]) + "\t" + "/".join(tax) + "\t" + str(sel_lev) + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
     return res_string
 
 
