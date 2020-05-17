@@ -508,7 +508,7 @@ def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_s
     max_perc_taxa = ""
     # if there is only one child:
     if len(training_tax.find_children_node(arrived_so_far)) == 1:
-        max_perc = 1
+        max_perc = 2 # if there are no sibilings I put 2, it will be replaced after
         max_perc_taxa = training_tax.find_children_node(arrived_so_far)[0]
     # if there are no children
     if len(training_tax.find_children_node(arrived_so_far)) < 1:
@@ -537,6 +537,13 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
     perc = list()
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, training_tax.get_root())
+    # we change the predictions that came from having only one sibiling --------
+    if perc[0] == 2:
+        perc[0] = 1
+    for i in range(len(perc)):
+        if perc[i] == 2:
+            perc[i] = perc[i-1]
+
     return tax, perc
 
 def predict(test_al, training_tax, classifiers_train):

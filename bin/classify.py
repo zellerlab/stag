@@ -97,7 +97,7 @@ def find_best_score(test_seq, sibilings, classifiers):
         sys.stderr.write("Error. no sibilings")
     # if there is only one sibiling:
     if len(sibilings) == 1:
-        best_score = 1
+        best_score = 2 # if there are no sibilings I put 2, it will be replaced after
         best_taxa = sibilings[0]
     if len(sibilings) > 1:
         for s in sibilings:
@@ -165,6 +165,13 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     perc = list()
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, taxonomy, classifiers, tax, perc, "tree_root")
+
+    # we change the predictions that came from having only one sibiling --------
+    if perc[0] == 2:
+        perc[0] = 1
+    for i in range(len(perc)):
+        if perc[i] == 2:
+            perc[i] = perc[i-1]
 
     # now we have the raw prediction, we compare to  ---------------------------
     # the empirical values to obtain a better result
