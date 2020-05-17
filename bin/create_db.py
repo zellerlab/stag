@@ -652,92 +652,63 @@ def estimate_function(all_calc_functions):
     # when we have 4 (which is outside of the taxonomy levels, {0,1,2,3}), it
     # refers to the fact that we removed the genes
 
-    # some removed clades have more genes than others, we remove some genes from
-    # the most abundant clades
-    n_levels = len(all_calc_functions[0][1])
-    # This will contain all the empirical distributions:
-    all_values = dict()
-
-    # parse each line
-    line_pass_filter = dict()
-    cont = -1
+    # we remove duplicates with the same predicted probability -----------------
+    all_uniq = dict()
     for line in all_calc_functions:
-        cont = cont + 1
-        rem_lev = line[4]
-        rem_clade = line[3][min( rem_lev,len(line[3])-1 )] # we use min, because if we removed a gene, then we put the species ID
-        # inizialize all levels to zero
-        if rem_lev not in all_values:
-            all_values[rem_lev] = dict()
+        v = ""
+        for j in line[2]:
+            v = v+str(j)
+        all_uniq[v] = line
+    logging.info('   LEARN_FUNCTION:Number of lines: %s (before removing duplicates: %s)',
+                      str(len(all_uniq)),str(len(all_calc_functions)))
+    # change all_calc_functions
+    all_calc_functions = list()
+    for j in all_uniq:
+        all_calc_functions.append(all_uniq[j])
 
-        # check that till the known clade we have the correct classification
-        predicted = list(line[1])
-        correct =  list(line[3])
-        for i in range(rem_lev,n_levels):
-            predicted[i] = "NA"
-            correct[i] = "NA"
-        s_predicted = "/".join(predicted)
-        s_correct = "/".join(correct)
-        if s_predicted != s_correct:
-            s_perc = '/'.join(str(v) for v in line[2])
-            logging.info('   LEARN_FUNCTION:WARNING:MISCLASSIFICATION: (gene):%s, (predicted): %s, (correct): %s, (perc):%s',
-                              line[0],s_predicted, "/".join(line[3]), s_perc)
-        # if they have the same taxonomy
-        if s_predicted == s_correct:
-            if rem_clade not in all_values[rem_lev]:
-                all_values[rem_lev][rem_clade] = 0
-            all_values[rem_lev][rem_clade] = all_values[rem_lev][rem_clade] + 1
-            # we keep track of which lines passed the filter
-            if rem_lev not in line_pass_filter:
-                line_pass_filter[rem_lev] = list()
-            line_pass_filter[rem_lev].append(cont)
+    # we find what is the correct value for the prediction level ---------------
+    correct_level = list()
+    for line in all_calc_functions:
+        corr_level_this = 0
+        cont = 0
+        for p,c in zip(line[1],line[3]):
+            cont = cont + 1
+            if p == c:
+                corr_level_this = cont-1 # we select to what level to predict
+        correct_level.append(corr_level_this)
+    # now in correct_level there is to which level to predict to. Example:
+    # "A","B","C","species2"
+    # with corr_level_this = 0, we should assign "A"
+    # with corr_level_this = 2, we should assign "A","B","C"
+    # with corr_level_this = -1, we should assign "" (no taxonomy)
 
-    # now we have
-    # all_values[removed_level][removed_clade] -> number of genes
-    # all_values          [INT]         [INT]                [INT]
+    # check how many lines there are per correct level -------------------------
+    for l in set(correct_level):
+        cont = 0
+        for j in correct_level:
+            if j == l:
+                cont = cont + 1
+        logging.info('   LEARN_FUNCTION:Number of lines: level %s: %s',
+                          str(l),str(cont))
 
-    # we find max number of genes per each level
-    selected_lines = list()
-    selected_lines_rem_level = list()
-    for l in all_values:
-        n_genes_per_clade = list()
-        for i in all_values[l]:
-            n_genes_per_clade.append(all_values[l][i])
-        # we set the number of maximum genes per clade
-        n_max = np.percentile(np.array(n_genes_per_clade), 75) # return 75th percentile
-        logging.info('   LEARN_FUNCTION:NUMBER_PER_CLADE: level:%s, number:%s',
-                          str(l),str(n_max))
-        # we set to 0 the count of genes per clade
-        for i in all_values[l]:
-            all_values[l][i] = 0
-        # we shuffle the list and start to add
-        random.shuffle(line_pass_filter[l])
-        for i in line_pass_filter[l]:
-            line = all_calc_functions[i]
-            rem_lev = line[4]
-            rem_clade = line[3][min( rem_lev,len(line[3])-1 )] # we use min, because if we removed a gene, then we put the species ID
-            if all_values[l][rem_clade] < n_max:
-                all_values[l][rem_clade] = all_values[l][rem_clade] + 1
-                selected_lines.append(line[2])
-                selected_lines_rem_level.append(rem_lev)
 
-    # now we use the selected lines to train a classifier for each level
+    # we train the classifiers -------------------------------------------------
     all_classifiers = dict()
-    levels = list(line_pass_filter.keys())
-    for l in levels:
+    for l in set(correct_level):
         # we create the feature matrix
         # NOTE: we always need the negative class to be first
         correct_order_lines = list()
         correct_order_labels = list()
         cont = 0
-        for i in selected_lines_rem_level:
-            if i != l:
-                correct_order_lines.append(selected_lines[cont])
+        for i in range(len(all_calc_functions)):
+            if correct_level[i] != l:
+                correct_order_lines.append(all_calc_functions[i][2])
                 correct_order_labels.append(0)
             cont = cont + 1
         cont = 0
-        for i in selected_lines_rem_level:
-            if i == l:
-                correct_order_lines.append(selected_lines[cont])
+        for i in range(len(all_calc_functions)):
+            if correct_level[i] == l:
+                correct_order_lines.append(all_calc_functions[i][2])
                 correct_order_labels.append(1)
             cont = cont + 1
 
@@ -749,7 +720,6 @@ def estimate_function(all_calc_functions):
         all_classifiers[l] = clf
 
     return all_classifiers
-
 
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic

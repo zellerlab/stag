@@ -124,8 +124,8 @@ def run_prediction_no_penalty(seq, coeff_raw):
     coeff = coeff_raw[1:]
     intercept = coeff_raw[0]
     # calculate
-    sm = coeff*seq + intercept
-    np_sum = (sm).sum()
+    sm = coeff*seq
+    np_sum = (sm).sum() + intercept
     score = 1/(1+np.exp(-np_sum))
     return score
 
