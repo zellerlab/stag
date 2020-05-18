@@ -669,7 +669,7 @@ def estimate_function(all_calc_functions):
     # we find what is the correct value for the prediction level ---------------
     correct_level = list()
     for line in all_calc_functions:
-        corr_level_this = 0
+        corr_level_this = -1
         cont = 0
         for p,c in zip(line[1],line[3]):
             cont = cont + 1
@@ -717,7 +717,7 @@ def estimate_function(all_calc_functions):
         # train classifier
         clf = LogisticRegression(random_state=0, penalty = "none", solver='saga',max_iter = 5000)
         clf.fit(X, y)
-        all_classifiers[l] = clf
+        all_classifiers[str(l)] = clf
 
     return all_classifiers
 

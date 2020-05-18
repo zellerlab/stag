@@ -62,7 +62,7 @@ def load_DB(hdf5_DB_path):
     # fourth: tax_function -----------------------------------------------------
     tax_function = dict()
     for c in f['tax_function']:
-        tax_function[int(c)] = np.array(f["tax_function/"+c],dtype = np.float64)
+        tax_function[str(c)] = np.array(f["tax_function/"+c],dtype = np.float64)
 
     # fifth: the classifiers ---------------------------------------------------
     classifiers = dict()
@@ -139,12 +139,11 @@ def calc_empirical_vals(perc, tax_function):
         if prob_this_level > max_v:
             max_v = prob_this_level
             sel_lev = l
-        prob_per_level.append(str(prob_this_level))
+        prob_per_level.append(l+":"+str(prob_this_level))
 
-    # note that sel_lev represents which level was removed, so
-    # 0 means that we cannot assign even at the lowest level
-    # (there is one predictor more than the number of levels)
-    return sel_lev-1, prob_per_level
+    # note that sel_lev represents which level to predict, so 2 means that we
+    # predict 0,1,2. If it is "-1", then we cannot predict anything
+    return sel_lev, prob_per_level
 
 
 #===============================================================================
@@ -183,7 +182,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
         perc_text.append(str(i))
 
     # return the result --------------------------------------------------------
-    res_string = res_string + "\t" + ";".join(tax[0:sel_lev+1]) + "\t" + "/".join(tax) + "\t" + str(sel_lev) + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
+    res_string = res_string + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
     return res_string
 
 
