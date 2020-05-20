@@ -164,10 +164,10 @@ def msg(name=None):
 
 {bco.Cyan}Command:{bco.ResetAll}
  {bco.LightGreen}-- Main commands{bco.ResetAll}
-      {bco.LightBlue}train{bco.ResetAll}        Train a classifier and create a database, to be used with stag
-                   classify
-      {bco.LightBlue}classify{bco.ResetAll}     Classify a sequence according to a database created with stag
-                   train
+      {bco.LightBlue}train{bco.ResetAll}        Train a classifier and create a database, to be used
+                   with stag classify
+      {bco.LightBlue}classify{bco.ResetAll}     Classify a sequence according to a database created
+                   with stag train
 
  {bco.LightGreen}-- Secondary commands{bco.ResetAll}
       {bco.LightBlue}align{bco.ResetAll}        Align a sequence to a hmm or infernal model
