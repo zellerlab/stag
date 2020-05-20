@@ -1,8 +1,5 @@
 <img src="https://github.com/AlessioMilanese/stag/blob/master/pics/stag_logo.png" width="600">
 
-Metagenomic Sequences Hierarchical Taxonomic Classifier
-========
-
 This tool is design to classify metagenomic sequences (marker genes, genomes and amplicon reads) using a Hierarchical Taxonomic Classifier.
 
 
