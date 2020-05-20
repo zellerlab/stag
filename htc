@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 # ============================================================================ #
-# htc - A hierarchical taxonomic classifier for metagenomic sequences
+# stag - Supervised Taxonomic Assignment of marker Genes
 #
 # Authors: Alessio Milanese (milanese@embl.de),
 #
-# Type "htc" for usage help
+# Type "stag" for usage help
 #
 #  LICENSE:
 #    htc - A hierarchical taxonomic classifier for metagenomic sequences
