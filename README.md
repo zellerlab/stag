@@ -1,5 +1,4 @@
-![alt text](https://github.com/AlessioMilanese/stag/blob/master/pics/stag_logo.png)
-
+<img src="https://github.com/AlessioMilanese/stag/blob/master/pics/stag_logo.png" width="600">
 
 Metagenomic Sequences Hierarchical Taxonomic Classifier
 ========
