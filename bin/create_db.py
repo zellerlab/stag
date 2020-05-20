@@ -6,14 +6,14 @@ Scripts that creates the database of classifiers
 
 # Input:
 #  - one multiple sequence alignment (MSA) per marker gene. The MSA is obtained
-#    from the function htc align, like:
+#    from the function stag align, like:
 #       >gene1\t0001010001010000100101000...
 #       >gene2\t0000110001010100100101001...
 #  - a taxonomy file that describes the taxonomy of the genes:
 #       gene1\tBacteria;Firmicutes;...
 #
 # Output:
-#  - a database file (hdf5) that can be used by htc classify
+#  - a database file (hdf5) that can be used by stag classify
 
 import numpy as np
 import sys
