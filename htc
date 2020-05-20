@@ -8,8 +8,7 @@
 # Type "stag" for usage help
 #
 #  LICENSE:
-#    htc - A hierarchical taxonomic classifier for metagenomic sequences
-#    Copyright (C) 2019  A. Milanese
+#    stag - Supervised Taxonomic Assignment of marker Genes (C) 2020 A. Milanese
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
