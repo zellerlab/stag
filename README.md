@@ -10,14 +10,12 @@ The stag classifier requires:
 * Python 3 (or higher)
 * HMMER3 (or Infernal)
 * Easel ([link](https://github.com/EddyRivasLab/easel))
+* [seqtk](https://github.com/lh3/seqtk)
 * python library:
   * numpy
   * pandas
   * sklearn
   * h5py
-
-In order to use the command ```correct_seq``` you need:
-* [seqtk](https://github.com/lh3/seqtk)
 
 If you have [conda](https://conda.io/docs/), you can install the dependencies and create an enviroment:
 ```bash
