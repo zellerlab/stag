@@ -163,6 +163,30 @@ def main(argv=None):
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. h5py is missing{bco.ResetAll}\n\n")
         error_found = True
 
+    # TRY TO RUN STAG ==========================================================
+    sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Run stag:{bco.ResetAll}\n")
+
+    sys.stderr.write("  ■ train:      ") #--------------------------------------
+    sys.stderr.flush()
+    seq_file = relative_path+'test/sequences.fasta'
+    tax_file = relative_path+'test/sequences.taxonomy'
+    hmm_file = relative_path+'test/gene.hmm'
+    temp_file_db = tempfile.NamedTemporaryFile(delete=False, mode="w")
+
+
+    stag_command = "python "+relative_path+"stag train -f -o "+temp_file_db.name+" -i "+seq_file+" -x "+tax_file+" -a "+hmm_file
+    process = subprocess.run(stag_command.split())
+
+    if process.returncode:
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.exit(1)
+    else:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+
+    # remove temp file
+    os.remove(temp_file_db.name+".log")
+    os.remove(temp_file_db.name)
+
 
     if (error_found):
         return 1
