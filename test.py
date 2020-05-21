@@ -91,30 +91,76 @@ def main(argv=None):
         error_found = True
 
     # check hmmer --------------------------------------------------------------
-    sys.stderr.write("  ■ hmmalign:     ") # with bwa we don't check the return code, because the normal bwa return 1 if you dont add anything
+    sys.stderr.write("  ■ hmmalign:     ")
     if is_tool("hmmalign"):
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
-        #TODO: maybe check version? at least 0.7.15-r1140
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. HMMER3 is not in the path{bco.ResetAll}\n\n")
         error_found = True
 
     # check Easel --------------------------------------------------------------
-    sys.stderr.write("  ■ esl-reformat: ") # with bwa we don't check the return code, because the normal bwa return 1 if you dont add anything
+    sys.stderr.write("  ■ esl-reformat: ")
     if is_tool("esl-reformat"):
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
-        #TODO: maybe check version? at least 0.7.15-r1140
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. EASEL is not in the path{bco.ResetAll}\n\n")
         error_found = True
 
     # check Easel --------------------------------------------------------------
-    sys.stderr.write("  ■ seqtk:        ") # with bwa we don't check the return code, because the normal bwa return 1 if you dont add anything
+    sys.stderr.write("  ■ seqtk:        ")
     if is_tool("seqtk"):
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
-        #TODO: maybe check version? at least 0.7.15-r1140
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. seqtk is not in the path{bco.ResetAll}\n\n")
+        error_found = True
+
+    # Python libraries:
+    sys.stderr.write("  ■ (L)numpy:     ") #------------------------------------
+    library_correct = True
+    try:
+        import numpy
+    except ImportError as e:
+        library_correct = False
+    if library_correct:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. numpy is missing{bco.ResetAll}\n\n")
+        error_found = True
+
+    sys.stderr.write("  ■ (L)pandas:    ") #------------------------------------
+    library_correct = True
+    try:
+        import pandas
+    except ImportError as e:
+        library_correct = False
+    if library_correct:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. pandas is missing{bco.ResetAll}\n\n")
+        error_found = True
+
+    sys.stderr.write("  ■ (L)sklearn:   ") #------------------------------------
+    library_correct = True
+    try:
+        import sklearn
+    except ImportError as e:
+        library_correct = False
+    if library_correct:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. sklearn is missing{bco.ResetAll}\n\n")
+        error_found = True
+
+    sys.stderr.write("  ■ (L)h5py:      ") #------------------------------------
+    library_correct = True
+    try:
+        import h5py
+    except ImportError as e:
+        library_correct = False
+    if library_correct:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. h5py is missing{bco.ResetAll}\n\n")
         error_found = True
 
 
