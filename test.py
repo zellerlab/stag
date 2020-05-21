@@ -48,3 +48,25 @@ def is_tool(name):
         if e.errno == errno.ENOENT:
             return False
     return True
+
+
+# ------------------------------------------------------------------------------
+# MAIN
+# ------------------------------------------------------------------------------
+def main(argv=None):
+    sys.stderr.write(" ------------------------------------------------------------------------------\n")
+    sys.stderr.write("|                               TEST MOTUS TOOL                                |\n")
+    sys.stderr.write(" ------------------------------------------------------------------------------\n")
+
+    error_found = False
+
+    if (error_found):
+        return 1
+    else:
+        return 0        # success
+
+
+#-------------------------------- run main -------------------------------------
+if __name__ == '__main__':
+    status = main()
+    sys.exit(status)
