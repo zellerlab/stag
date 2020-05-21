@@ -23,6 +23,11 @@ conda env create -f conda_env_stag.yaml
 conda activate stag
 ```
 
+You can check that the tool works properly with:
+```
+python test.py
+```
+
 Installation
 --------------
 ```bash
