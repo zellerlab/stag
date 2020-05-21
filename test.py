@@ -183,9 +183,23 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
 
+    sys.stderr.write("  ■ classify:   ") #--------------------------------------
+    sys.stderr.flush()
+    temp_file_res = tempfile.NamedTemporaryFile(delete=False, mode="w")
+
+    stag_command = "python "+relative_path+"stag classify -v 1 -d "+temp_file_db.name+" -i "+seq_file+" -o "+temp_file_res.name
+    process = subprocess.run(stag_command.split())
+
+    if process.returncode:
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.exit(1)
+    else:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+
     # remove temp file
     os.remove(temp_file_db.name+".log")
     os.remove(temp_file_db.name)
+    os.remove(temp_file_res.name)
 
 
     if (error_found):
