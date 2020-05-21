@@ -17,7 +17,7 @@ The stag classifier requires:
   * sklearn
   * h5py
 
-If you have [conda](https://conda.io/docs/), you can install the dependencies and create an enviroment:
+If you have [conda](https://conda.io/docs/), you can install the dependencies by creating an environment:
 ```bash
 conda env create -f conda_env_stag.yaml
 conda activate stag
