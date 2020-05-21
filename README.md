@@ -39,7 +39,7 @@ First: Create a database
 You need three input:
 1. a set of reference sequences to use to learn the taxonomy
 2. a taxonomy file for the sequences in point 1
-3. a hmm file for the sequences in point 1
+3. a hmm file for the sequences in point 1 (check also: [What to do if you don't have a hmm file](https://github.com/AlessioMilanese/stag/wiki/Create-hmm-file))
 
 The reference sequences should be in fasta format:
 ```
