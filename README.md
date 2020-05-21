@@ -3,7 +3,19 @@
 This tool is design to classify metagenomic sequences (marker genes, genomes and amplicon reads) using a Hierarchical Taxonomic Classifier.
 
 
-Pre-requisites
+Installation
+--------------
+```bash
+git clone https://github.com/AlessioMilanese/stag.git
+cd stag
+export PATH=`pwd`:$PATH
+```
+
+Note: in the following examples we assume that the python script ```stag``` is in the system path.
+
+
+
+Dependencies
 --------------
 
 The stag classifier requires:
@@ -27,16 +39,6 @@ You can check that the tool works properly with:
 ```
 python test.py
 ```
-
-Installation
---------------
-```bash
-git clone https://github.com/AlessioMilanese/stag.git
-cd stag
-export PATH=`pwd`:$PATH
-```
-
-Note: in the following examples we assume that the python script ```stag``` is in the system path.
 
 
 First: Create a database
