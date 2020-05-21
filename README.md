@@ -19,6 +19,12 @@ The stag classifier requires:
 In order to use the command ```correct_seq``` you need:
 * [seqtk](https://github.com/lh3/seqtk)
 
+If you have [conda](https://conda.io/docs/), you can install the dependencies and create an enviroment:
+```bash
+conda env create -f conda_env_stag.yaml
+conda activate stag
+```
+
 Installation
 --------------
 ```bash
