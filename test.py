@@ -50,15 +50,73 @@ def is_tool(name):
     return True
 
 
+# colors for the shell ---------------------------------------------------------
+class bco:
+    ResetAll = "\033[0m"
+    Bold       = "\033[1m"
+    Underlined = "\033[4m"
+    Green        = "\033[32m"
+    Yellow       = "\033[33m"
+    Blue         = "\033[34m"
+    Red          = "\033[31m"
+    Magenta      = "\033[35m"
+    Cyan         = "\033[36m"
+    LightRed     = "\033[91m"
+    LightGreen   = "\033[92m"
+    LightYellow  = "\033[93m"
+    LightBlue    = "\033[94m"
+    LightMagenta = "\033[95m"
+    LightCyan    = "\033[96m"
+
 # ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
 def main(argv=None):
-    sys.stderr.write(" ------------------------------------------------------------------------------\n")
-    sys.stderr.write("|                               TEST MOTUS TOOL                                |\n")
-    sys.stderr.write(" ------------------------------------------------------------------------------\n")
+    sys.stderr.write(f"{bco.Blue}{bco.Bold} ------------------------------------------------------------------------------{bco.ResetAll}\n")
+    sys.stderr.write(f"{bco.Blue}{bco.Bold}|{bco.Green}                                    TEST STAG                                 {bco.Blue}|{bco.ResetAll}\n")
+    sys.stderr.write(f"{bco.Blue}{bco.Bold} ------------------------------------------------------------------------------{bco.ResetAll}\n")
 
     error_found = False
+
+    # CHECK TOOLS ==============================================================
+
+    sys.stderr.write(f"{bco.Cyan}{bco.Bold}1-- Tools and versions:{bco.ResetAll}\n")
+    # check python version -----------------------------------------------------
+    sys.stderr.write("  ■ python:       ")
+    python_version = sys.version_info
+    if(python_version >= (3,0,0)):
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING: python2 is not supported{bco.ResetAll}\n\n")
+        error_found = True
+
+    # check hmmer --------------------------------------------------------------
+    sys.stderr.write("  ■ hmmalign:     ") # with bwa we don't check the return code, because the normal bwa return 1 if you dont add anything
+    if is_tool("hmmalign"):
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        #TODO: maybe check version? at least 0.7.15-r1140
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. HMMER3 is not in the path{bco.ResetAll}\n\n")
+        error_found = True
+
+    # check Easel --------------------------------------------------------------
+    sys.stderr.write("  ■ esl-reformat: ") # with bwa we don't check the return code, because the normal bwa return 1 if you dont add anything
+    if is_tool("esl-reformat"):
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        #TODO: maybe check version? at least 0.7.15-r1140
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. EASEL is not in the path{bco.ResetAll}\n\n")
+        error_found = True
+
+    # check Easel --------------------------------------------------------------
+    sys.stderr.write("  ■ seqtk:        ") # with bwa we don't check the return code, because the normal bwa return 1 if you dont add anything
+    if is_tool("seqtk"):
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        #TODO: maybe check version? at least 0.7.15-r1140
+    else:
+        sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. seqtk is not in the path{bco.ResetAll}\n\n")
+        error_found = True
+
 
     if (error_found):
         return 1
