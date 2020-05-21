@@ -1,0 +1,17 @@
+name: stag
+channels:
+  - bioconda
+  - defaults
+  - conda-forge
+  - intel
+dependencies:
+  - python=3.6
+  - hmmer
+  - infernal
+  - easel
+  - numpy
+  - pandas
+  - scikit-learn
+  - h5py
+  - seqtk
+  - regex
