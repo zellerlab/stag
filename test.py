@@ -199,10 +199,51 @@ def main(argv=None):
     # remove temp file
     os.remove(temp_file_db.name+".log")
     os.remove(temp_file_db.name)
+
+    # CHECK THE RESULTING FILE =================================================
+    sys.stderr.write(f"{bco.Cyan}{bco.Bold}3-- Check result of the classification:{bco.ResetAll}\n")
+    sys.stderr.write("  ■ taxonomy of classified sequences: ")
+    sys.stderr.flush()
+
+    o = open(tax_file,"r")
+    correct_tax = dict()
+    for i in o:
+        vals = i.rstrip().split("\t")
+        correct_tax[vals[0]] = vals[1]
+    o.close()
+
+    o = open(temp_file_res.name,"r")
+    o.readline() # remove header
+    pred_tax = dict()
+    for i in o:
+        vals = i.rstrip().split("\t")
+        if len(vals) < 2:
+            sys.stderr.write(f"{bco.Red}{bco.Bold} Error: less than two values ("+str(vals)+f"){bco.ResetAll}\n")
+            os.remove(temp_file_res.name)
+            sys.exit(1)
+        pred_tax[vals[0]] = vals[1]
+    o.close()
+
+    # remove temp file
     os.remove(temp_file_res.name)
 
+    # let's check the values
+    if not set(pred_tax.keys()) == set(correct_tax.keys()):
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error: different number of predicted genes{bco.ResetAll}\n")
+        sys.exit(1)
+    # if we arrive here, we have the same set of predicted genes
+    # let's check the predicted taxonomies
+    error_flag = False
+    for i in pred_tax:
+        if pred_tax[i] != correct_tax[i]:
+            error_flag = True
+            sys.stderr.write(f"{bco.Red}{bco.Bold} Error: different taxonomy for "+i+"(correct:'"+correct_tax[i]+"', predicted:'"+pred_tax[i]+"')"+f"{bco.ResetAll}\n")
 
-    if (error_found):
+    if not error_flag:
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+
+
+    if (error_found or error_flag):
         return 1
     else:
         return 0        # success
