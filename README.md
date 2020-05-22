@@ -89,3 +89,11 @@ sequences using:
 ```
 stag classify -d test_db.htcDB -i unknown_seq.fasta
 ```
+
+The output is:
+```
+sequence	taxonomy
+geneA	d__Bacteria;p__Firmicutes;c__Bacilli;o__Staphylococcales;f__Staphylococcaceae;g__Staphylococcus
+geneB	d__Bacteria
+geneC	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria
+```
