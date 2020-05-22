@@ -570,6 +570,8 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy):
         # find how many to use for the test set:
         aval_clades = set(this_level_clades[c])
         n_test = round(len(aval_clades) * perc_test_set)
+        if len(aval_clades) == 2:
+            n_test = 0
         # add to test set
         for i in range(n_test):
             test_set.add(aval_clades.pop())
@@ -655,11 +657,10 @@ def estimate_function(all_calc_functions):
     # we remove duplicates with the same predicted probability -----------------
     all_uniq = dict()
     for line in all_calc_functions:
-        if line[4] != 0: ################----------------- TEST: remove the one that were removed from level 0 (since there was only bacteria and archaea)
-            v = ""
-            for j in line[2]:
-                v = v+str(j)
-            all_uniq[v] = line
+        v = ""
+        for j in line[2]:
+            v = v+str(j)
+        all_uniq[v] = line
     logging.info('   LEARN_FUNCTION:Number of lines: %s (before removing duplicates: %s)',
                       str(len(all_uniq)),str(len(all_calc_functions)))
     # change all_calc_functions
