@@ -43,6 +43,9 @@ except:
 def load_DB(hdf5_DB_path):
     f = h5py.File(hdf5_DB_path, 'r')
 
+    # zero: tool version -------------------------------------------------------
+    db_tool_version = f['tool_version'][0]
+
     # first, we save a temporary file with the hmm file ------------------------
     hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(hmm_file.name, 0o644)
@@ -74,7 +77,7 @@ def load_DB(hdf5_DB_path):
 
     f.close()
 
-    return hmm_file.name, use_cmalign, taxonomy, tax_function, classifiers
+    return hmm_file.name, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version
 
 
 
@@ -191,10 +194,10 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version):
     t0 = time.time()
     # load the database
-    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
+    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database)
     if verbose>2:
         time_after_loading = time.time()
         sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")

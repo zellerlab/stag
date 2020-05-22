@@ -425,7 +425,7 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val)
+        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version)
 
         # what to do with intermediate alignment -------------------------------
         if args.intermediate_al is None:
@@ -458,7 +458,7 @@ def main(argv=None):
             check_file_exists(args.protein_fasta_input,isfasta = True)
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out)
+        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine

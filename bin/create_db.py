@@ -772,9 +772,13 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
 #===============================================================================
 #                     FUNCTIONS TO SAVE TO A DATABASE
 #===============================================================================
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, output):
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output):
     # where to save the file
     f = h5py.File(output, "w")
+    string_dt = h5py.special_dtype(vlen=str)
+
+    # zero: tool version -------------------------------------------------------
+    f.create_dataset('tool_version',data=np.array([str(tool_version)],"S100"),dtype=string_dt)
 
     # first we save the hmm file -----------------------------------------------
     line = ""
@@ -782,7 +786,6 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
     for i in o:
         line = line + i
     o.close()
-    string_dt = h5py.special_dtype(vlen=str)
     f.create_dataset('hmm_file',data=np.array([line],"S"+str(len(line)+100)),dtype=string_dt, compression="gzip")
 
     # second, save the use_cmalign info ----------------------------------------
@@ -791,7 +794,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
     # third, we save the taxonomy ---------------------------------------------
     f.create_group("taxonomy")
     for i in full_taxonomy.child_nodes:
-        f.create_dataset("taxonomy/"+i, data=np.array(list(full_taxonomy.child_nodes[i]),"S1000"),dtype=string_dt, compression="gzip")
+        f.create_dataset("taxonomy/"+i, data=np.array(list(full_taxonomy.child_nodes[i]),"S10000"),dtype=string_dt, compression="gzip")
 
     # fourth, the taxonomy function --------------------------------------------
     f.create_group("tax_function")
@@ -825,7 +828,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, tool_version):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -862,5 +865,5 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. save the result
     logging.info('MAIN:Save to file')
-    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, output)
+    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output)
     logging.info('MAIN:Finish save to file')
