@@ -212,6 +212,7 @@ def print_menu_classify():
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE  sequences to taxonomically annotate (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, corresponding to -i {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_check_input():
@@ -274,6 +275,7 @@ def main(argv=None):
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
     parser.add_argument('-m', action='store', type=int, default=None, dest='min_perc_state', help='Minimum number of mapping states, i.e. how many features of the classifier we cover')
+    parser.add_argument('-l', action='store_true', default=None, dest='long_out', help='Print more columns for the classification pipeline')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -282,7 +284,7 @@ def main(argv=None):
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
-            if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None):
+            if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None) and (args.long_out is None):
                 if args.command == 'align': print_menu_align()
                 if args.command == 'create_db': print_menu_create_db()
                 if args.command == 'classify': print_menu_classify()
@@ -300,6 +302,7 @@ def main(argv=None):
     if (args.min_perc_state is None): args.min_perc_state = 5
     if (args.use_cm_align is None): args.use_cm_align = False
     if (args.force_rewrite is None): args.force_rewrite = False
+    if (args.long_out is None): args.long_out = False
 
     if args.verbose < 1:
         sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
@@ -455,7 +458,7 @@ def main(argv=None):
             check_file_exists(args.protein_fasta_input,isfasta = True)
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output)
+        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine

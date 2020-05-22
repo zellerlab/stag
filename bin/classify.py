@@ -191,7 +191,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out):
     t0 = time.time()
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
@@ -218,9 +218,16 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     else:
         outfile = sys.stdout
 
-    outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\n")
+    if long_out:
+        outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\n")
+    else:
+        outfile.write("sequence\ttaxonomy\n")
+
     for i in list_to_print:
-        outfile.write(i+"\n")
+        if long_out:
+            outfile.write(i+"\n")
+        else:
+            outfile.write("\t".join(i.split("\t")[0:2])+"\n")
 
     # close
     if not(output is None):
