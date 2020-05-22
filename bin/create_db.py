@@ -779,6 +779,8 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
 
     # zero: tool version -------------------------------------------------------
     f.create_dataset('tool_version',data=np.array([str(tool_version)],"S100"),dtype=string_dt)
+    # and type of database
+    f.create_dataset('db_type',data=np.array(["single_gene"],"S100"),dtype=string_dt)
 
     # first we save the hmm file -----------------------------------------------
     line = ""

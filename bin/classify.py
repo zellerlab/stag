@@ -45,6 +45,13 @@ def load_DB(hdf5_DB_path):
 
     # zero: tool version -------------------------------------------------------
     db_tool_version = f['tool_version'][0]
+    # check that it is the correct database, for 'classify', we need a single
+    # gene
+    if f['db_type'][0] != "single_gene":
+        sys.stderr.write("[E::main] Error: this database is not designed to run with stag classify\n")
+        sys.exit(1)
+
+
 
     # first, we save a temporary file with the hmm file ------------------------
     hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
