@@ -772,7 +772,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
 #===============================================================================
 #                     FUNCTIONS TO SAVE TO A DATABASE
 #===============================================================================
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output):
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output, protein_fasta_input):
     # where to save the file
     f = h5py.File(output, "w")
     string_dt = h5py.special_dtype(vlen=str)
@@ -781,6 +781,11 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
     f.create_dataset('tool_version',data=np.array([str(tool_version)],"S100"),dtype=string_dt)
     # and type of database
     f.create_dataset('db_type',data=np.array(["single_gene"],"S100"),dtype=string_dt)
+    # was the alignment done at the protein level?
+    if not(protein_fasta_input is None):
+        f.create_dataset('align_protein',data=np.array([True]),dtype=bool)
+    else:
+        f.create_dataset('align_protein',data=np.array([False]),dtype=bool)
 
     # first we save the hmm file -----------------------------------------------
     line = ""
@@ -830,7 +835,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, tool_version):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, tool_version, protein_fasta_input):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -867,5 +872,5 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. save the result
     logging.info('MAIN:Save to file')
-    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output)
+    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output, protein_fasta_input)
     logging.info('MAIN:Finish save to file')

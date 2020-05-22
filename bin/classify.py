@@ -40,7 +40,7 @@ except:
 #===============================================================================
 #                            LOAD THE HDF5 DATABASE
 #===============================================================================
-def load_DB(hdf5_DB_path):
+def load_DB(hdf5_DB_path, protein_fasta_input):
     f = h5py.File(hdf5_DB_path, 'r')
 
     # zero: tool version -------------------------------------------------------
@@ -50,6 +50,19 @@ def load_DB(hdf5_DB_path):
     if f['db_type'][0] != "single_gene":
         sys.stderr.write("[E::main] Error: this database is not designed to run with stag classify\n")
         sys.exit(1)
+    # check if we used proteins
+    if not(protein_fasta_input is None):
+        # some proteins are provided in the classify
+        if not f['align_protein'][0]:
+            # but the db was constructed without using the proteins
+            sys.stderr.write("Error: protein provided, but the database was constructed on genes.\n")
+            sys.exit(1)
+    else:
+        # the classify do not have proteins
+        if f['align_protein'][0]:
+            # but the db was constructed WITH  the proteins
+            sys.stderr.write("Error: missing protein file (the database was constructed aligning proteins).\n")
+            sys.exit(1)
 
 
 
@@ -204,7 +217,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version):
     t0 = time.time()
     # load the database
-    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database)
+    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input)
     if verbose>2:
         time_after_loading = time.time()
         sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")
