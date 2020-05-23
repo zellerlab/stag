@@ -163,17 +163,19 @@ def msg(name=None):
 {bco.Cyan}Usage:{bco.ResetAll} stag <command> [options]
 
 {bco.Cyan}Command:{bco.ResetAll}
- {bco.LightGreen}-- Main commands{bco.ResetAll}
-      {bco.LightBlue}train{bco.ResetAll}        Train a classifier and create a database, to be used
-                   with stag classify
-      {bco.LightBlue}classify{bco.ResetAll}     Classify a sequence according to a database created
-                   with stag train
+ {bco.LightGreen}-- Single gene{bco.ResetAll}
+      {bco.LightBlue}train{bco.ResetAll}        Train a classifier and create a database
+      {bco.LightBlue}classify{bco.ResetAll}     Taxonomically annotate a gene
 
- {bco.LightGreen}-- Secondary commands{bco.ResetAll}
       {bco.LightBlue}align{bco.ResetAll}        Align a sequence to a hmm or infernal model
       {bco.LightBlue}create_db{bco.ResetAll}    Create a database given the aligned sequences
       {bco.LightBlue}check_input{bco.ResetAll}  Check the input for the train command
       {bco.LightBlue}correct_seq{bco.ResetAll}  Correct sequences that are in wrong orientation
+
+ {bco.LightGreen}-- Genome{bco.ResetAll}
+      {bco.LightBlue}train_genome{bco.ResetAll}     Merge classifiers of single genes
+      {bco.LightBlue}classify_genome{bco.ResetAll}  Taxonomically annotate a genome (predict genes, extract
+                       the database marker genes and classify them)
 
 Type stag <command> to print the help for a specific command
         '''
