@@ -255,6 +255,23 @@ def print_menu_correct_seq():
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[5]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_train_genome():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-o{bco.ResetAll} <output_DB> [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  LIST  list of single gene databases to use (comma separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_classify_genome():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} classify_genome {bco.LightBlue}-d{bco.ResetAll} <genome_database> {bco.LightBlue}-i{bco.ResetAll} <fasta_seq> [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE  genome fasta file {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -262,7 +279,7 @@ def print_menu_correct_seq():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome'])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
@@ -293,6 +310,8 @@ def main(argv=None):
                 if args.command == 'check_input': print_menu_check_input()
                 if args.command == 'train': print_menu_train()
                 if args.command == 'correct_seq': print_menu_correct_seq()
+                if args.command == 'train_genome': print_menu_train_genome()
+                if args.command == 'classify_genome': print_menu_classify_genome()
                 sys.exit(1)
 
 
