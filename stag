@@ -116,7 +116,13 @@ except Exception as e:
     sys.stderr.write("fail to load the script: "+relative_path+"bin/correct_seq.py\n")
     sys.stderr.write(str(e)+"\n")
     sys.exit(1)
-
+try:
+    import classify_genome as classify_genome
+except Exception as e:
+    sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/classify_genome.py\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
 
 
 # function that checks if a file exists ----------------------------------------
@@ -549,7 +555,8 @@ def main(argv=None):
         for name in args.fasta_input.split(","):
             check_file_exists(name,isfasta = False)
             try:
-                tar.add(name)
+                name_file = os.path.basename(name)
+                tar.addfile(tarfile.TarInfo(name_file), open(name))
             except:
                 sys.stderr.write("[E::main] Error: when adding "+name+" to the database\n")
                 sys.exit(1)
