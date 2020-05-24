@@ -572,6 +572,20 @@ def main(argv=None):
                 sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
                 sys.exit(1)
 
+    # --------------------------------------------------------------------------
+    # CLASSIFY_GENOME routine
+    # --------------------------------------------------------------------------
+    if args.command == 'classify_genome':
+        if (args.database is None):
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <database> (-d)\n")
+            sys.exit(1)
+        if (args.fasta_input is None):
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <list_gene_DBs> (-i)\n")
+            sys.exit(1)
+        # call the function
+        classify_genome.classify_genome(args.database, args.fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version)
 
 
     return 0        # success
