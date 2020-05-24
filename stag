@@ -277,7 +277,7 @@ def print_menu_classify_genome():
     sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>] [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE  genome fasta file\n")
-    sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR   directory containing genome fasta files (all files within the\n            directory will be used)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR   directory containing genome fasta files (only fasta\n            files will be used)\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
@@ -598,8 +598,36 @@ def main(argv=None):
             sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
             sys.stderr.write("you need to provide -i or -D, not both.\n")
             sys.exit(1)
+        # check that the input is correct
+
+        # find files to classify
+        if not(args.fasta_input is None):
+            check_file_exists(args.fasta_input,isfasta = True)
+            list_files = [args.fasta_input]
+        else:
+            if not os.path.isdir(args.dir_input):
+                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+                sys.stderr.write("-D is not a directory.\n")
+                sys.exit(1)
+            raw_list_files = [f for f in os.listdir(args.dir_input) if os.path.isfile(os.path.join(args.dir_input, f))]
+            list_files = list()
+            for i in raw_list_files:
+                path_i = os.path.join(args.dir_input,i)
+                try:
+                    o = open(path_i,"r")
+                    if o.readline().startswith(">"):
+                        list_files.append(path_i)
+                    o.close()
+                except Exception as e:
+                    if args.verbose > 1:
+                        sys.stderr.write(f"{bco.Yellow}{bco.Bold}[W::main] Warning: {bco.ResetAll}")
+                        sys.stderr.write("Cannot open file: "+path_i+"\n")
+            if len(list_files) == 0:
+                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+                sys.stderr.write("no fasta files found in the directory.\n")
+                sys.exit(1)
         # call the function
-        classify_genome.classify_genome(args.database, args.fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version)
+        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output, args.long_out, tool_version)
 
 
     return 0        # success
