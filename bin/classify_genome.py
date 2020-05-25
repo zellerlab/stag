@@ -91,7 +91,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # genomes_pred is a dictionary where the keys are the genome paths and the
     # values are lists. First value of the list is the path to the gene file and
     # second the path to the protein file
-    print(genomes_pred)
 
     # THIRD: find the marker genes from the predicted genes
 
@@ -99,5 +98,10 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
 
     # we remove the temp dir
     shutil.rmtree(temp_dir)
+    # and the result from prodigal
+    for i in genomes_pred:
+        if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
+        if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
+
 
     # FIFTH: join prediction
