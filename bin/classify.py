@@ -60,7 +60,7 @@ def load_DB(hdf5_DB_path, protein_fasta_input):
     else:
         # the classify do not have proteins
         if f['align_protein'][0]:
-            # but the db was constructed WITH  the proteins
+            # but the db was constructed WITH the proteins
             sys.stderr.write("Error: missing protein file (the database was constructed aligning proteins).\n")
             sys.exit(1)
 
@@ -102,7 +102,7 @@ def load_DB(hdf5_DB_path, protein_fasta_input):
 
 
 #===============================================================================
-#                       TAXONOMY ANNOTATE SEQUENCES
+#                     TAXONOMICALLY ANNOTATE SEQUENCES
 #===============================================================================
 def run_lasso_prediction(seq, coeff):
     sm = coeff*seq
@@ -140,7 +140,7 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 
 
 #===============================================================================
-#                      CALCULATE EMPIRICAL PROBABILITY
+#                    FIND TO WHICH TAXONOMIC LEVEL WE STOP
 #===============================================================================
 def run_prediction_no_penalty(seq, coeff_raw):
     # the first value of the coeff is the intercept
@@ -152,7 +152,7 @@ def run_prediction_no_penalty(seq, coeff_raw):
     score = 1/(1+np.exp(-np_sum))
     return score
 
-def calc_empirical_vals(perc, tax_function):
+def find_correct_level(perc, tax_function):
     prob_per_level = list()
     max_v = 0
     sel_lev = -1
@@ -197,7 +197,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 
     # now we have the raw prediction, we compare to  ---------------------------
     # the empirical values to obtain a better result
-    sel_lev, prob_per_level = calc_empirical_vals(perc, tax_function)
+    sel_lev, prob_per_level = find_correct_level(perc, tax_function)
 
     # transform perc to string
     perc_text = list()
