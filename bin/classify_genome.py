@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import shlex
 import errno
+import h5py
 
 # ------------------------------------------------------------------------------
 # function to check if a specific tool exists
@@ -79,6 +80,55 @@ def run_prodigal_genomes(genomes_file_list, verbose):
     return result
 
 
+# ==============================================================================
+# EXTRACT THE MARKER GENES
+# ==============================================================================
+def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file):
+    dummy = "dummy"
+
+
+def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred):
+    # two temp files that will contain all the MGs (of one type) for all genomes
+    genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    if use_protein_file:
+        proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    else:
+        proteins = ""
+    # we go throught the genome and find the genes that pass the filter
+    for g in genomes_pred:
+        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins.name, hmm_file)
+    return genes, proteins
+
+# extract the marker genes from the genes/proteins produced from prodigal
+def fetch_MGs(database_files, database_path, genomes_pred):
+    all_predicted = dict()
+    for mg in database_files:
+        # for each MG, we extract the hmm and if using proteins or not ---------
+        path_mg = os.path.join(database_path, mg)
+        f = h5py.File(path_mg, 'r')
+        # first, we save a temporary file with the hmm file
+        hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        os.chmod(hmm_file.name, 0o644)
+        hmm_file.write(f['hmm_file'][0])
+        hmm_file.flush()
+        os.fsync(hmm_file.fileno())
+        hmm_file.close()
+        # second, check if we need to use proteins
+        use_protein_file = False
+        if f['align_protein'][0]:
+            use_protein_file = True
+        f.close()
+
+        # run hmmsearch for each genome and create a file with the resulting
+        # sequences
+        fna_path, faa_path = extract_genes(mg, hmm_file, use_protein_file, genomes_pred)
+        all_predicted[mg] = [fna_path, faa_path]
+
+        # remove hmm file
+        os.remove(hmm_file.name)
+
+    return all_predicted
+
 #===============================================================================
 #                                      MAIN
 #===============================================================================
@@ -93,6 +143,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # second the path to the protein file
 
     # THIRD: find the marker genes from the predicted genes
+    MGS = fetch_MGs(database_files, temp_dir, genomes_pred)
 
     # FOURTH: classify the marker genes
 
