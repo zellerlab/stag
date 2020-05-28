@@ -282,6 +282,7 @@ def print_menu_classify_genome():
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 
+
 # ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
@@ -559,7 +560,7 @@ def main(argv=None):
             check_file_exists(name,isfasta = False)
             try:
                 name_file = os.path.basename(name)
-                tar.addfile(tarfile.TarInfo(name_file), open(name))
+                tar.add(name, name_file)
             except:
                 sys.stderr.write("[E::main] Error: when adding "+name+" to the database\n")
                 sys.exit(1)
