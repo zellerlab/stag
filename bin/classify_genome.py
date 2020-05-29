@@ -13,6 +13,7 @@ import subprocess
 import shlex
 import errno
 import h5py
+import re
 
 # ------------------------------------------------------------------------------
 # function to check if a specific tool exists
@@ -70,7 +71,33 @@ def run_prodigal(genome, verbose):
         sys.stderr.write(all_stderr)
         sys.exit(1)
 
-    return [genes.name, proteins.name]
+    # we re-name the header of the fasta files ---------------------------------
+    # we expect to have the same number of genes and proteins, and also that the
+    #
+    parsed_genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    parsed_proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+
+    o = open(genes.name,"r")
+    count = 0
+    for i in o:
+        if i.startswith(">"):
+            parsed_genes.write(">"+genome+"_"+str(count)+"\n")
+            count = count + 1
+        else:
+            parsed_genes.write(i)
+    o.close()
+
+    o = open(proteins.name,"r")
+    count = 0
+    for i in o:
+        if i.startswith(">"):
+            parsed_proteins.write(">"+genome+"_"+str(count)+"\n")
+            count = count + 1
+        else:
+            parsed_proteins.write(i)
+    o.close()
+
+    return [parsed_genes.name, parsed_proteins.name]
 
 # run prodigal on all the genomes listed in fasta_input
 def run_prodigal_genomes(genomes_file_list, verbose):
@@ -84,22 +111,60 @@ def run_prodigal_genomes(genomes_file_list, verbose):
 # EXTRACT THE MARKER GENES
 # ==============================================================================
 def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file):
-    dummy = "dummy"
+    # INFO: genes_path, proteins_path [where to save the result]
+    # we run hmmsearch
+    temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    hmm_cmd = "hmmsearch --tblout "+temp_hmm.name+" "+hmm_file+" "
+    if proteins_path == "":
+        hmm_cmd = hmm_cmd + genome_genes
+    else:
+        hmm_cmd = hmm_cmd + genome_proteins
+
+    CMD = shlex.split(hmm_cmd)
+    hmm_CMD = subprocess.Popen(CMD, stdout=DEVNULL,stderr=subprocess.PIPE)
+    # we save stderr if necessary
+    all_stderr = ""
+    for line in hmm_CMD.stderr:
+        #filter lines
+        line = line.decode('ascii')
+        all_stderr = all_stderr + line
+    return_code = hmm_CMD.wait()
+    if return_code:
+        sys.stderr.write("[E::align] Error. hmmsearch failed\n\n")
+        sys.stderr.write(all_stderr)
+        sys.exit(1)
+
+    # in temp_hmm.name there is the result from hmm ----------------------------
+    o = open(temp_hmm.name,"r")
+    for line in o:
+        if not line.startswith("#"):
+            vals = re.sub(" +"," ",line.rstrip()).split(" ")
+            gene_id = vals[0]
+            e_val = vals[4]
+            score = vals[5]
+            print(vals)
+    o.close()
+
+    if os.path.isfile(temp_hmm.name): os.remove(temp_hmm.name)
 
 
+# for one marker gene, we extract all the genes/proteins from all genomes
 def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred):
     # two temp files that will contain all the MGs (of one type) for all genomes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     if use_protein_file:
         proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        proteins_n = proteins.name
     else:
+        proteins_n = ""
         proteins = ""
     # we go throught the genome and find the genes that pass the filter
     for g in genomes_pred:
-        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins.name, hmm_file)
+        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins_n, hmm_file)
     return genes, proteins
 
 # extract the marker genes from the genes/proteins produced from prodigal
+# for multiple genomes and multiple MGs
 def fetch_MGs(database_files, database_path, genomes_pred):
     all_predicted = dict()
     for mg in database_files:
@@ -121,7 +186,7 @@ def fetch_MGs(database_files, database_path, genomes_pred):
 
         # run hmmsearch for each genome and create a file with the resulting
         # sequences
-        fna_path, faa_path = extract_genes(mg, hmm_file, use_protein_file, genomes_pred)
+        fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred)
         all_predicted[mg] = [fna_path, faa_path]
 
         # remove hmm file
@@ -144,6 +209,9 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
 
     # THIRD: find the marker genes from the predicted genes
     MGS = fetch_MGs(database_files, temp_dir, genomes_pred)
+    # MGS = {'COG12':['path/to/genes','path/to/proteins'],
+    #        'COG18':['path/to/genes','path/to/proteins'],}
+    # if 'path/to/proteins' == "", then the alignment is with genes
 
     # FOURTH: classify the marker genes
 
