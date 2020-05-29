@@ -122,7 +122,7 @@ def run_prodigal_genomes(genomes_file_list, verbose):
 # ==============================================================================
 # EXTRACT THE MARKER GENES
 # ==============================================================================
-def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file):
+def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file, keep_all_genes):
     # INFO: genes_path, proteins_path [where to save the result]
     # we run hmmsearch
     temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -147,6 +147,9 @@ def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, pro
         sys.exit(1)
 
     # in temp_hmm.name there is the result from hmm ----------------------------
+    # we select which genes/proteins we need to extract from the fasta files
+    # produced by prodigal
+    sel_genes = list()
     o = open(temp_hmm.name,"r")
     for line in o:
         if not line.startswith("#"):
@@ -160,9 +163,12 @@ def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, pro
     # remove file with the result from the hmm
     if os.path.isfile(temp_hmm.name): os.remove(temp_hmm.name)
 
+    # we extract the selected genes from the fasta file ------------------------
+
+
 
 # for one marker gene, we extract all the genes/proteins from all genomes
-def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred):
+def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, keep_all_genes):
     # two temp files that will contain all the MGs (of one type) for all genomes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     if use_protein_file:
@@ -173,12 +179,12 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred):
         proteins = ""
     # we go throught the genome and find the genes that pass the filter
     for g in genomes_pred:
-        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins_n, hmm_file)
+        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins_n, hmm_file, keep_all_genes)
     return genes, proteins
 
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
-def fetch_MGs(database_files, database_path, genomes_pred):
+def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes):
     all_predicted = dict()
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
@@ -199,7 +205,7 @@ def fetch_MGs(database_files, database_path, genomes_pred):
 
         # run hmmsearch for each genome and create a file with the resulting
         # sequences
-        fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred)
+        fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, keep_all_genes)
         all_predicted[mg] = [fna_path, faa_path]
 
         # remove hmm file
@@ -210,7 +216,7 @@ def fetch_MGs(database_files, database_path, genomes_pred):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def classify_genome(database, genomes_file_list, verbose, threads, output, long_out, tool_version):
+def classify_genome(database, genomes_file_list, verbose, threads, output, long_out, tool_version, keep_all_genes):
     # FIRST: unzip the database
     database_files, temp_dir = load_genome_DB(database, tool_version, verbose)
 
@@ -221,7 +227,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # second the path to the protein file
 
     # THIRD: find the marker genes from the predicted genes
-    MGS = fetch_MGs(database_files, temp_dir, genomes_pred)
+    MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes)
     # MGS = {'COG12':['path/to/genes','path/to/proteins'],
     #        'COG18':['path/to/genes','path/to/proteins'],}
     # if 'path/to/proteins' == "", then the alignment is with genes

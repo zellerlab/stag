@@ -276,12 +276,13 @@ def print_menu_classify_genome():
     sys.stderr.write("\n")
     sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} classify_genome {bco.LightBlue}-d{bco.ResetAll} <genome_database>\n")
     sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>] [options]\n\n")
-    sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE  genome fasta file\n")
-    sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR   directory containing genome fasta files (only fasta\n            files will be used)\n")
-    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
-    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE   database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   genome fasta file\n")
+    sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR    directory containing genome fasta files (only fasta\n            files will be used)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE   output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-r{bco.ResetAll}         use all genes above the filter {bco.LightMagenta}[False]{bco.ResetAll}\n\n")
 
 
 # ------------------------------------------------------------------------------
@@ -306,6 +307,7 @@ def main(argv=None):
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
     parser.add_argument('-m', action='store', type=int, default=None, dest='min_perc_state', help='Minimum number of mapping states, i.e. how many features of the classifier we cover')
     parser.add_argument('-l', action='store_true', default=None, dest='long_out', help='Print more columns for the classification pipeline')
+    parser.add_argument('-r', action='store_true', default=None, dest='keep_all_genes', help='keep all genes when doing the calssification of genomes')
     parser.add_argument('-D', action="store", dest='dir_input', default=None, help='input directory')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
@@ -316,15 +318,16 @@ def main(argv=None):
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None) and (args.dir_input is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
             if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None) and (args.long_out is None):
-                if args.command == 'align': print_menu_align()
-                if args.command == 'create_db': print_menu_create_db()
-                if args.command == 'classify': print_menu_classify()
-                if args.command == 'check_input': print_menu_check_input()
-                if args.command == 'train': print_menu_train()
-                if args.command == 'correct_seq': print_menu_correct_seq()
-                if args.command == 'train_genome': print_menu_train_genome()
-                if args.command == 'classify_genome': print_menu_classify_genome()
-                sys.exit(1)
+                if (args.keep_all_genes is None):
+                    if args.command == 'align': print_menu_align()
+                    if args.command == 'create_db': print_menu_create_db()
+                    if args.command == 'classify': print_menu_classify()
+                    if args.command == 'check_input': print_menu_check_input()
+                    if args.command == 'train': print_menu_train()
+                    if args.command == 'correct_seq': print_menu_correct_seq()
+                    if args.command == 'train_genome': print_menu_train_genome()
+                    if args.command == 'classify_genome': print_menu_classify_genome()
+                    sys.exit(1)
 
 
     # --------------------------------------------------------------------------
@@ -336,6 +339,7 @@ def main(argv=None):
     if (args.use_cm_align is None): args.use_cm_align = False
     if (args.force_rewrite is None): args.force_rewrite = False
     if (args.long_out is None): args.long_out = False
+    if (args.keep_all_genes is None): args.keep_all_genes = False
 
     if args.verbose < 1:
         sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
@@ -629,7 +633,7 @@ def main(argv=None):
                 sys.stderr.write("no fasta files found in the directory.\n")
                 sys.exit(1)
         # call the function
-        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output, args.long_out, tool_version)
+        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output, args.long_out, tool_version, args.keep_all_genes)
 
 
     return 0        # success
