@@ -97,6 +97,18 @@ def run_prodigal(genome, verbose):
             parsed_proteins.write(i)
     o.close()
 
+    # remove old files
+    os.remove(genes.name)
+    os.remove(proteins.name)
+
+    # close new files
+    parsed_proteins.flush()
+    os.fsync(parsed_proteins.fileno())
+    parsed_proteins.close()
+    parsed_genes.flush()
+    os.fsync(parsed_genes.fileno())
+    parsed_genes.close()
+
     return [parsed_genes.name, parsed_proteins.name]
 
 # run prodigal on all the genomes listed in fasta_input
@@ -145,6 +157,7 @@ def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, pro
             print(vals)
     o.close()
 
+    # remove file with the result from the hmm
     if os.path.isfile(temp_hmm.name): os.remove(temp_hmm.name)
 
 
