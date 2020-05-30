@@ -63,13 +63,16 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
         check_file_exists(name,isfasta = False)
         try:
             name_file = os.path.basename(name)
+            if name_file == "threshold_file.tsv":
+                sys.stderr.write("[E::main] Error: gene databases cannot have name 'threshold_file.tsv'. Please, choose anothe name.\n")
+                sys.exit(1)
             tar.add(name, name_file)
         except:
             sys.stderr.write("[E::main] Error: when adding "+name+" to the database\n")
             sys.exit(1)
 
     # we add the file with the thresholds to the tar.gz
-    tar.add(gene_thresholds, os.path.basename(gene_thresholds))
+    tar.add(gene_thresholds, "threshold_file.tsv")
     tar.close()
 
     # close
