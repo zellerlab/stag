@@ -135,15 +135,12 @@ def run_prodigal_genomes(genomes_file_list, verbose):
 # ==============================================================================
 # EXTRACT THE MARKER GENES
 # ==============================================================================
-def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file, keep_all_genes, gene_threshold):
+# find gene ids that we can use (run hmmsearch)
+def extract_genes_from_one_genome(file_to_align, hmm_file, gene_threshold):
     # INFO: genes_path, proteins_path [where to save the result]
     # we run hmmsearch
     temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    hmm_cmd = "hmmsearch --tblout "+temp_hmm.name+" "+hmm_file+" "
-    if proteins_path == "":
-        hmm_cmd = hmm_cmd + genome_genes
-    else:
-        hmm_cmd = hmm_cmd + genome_proteins
+    hmm_cmd = "hmmsearch --tblout "+temp_hmm.name+" "+hmm_file+" "+file_to_align
 
     CMD = shlex.split(hmm_cmd)
     hmm_CMD = subprocess.Popen(CMD, stdout=DEVNULL,stderr=subprocess.PIPE)
@@ -162,7 +159,7 @@ def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, pro
     # in temp_hmm.name there is the result from hmm ----------------------------
     # we select which genes/proteins we need to extract from the fasta files
     # produced by prodigal
-    sel_genes = list()
+    sel_genes = dict()
     o = open(temp_hmm.name,"r")
     for line in o:
         if not line.startswith("#"):
@@ -170,18 +167,20 @@ def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, pro
             gene_id = vals[0]
             e_val = vals[4]
             score = vals[5]
-            print(vals)
+            if float(score) > float(gene_threshold):
+                sel_genes[gene_id] = score
     o.close()
 
     # remove file with the result from the hmm
     if os.path.isfile(temp_hmm.name): os.remove(temp_hmm.name)
 
-    # we extract the selected genes from the fasta file ------------------------
+    # return
+    return sel_genes
 
 
 
 # for one marker gene, we extract all the genes/proteins from all genomes
-def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, keep_all_genes, gene_threshold):
+def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_threshold):
     # two temp files that will contain all the MGs (of one type) for all genomes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     if use_protein_file:
@@ -191,14 +190,19 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, keep_all_ge
         proteins_n = ""
         proteins = ""
     # we go throught the genome and find the genes that pass the filter
+    genes_pass_filter = dict()
     for g in genomes_pred:
-        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins_n, hmm_file, keep_all_genes, gene_threshold)
-    return genes, proteins
+        if use_protein_file:
+            file_to_align = genomes_pred[g][1]
+        else:
+            file_to_align = genomes_pred[g][0]
+        genes_pass_filter[g] = extract_genes_from_one_genome(file_to_align, hmm_file, gene_threshold)
+    return genes_pass_filter
 
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
 def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds):
-    all_predicted = dict()
+    all_genes_raw = dict()
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
@@ -216,14 +220,32 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
             use_protein_file = True
         f.close()
 
-        # run hmmsearch for each genome and create a file with the resulting
-        # sequences
-        fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, keep_all_genes, gene_thresholds[mg])
-        all_predicted[mg] = [fna_path, faa_path]
+        # run hmmsearch for each genome and find which genes pass the filter
+        all_genes_raw[mg] = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, gene_thresholds[mg])
+        # the result is a dict: genome -> dict with genes -> score
 
         # remove hmm file
         os.remove(hmm_file.name)
 
+    # now we need to select the marker genes and extracted them from the prodigal
+    # fasta files
+    # all_genes_raw: MG1: genome1: geneA: 276
+    #                              geneB: 243
+    #                     genome2: geneX: 267
+    #                              geneY: 212
+    #                MG2: genome1: geneC: 589
+    #                     genome2: geneZ: 459
+    #                              geneY: 543
+    # NOTE: the same gene can apper in two different marker genes. Hence, we
+    # need to assign it to only one
+    # For example 'geneY' is in both MG1 and MG2 for genome 2.
+    # we will select MG2 because the score is higher
+    print(all_genes_raw)
+
+
+    all_predicted = dict()
+    fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, keep_all_genes, gene_thresholds[mg])
+    all_predicted[mg] = [fna_path, faa_path]
     return all_predicted
 
 #===============================================================================
