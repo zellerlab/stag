@@ -567,6 +567,18 @@ def main(argv=None):
 
         # we need a file with the thresholds -----------------------------------
         check_file_exists(args.file_thresholds,isfasta = False)
+        genes_threhold_file = list()
+        o = open(args.file_thresholds)
+        for i in o:
+            vals = i.rstrip().split("\t")
+            genes_threhold_file.append(vals[0])
+        o.close()
+        for name in args.fasta_input.split(","):
+            if not name.split("/")[-1] in genes_threhold_file:
+                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+                sys.stderr.write("gene "+name.split("/")[-1]+" is missing from the threshold file (-e)\n")
+                sys.exit(1)
+
 
         # we create a tar.gz with all the genes --------------------------------
         tar = tarfile.open(outfile.name, "w:gz")
