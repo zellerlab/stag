@@ -44,7 +44,7 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
     os.chmod(outfile.name, 0o644)
 
     # we need a file with the thresholds -----------------------------------
-    check_file_exists(args.file_thresholds,isfasta = False)
+    check_file_exists(gene_thresholds,isfasta = False)
     genes_threhold_file = list()
     o = open(gene_thresholds)
     for i in o:
@@ -53,13 +53,13 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
     o.close()
     for name in list_genes.split(","):
         if not name.split("/")[-1] in genes_threhold_file:
-            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("[E::main] Error: ")
             sys.stderr.write("gene "+name.split("/")[-1]+" is missing from the threshold file (-e)\n")
             sys.exit(1)
 
     # we create a tar.gz with all the genes --------------------------------
     tar = tarfile.open(outfile.name, "w:gz")
-    for name in alist_genes.split(","):
+    for name in list_genes.split(","):
         check_file_exists(name,isfasta = False)
         try:
             name_file = os.path.basename(name)
@@ -67,6 +67,9 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
         except:
             sys.stderr.write("[E::main] Error: when adding "+name+" to the database\n")
             sys.exit(1)
+
+    # we add the file with the thresholds to the tar.gz
+    tar.add(gene_thresholds, os.path.basename(gene_thresholds))
     tar.close()
 
     # close
