@@ -266,8 +266,9 @@ def print_menu_correct_seq():
 # ------------------------------------------------------------------------------
 def print_menu_train_genome():
     sys.stderr.write("\n")
-    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-o{bco.ResetAll} <output_DB> [options]\n\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-e{bco.ResetAll} <gene_thresholds>\n                         {bco.LightBlue}-o{bco.ResetAll} <output_DB> [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  LIST  list of single gene databases to use (comma separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  FILE  treshold for selecting the genes {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
@@ -309,6 +310,7 @@ def main(argv=None):
     parser.add_argument('-l', action='store_true', default=None, dest='long_out', help='Print more columns for the classification pipeline')
     parser.add_argument('-r', action='store_true', default=None, dest='keep_all_genes', help='keep all genes when doing the calssification of genomes')
     parser.add_argument('-D', action="store", dest='dir_input', default=None, help='input directory')
+    parser.add_argument('-e', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -318,7 +320,7 @@ def main(argv=None):
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None) and (args.dir_input is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
             if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None) and (args.long_out is None):
-                if (args.keep_all_genes is None):
+                if (args.keep_all_genes is None) and (args.file_thresholds is None):
                     if args.command == 'align': print_menu_align()
                     if args.command == 'create_db': print_menu_create_db()
                     if args.command == 'classify': print_menu_classify()
@@ -546,7 +548,7 @@ def main(argv=None):
     # Input: single gene databases
     # Output: a database file (hdf5) that can be used by stag classify_genome
     if args.command == 'train_genome':
-        # check that output is set ---------------------------------------------
+        # check that parameters are set ----------------------------------------
         if args.output is None:
             sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
             sys.stderr.write("missing <output_DB> (-o)\n")
@@ -555,9 +557,16 @@ def main(argv=None):
             sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
             sys.stderr.write("missing <list_gene_DBs> (-i)\n")
             sys.exit(1)
+        if (args.file_thresholds is None):
+            sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+            sys.stderr.write("missing <gene_thresholds> (-e)\n")
+            sys.exit(1)
         # temp file where to save the result -----------------------------------
         outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
         os.chmod(outfile.name, 0o644)
+
+        # we need a file with the thresholds -----------------------------------
+        check_file_exists(args.file_thresholds,isfasta = False)
 
         # we create a tar.gz with all the genes --------------------------------
         tar = tarfile.open(outfile.name, "w:gz")
