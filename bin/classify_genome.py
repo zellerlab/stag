@@ -135,7 +135,7 @@ def run_prodigal_genomes(genomes_file_list, verbose):
 # ==============================================================================
 # EXTRACT THE MARKER GENES
 # ==============================================================================
-def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file, keep_all_genes):
+def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, proteins_path, hmm_file, keep_all_genes, gene_threshold):
     # INFO: genes_path, proteins_path [where to save the result]
     # we run hmmsearch
     temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -181,7 +181,7 @@ def extract_genes_from_one_genome(genome_genes, genome_proteins, genes_path, pro
 
 
 # for one marker gene, we extract all the genes/proteins from all genomes
-def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, keep_all_genes):
+def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, keep_all_genes, gene_threshold):
     # two temp files that will contain all the MGs (of one type) for all genomes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     if use_protein_file:
@@ -192,12 +192,12 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, keep_all_ge
         proteins = ""
     # we go throught the genome and find the genes that pass the filter
     for g in genomes_pred:
-        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins_n, hmm_file, keep_all_genes)
+        extract_genes_from_one_genome(genomes_pred[g][0], genomes_pred[g][1], genes.name, proteins_n, hmm_file, keep_all_genes, gene_threshold)
     return genes, proteins
 
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
-def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes):
+def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds):
     all_predicted = dict()
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
@@ -218,7 +218,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes):
 
         # run hmmsearch for each genome and create a file with the resulting
         # sequences
-        fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, keep_all_genes)
+        fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, keep_all_genes, gene_thresholds[mg])
         all_predicted[mg] = [fna_path, faa_path]
 
         # remove hmm file
@@ -240,7 +240,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # second the path to the protein file
 
     # THIRD: find the marker genes from the predicted genes
-    MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes)
+    MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds)
     # MGS = {'COG12':['path/to/genes','path/to/proteins'],
     #        'COG18':['path/to/genes','path/to/proteins'],}
     # if 'path/to/proteins' == "", then the alignment is with genes
