@@ -245,6 +245,22 @@ def select_genes(all_genes_raw, keep_all_genes):
 def extract_genes_from_fasta(mg, selected_genes, genomes_pred):
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    for genome in selected_genes:
+        if not(mg in selected_genes[genome]):
+            sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
+        else:
+            o = open(genomes_pred[genome][0])
+            print_this = False
+            for i in o:
+                if i.startswith(">"):
+                    if i[1:].rstrip() in selected_genes[genome][mg]:
+                        print_this = True
+                    else:
+                        print_this = False
+                if print_this:
+                    genes.write(i)
+            o.close()
+
     return genes, proteins
 
 
