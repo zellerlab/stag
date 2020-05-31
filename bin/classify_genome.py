@@ -345,20 +345,28 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 #===============================================================================
 def classify_genome(database, genomes_file_list, verbose, threads, output, long_out, tool_version, keep_all_genes):
     # FIRST: unzip the database
+    if verbose > 2:
+        sys.stderr.write("Unzip the database\n")
     database_files, temp_dir, gene_thresholds = load_genome_DB(database, tool_version, verbose)
 
     # SECOND: run prodigal on the fasta genome
+    if verbose > 2:
+        sys.stderr.write("Run prodigal\n")
     genomes_pred = run_prodigal_genomes(genomes_file_list, verbose)
     # genomes_pred is a dictionary where the keys are the genome paths and the
     # values are lists. First value of the list is the path to the gene file and
     # second the path to the protein file
 
     # THIRD: find the marker genes from the predicted genes
+    if verbose > 2:
+        sys.stderr.write("Extract the marker genes\n")
     MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds, verbose)
     # MGS = {'COG12':['path/to/genes','path/to/proteins'],
     #        'COG18':['path/to/genes','path/to/proteins'],}
 
     # FOURTH: classify the marker genes
+    if verbose > 2:
+        sys.stderr.write("Taxonomically annotate marker genes\n")
 
     # we remove the temp dir
     shutil.rmtree(temp_dir)
