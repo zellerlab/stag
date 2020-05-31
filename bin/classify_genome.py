@@ -242,9 +242,11 @@ def select_genes(all_genes_raw, keep_all_genes):
 
 # function that extract the genes and proteins based on the IDs from
 # "selected_genes"
-def extract_genes_from_fasta(mg, selected_genes, genomes_pred):
+def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose):
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    n_genes = 0
+    n_proteins = 0
     for genome in selected_genes:
         if not(mg in selected_genes[genome]):
             sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
@@ -255,6 +257,7 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred):
                 if i.startswith(">"):
                     if i[1:].rstrip() in selected_genes[genome][mg]:
                         print_this = True
+                        n_genes = n_genes + 1
                     else:
                         print_this = False
                 if print_this:
@@ -266,18 +269,24 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred):
                 if i.startswith(">"):
                     if i[1:].rstrip() in selected_genes[genome][mg]:
                         print_this = True
+                        n_proteins = n_proteins + 1
                     else:
                         print_this = False
                 if print_this:
                     proteins.write(i)
             o.close()
 
-    return genes, proteins
+    if verbose > 3:
+        sys.stderr.write(" Found "+str(n_genes)+" genes\n")
+    if n_genes != n_proteins:
+        sys.stderr.write("Error: Number of genes and proteins is different")
+
+    return genes.name, proteins.name
 
 
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
-def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds):
+def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds, verbose):
     all_genes_raw = dict()
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
@@ -326,7 +335,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 
     all_predicted = dict()
     for mg in database_files:
-        fna_path, faa_path = extract_genes_from_fasta(mg, selected_genes, genomes_pred)
+        fna_path, faa_path = extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose)
         all_predicted[mg] = [fna_path, faa_path]
 
     return all_predicted
@@ -345,11 +354,12 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # second the path to the protein file
 
     # THIRD: find the marker genes from the predicted genes
-    MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds)
+    MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds, verbose)
     # MGS = {'COG12':['path/to/genes','path/to/proteins'],
     #        'COG18':['path/to/genes','path/to/proteins'],}
 
     # FOURTH: classify the marker genes
+    print(MGS)
 
     # we remove the temp dir
     shutil.rmtree(temp_dir)
@@ -357,6 +367,9 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     for i in genomes_pred:
         if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
         if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
+    # and the file with the marker genes
+    #for m in MGS:
+
 
 
     # FIFTH: join prediction
