@@ -260,6 +260,17 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred):
                 if print_this:
                     genes.write(i)
             o.close()
+            o = open(genomes_pred[genome][1])
+            print_this = False
+            for i in o:
+                if i.startswith(">"):
+                    if i[1:].rstrip() in selected_genes[genome][mg]:
+                        print_this = True
+                    else:
+                        print_this = False
+                if print_this:
+                    proteins.write(i)
+            o.close()
 
     return genes, proteins
 
