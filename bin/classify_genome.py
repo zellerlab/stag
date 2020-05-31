@@ -240,6 +240,14 @@ def select_genes(all_genes_raw, keep_all_genes):
                     return_dict[genome][mg].append(sel_gene)
     return return_dict
 
+# function that extract the genes and proteins based on the IDs from
+# "selected_genes"
+def extract_genes_from_fasta(mg, selected_genes, genomes_pred):
+    genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    return genes, proteins
+
+
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
 def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds):
@@ -287,12 +295,13 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
     #                          MG2:          (geneC)             (geneC)
     #                 genome2: MG1:          (geneX)             (geneX)
     #                          MG2:          (geneY)       (geneZ,geneY)
+    #                     dict dict          list
 
+    all_predicted = dict()
+    for mg in database_files:
+        fna_path, faa_path = extract_genes_from_fasta(mg, selected_genes, genomes_pred)
+        all_predicted[mg] = [fna_path, faa_path]
 
-
-    #all_predicted = dict()
-    #fna_path, faa_path = extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, keep_all_genes, gene_thresholds[mg])
-    #all_predicted[mg] = [fna_path, faa_path]
     return all_predicted
 
 #===============================================================================
@@ -312,7 +321,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds)
     # MGS = {'COG12':['path/to/genes','path/to/proteins'],
     #        'COG18':['path/to/genes','path/to/proteins'],}
-    # if 'path/to/proteins' == "", then the alignment is with genes
 
     # FOURTH: classify the marker genes
 
