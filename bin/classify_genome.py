@@ -183,12 +183,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold):
 def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_threshold, all_genes_raw):
     # we go throught the genome and find the genes that pass the filter
     genes_pass_filter = dict()
-    print("MG ----------")
-    print(mg_name)
     for g in genomes_pred:
-        print("g==========")
-        print(g)
-        print("end_ggg")
         if not (g in all_genes_raw):
             all_genes_raw[g] = dict()
         if mg_name in all_genes_raw[g]:
@@ -209,8 +204,6 @@ def select_genes(all_genes_raw):
 def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds):
     all_genes_raw = dict()
     for mg in database_files:
-        print(mg)
-        print("-------------------------------------------------------")
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
         f = h5py.File(path_mg, 'r')
@@ -228,23 +221,20 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
         f.close()
 
         # run hmmsearch for each genome and find which genes pass the filter
-        print("enter")
         extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, gene_thresholds[mg], all_genes_raw)
         # the result is saved in all_genes_raw (passed as input)
-        print("exit")
-        print(all_genes_raw)
 
         # remove hmm file
         os.remove(hmm_file.name)
 
     # now we need to select the marker genes and extracted them from the prodigal
     # fasta files
-    # all_genes_raw: MG1: genome1: geneA: 276
+    # all_genes_raw: genome1: MG1: geneA: 276
     #                              geneB: 243
-    #                     genome2: geneX: 267
+    #                         MG2: geneC: 589
+    #                genome2: MG1: geneX: 267
     #                              geneY: 212
-    #                MG2: genome1: geneC: 589
-    #                     genome2: geneZ: 459
+    #                         MG2: geneZ: 459
     #                              geneY: 543
     # NOTE: the same gene can apper in two different marker genes. Hence, we
     # need to assign it to only one
