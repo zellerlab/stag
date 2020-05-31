@@ -352,6 +352,13 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 #                                      MAIN
 #===============================================================================
 def classify_genome(database, genomes_file_list, verbose, threads, output, long_out, tool_version, keep_all_genes):
+    # ZERO: we need to check that the genome files do not contain "##"
+    for g in genomes_file_list:
+        if len(g.split("##")) > 1:
+            sys.stderr.write("Error with: "+g+"\n")
+            sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose anothe name.\n")
+            sys.exit(1)
+
     # FIRST: unzip the database
     if verbose > 2:
         sys.stderr.write("Unzip the database\n")

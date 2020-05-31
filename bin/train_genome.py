@@ -66,6 +66,10 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
             if name_file == "threshold_file.tsv":
                 sys.stderr.write("[E::main] Error: gene databases cannot have name 'threshold_file.tsv'. Please, choose anothe name.\n")
                 sys.exit(1)
+            if len(name_file.split("##")) > 1:
+                sys.stderr.write("Error with: "+name_file+"\n")
+                sys.stderr.write("[E::main] Error: gene databases cannot have in the name '##'. Please, choose anothe name.\n")
+                sys.exit(1)
             tar.add(name, name_file)
         except:
             sys.stderr.write("[E::main] Error: when adding "+name+" to the database\n")
