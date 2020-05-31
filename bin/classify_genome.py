@@ -359,7 +359,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     #        'COG18':['path/to/genes','path/to/proteins'],}
 
     # FOURTH: classify the marker genes
-    print(MGS)
 
     # we remove the temp dir
     shutil.rmtree(temp_dir)
@@ -368,7 +367,9 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
         if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
     # and the file with the marker genes
-    #for m in MGS:
+    for m in MGS:
+        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
+        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
 
 
