@@ -251,6 +251,7 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose):
         if not(mg in selected_genes[genome]):
             sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
         else:
+            # for genes
             o = open(genomes_pred[genome][0])
             print_this = False
             for i in o:
@@ -258,11 +259,15 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose):
                     if i[1:].rstrip() in selected_genes[genome][mg]:
                         print_this = True
                         n_genes = n_genes + 1
+                        # we print a different header
+                        genes.write(i.rstrip()+"##"+mg+"\n")
                     else:
                         print_this = False
-                if print_this:
-                    genes.write(i)
+                else:
+                    if print_this:
+                        genes.write(i)
             o.close()
+            # for proteins
             o = open(genomes_pred[genome][1])
             print_this = False
             for i in o:
@@ -270,10 +275,13 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose):
                     if i[1:].rstrip() in selected_genes[genome][mg]:
                         print_this = True
                         n_proteins = n_proteins + 1
+                        # we print a different header
+                        proteins.write(i.rstrip()+"##"+mg+"\n")
                     else:
                         print_this = False
-                if print_this:
-                    proteins.write(i)
+                else:
+                    if print_this:
+                        proteins.write(i)
             o.close()
 
     if verbose > 3:
@@ -362,7 +370,12 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         sys.stderr.write("Extract the marker genes\n")
     MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds, verbose)
     # MGS = {'COG12':['path/to/genes','path/to/proteins'],
-    #        'COG18':['path/to/genes','path/to/proteins'],}
+    #        'COG18':['path/to/genes','path/to/proteins'],
+    #        ...}
+    # not that the header of the sequences is:
+    # genome_path + "_" + a_number + "##" + marker_gene_path
+    # Example:
+    # "User/Desktop/test_genome.fna_342##COG0012"
 
     # FOURTH: classify the marker genes
     if verbose > 2:
