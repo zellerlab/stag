@@ -196,8 +196,49 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_thresh
         # call function that uses hmmsearch
         all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold)
 
-def select_genes(all_genes_raw):
-    return "dummy"
+def select_genes(all_genes_raw, keep_all_genes):
+    return_dict = dict()
+    # all_genes_raw: genome1: MG1: geneA: 276
+    #                              geneB: 243
+    #                         MG2: geneC: 589
+    #                genome2: MG1: geneX: 267
+    #                              geneY: 212
+    #                         MG2: geneZ: 459
+    #                              geneY: 543
+    for genome in all_genes_raw:
+        return_dict[genome] = dict()
+        # we first check if there is any gene that is in multiple mgs:
+        gene_sel = dict()
+        for mg in all_genes_raw[genome]:
+            for g in all_genes_raw[genome][mg]:
+                if not (g in gene_sel):
+                    gene_sel[g] = float(all_genes_raw[genome][mg][g])
+                else:
+                    if float(all_genes_raw[genome][mg][g]) > float(gene_sel[g]):
+                        gene_sel[g] = float(all_genes_raw[genome][mg][g])
+        # in gene_sel there is the gene id -> highest score
+        # example: geneX->267; geneY->543; geneZ->459
+
+        # now we select the correct genes and decide if keep one or many
+        for mg in all_genes_raw[genome]:
+            return_dict[genome][mg] = list()
+            # if we keep all genes
+            if keep_all_genes:
+                for g in all_genes_raw[genome][mg]:
+                    if float(all_genes_raw[genome][mg][g]) == float(gene_sel[g]):
+                        return_dict[genome][mg].append(g)
+            # if we keep only one gene per marker gene
+            if not keep_all_genes:
+                max_v = 0
+                sel_gene = ""
+                for g in all_genes_raw[genome][mg]:
+                    if float(all_genes_raw[genome][mg][g]) == float(gene_sel[g]):
+                        if float(all_genes_raw[genome][mg][g]) > max_v:
+                            max_v = float(all_genes_raw[genome][mg][g])
+                            sel_gene = g
+                if max_v != 0:
+                    return_dict[genome][mg].append(sel_gene)
+    return return_dict
 
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
@@ -240,7 +281,13 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
     # need to assign it to only one
     # For example 'geneY' is in both MG1 and MG2 for genome 2.
     # we will select MG2 because the score is higher
-    select_genes(all_genes_raw)
+    selected_genes = select_genes(all_genes_raw, keep_all_genes)
+    #                               keep_all_genes=F    keep_all_genes=T
+    # selected_genes: genome1: MG1:          (geneA)       (geneA,geneB)
+    #                          MG2:          (geneC)             (geneC)
+    #                 genome2: MG1:          (geneX)             (geneX)
+    #                          MG2:          (geneY)       (geneZ,geneY)
+
 
 
     #all_predicted = dict()
