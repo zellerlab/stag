@@ -409,7 +409,7 @@ def annotate_MGs(MGS, database_files, database_base_path):
                 if n_genes != 0:
                     # we skip the header
                     vals = line.decode('ascii').split("\t")
-                    all_classifications[vals[0]] = vals[1]
+                    all_classifications[vals[0]] = vals[1].rstrip()
             # check errors
             return_code = stag_CMD.wait()
             if return_code:
@@ -425,9 +425,44 @@ def annotate_MGs(MGS, database_files, database_base_path):
 # MERGE TAXONOMY OF SINGLE GENES
 # ==============================================================================
 def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes):
-    print(genomes_file_list)
-    print(mgs_list)
-    print(all_classifications)
+    # we parse "all_classifications"
+    parsed_data = dict()
+    for i in all_classifications:
+        vals = i.rstrip().split("##")
+        genome = "_".join(vals[0].split("_")[0:-1])
+        if not genome in parsed_data:
+            parsed_data[genome] = dict()
+        if not vals[1] in parsed_data[genome]:
+            parsed_data[genome][vals[1]] = list()
+        parsed_data[genome][vals[1]].append(all_classifications[i])
+
+    # we go throught the genomes and analyse them
+    for g in genomes_file_list:
+        if not g in parsed_data:
+            # it means that genes were not idenitified or not classified
+            print(g+"\tNone")
+            break
+
+        # annotation for each tax level
+        levels_annotation = dict()
+        for mg in parsed_data[g]:
+            for tax in parsed_data[g][mg]:
+                l = 0
+                if tax != "":
+                    for taxa in tax.split(";"):
+                        l = l + 1
+                        if not l in levels_annotation:
+                            levels_annotation[l] = dict()
+                        if not taxa in levels_annotation[l]:
+                            levels_annotation[l][taxa] = 1
+                        else:
+                            levels_annotation[l][taxa] = levels_annotation[l][taxa] + 1
+
+        # levels_annotation: 1: Bacteria: 3
+        #                    2: Firmicutes: 2
+        #                       Bacteroidetes: 1
+        print(levels_annotation)
+
 
 #===============================================================================
 #                                      MAIN
