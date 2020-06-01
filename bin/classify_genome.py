@@ -384,7 +384,6 @@ stag_path = "/".join(path_array[0:-2]) + "/stag"
 def annotate_MGs(MGS, database_files, database_base_path):
     all_classifications = dict()
     for mg in MGS:
-        all_classifications[mg] = None
         if MGS[mg][0] != None:
             # it means that there are some genes to classify
             CMD = stag_path + " classify -d "+database_base_path+"/"+mg
@@ -404,26 +403,31 @@ def annotate_MGs(MGS, database_files, database_base_path):
                 line = line.decode('ascii')
                 all_stderr = all_stderr + line
             # save stdout with the resutls
-            classified_genes = dict()
             n_genes = -1
             for line in stag_CMD.stdout:
                 n_genes = n_genes + 1
                 if n_genes != 0:
                     # we skip the header
                     vals = line.decode('ascii').split("\t")
-                    classified_genes[vals[0]] = vals[1]
+                    all_classifications[vals[0]] = vals[1]
             # check errors
             return_code = stag_CMD.wait()
             if return_code:
                 sys.stderr.write("[E::align] Error. stag classify failed\n\n")
                 sys.stderr.write(all_stderr)
                 sys.exit(1)
-            all_classifications[mg] = classified_genes
 
     return all_classifications
 
 
 
+# ==============================================================================
+# MERGE TAXONOMY OF SINGLE GENES
+# ==============================================================================
+def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes):
+    print(genomes_file_list)
+    print(mgs_list)
+    print(all_classifications)
 
 #===============================================================================
 #                                      MAIN
@@ -473,11 +477,14 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate marker genes\n")
     all_classifications = annotate_MGs(MGS, database_files, temp_dir)
-    # all_classifications: 'COG0012': 'geneA': 'Bacteria;Synergistetes'
-    #                                 'geneB': 'Bacteria'
-    #                      'COG0018': None
+    # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
-    # there were no genes for COG0018
+    # Example:
+    # '/Users/alex/Dropbox/genomeA_356##COG0012': "Bacteria;Firmicutes"
+    # '/Users/alex/Dropbox/genomeA_51##COG0012': "Bacteria;"
+    # '/Users/alex/Dropbox/genomeA_784##COG0018': "Bacteria;Firmicutes;Bacilli"
+    # '/Users/alex/Dropbox/genomeBB_1853##COG0012': "Bacteria;Bacteroidetes;Bacteroidia;Bacteroidales"
+    # '/Users/alex/Dropbox/genomeBB_862##COG0172': "Bacteria;Bacteroidetes;Bacteroidia"
 
     # we remove the temp dir ---------------------------------------------------
     shutil.rmtree(temp_dir)
@@ -492,5 +499,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
             if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
 
-
     # FIFTH: join prediction ---------------------------------------------------
+    if verbose > 2:
+        sys.stderr.write("Join taxonomy of different genes\n")
+    merge_genes_predictions(genomes_file_list, list(database_files), all_classifications, verbose, threads, output, long_out, keep_all_genes)
