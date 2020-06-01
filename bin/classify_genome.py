@@ -449,6 +449,14 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # Example:
     # "User/Desktop/test_genome.fna_342##COG0012"
 
+    # note: MGS = {'COG12':[None,None]
+    # means that there are no genes detected to classify
+
+    # note: MGS = {'COG12':["path/to/genes","no_protein"]
+    # means that the alignment should be done at the level of the genes and not
+    # proteins
+
+
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate marker genes\n")
