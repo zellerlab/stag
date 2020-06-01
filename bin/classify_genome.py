@@ -75,7 +75,6 @@ def run_prodigal(genome, verbose):
     # we save stderr if necessary
     all_stderr = ""
     for line in parse_cmd.stderr:
-        #filter lines
         line = line.decode('ascii')
         all_stderr = all_stderr + line
     return_code = parse_cmd.wait()
@@ -147,7 +146,6 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold):
     # we save stderr if necessary
     all_stderr = ""
     for line in hmm_CMD.stderr:
-        #filter lines
         line = line.decode('ascii')
         all_stderr = all_stderr + line
     return_code = hmm_CMD.wait()
@@ -384,7 +382,9 @@ stag_path = "/".join(path_array[0:-2]) + "/stag"
 
 # we run stag classify, for each marker gene
 def annotate_MGs(MGS, database_files, database_base_path):
+    all_classifications = dict()
     for mg in MGS:
+        all_classifications[mg] = None
         if MGS[mg][0] != None:
             # it means that there are some genes to classify
             CMD = stag_path + " classify -d "+database_base_path+"/"+mg
@@ -395,9 +395,32 @@ def annotate_MGs(MGS, database_files, database_base_path):
             if MGS[mg][1] != "no_protein":
                 # it means that we align proteins
                 CMD = CMD + " -p "+MGS[mg][1]
-            print(CMD)
+            # we run stag CMD
+            split_CMD = shlex.split(CMD)
+            stag_CMD = subprocess.Popen(split_CMD, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            # save stderr for the message is necessary
+            all_stderr = ""
+            for line in stag_CMD.stderr:
+                line = line.decode('ascii')
+                all_stderr = all_stderr + line
+            # save stdout with the resutls
+            classified_genes = dict()
+            n_genes = -1
+            for line in stag_CMD.stdout:
+                n_genes = n_genes + 1
+                if n_genes != 0:
+                    # we skip the header
+                    vals = line.decode('ascii').split("\t")
+                    classified_genes[vals[0]] = vals[1]
+            # check errors
+            return_code = stag_CMD.wait()
+            if return_code:
+                sys.stderr.write("[E::align] Error. stag classify failed\n\n")
+                sys.stderr.write(all_stderr)
+                sys.exit(1)
+            all_classifications[mg] = classified_genes
 
-
+    return all_classifications
 
 
 
@@ -449,7 +472,12 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate marker genes\n")
-    annotate_MGs(MGS, database_files, temp_dir)
+    all_classifications = annotate_MGs(MGS, database_files, temp_dir)
+    # all_classifications: 'COG0012': 'geneA': 'Bacteria;Synergistetes'
+    #                                 'geneB': 'Bacteria'
+    #                      'COG0018': None
+    #
+    # there were no genes for COG0018
 
     # we remove the temp dir ---------------------------------------------------
     shutil.rmtree(temp_dir)
