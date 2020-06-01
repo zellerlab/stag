@@ -241,12 +241,14 @@ def select_genes(all_genes_raw, keep_all_genes):
     return return_dict
 
 # function that extract the genes and proteins based on the IDs from
-# "selected_genes"
-def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose):
+# "selected_genes", only for one marker gene
+def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_protein_file):
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
     n_genes = 0
-    n_proteins = 0
+    if use_protein_file:
+        proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        n_proteins = 0
+
     for genome in selected_genes:
         if not(mg in selected_genes[genome]):
             sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
@@ -268,34 +270,51 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose):
                         genes.write(i)
             o.close()
             # for proteins
-            o = open(genomes_pred[genome][1])
-            print_this = False
-            for i in o:
-                if i.startswith(">"):
-                    if i[1:].rstrip() in selected_genes[genome][mg]:
-                        print_this = True
-                        n_proteins = n_proteins + 1
-                        # we print a different header
-                        proteins.write(i.rstrip()+"##"+mg+"\n")
+            if use_protein_file:
+                o = open(genomes_pred[genome][1])
+                print_this = False
+                for i in o:
+                    if i.startswith(">"):
+                        if i[1:].rstrip() in selected_genes[genome][mg]:
+                            print_this = True
+                            n_proteins = n_proteins + 1
+                            # we print a different header
+                            proteins.write(i.rstrip()+"##"+mg+"\n")
+                        else:
+                            print_this = False
                     else:
-                        print_this = False
-                else:
-                    if print_this:
-                        proteins.write(i)
-            o.close()
+                        if print_this:
+                            proteins.write(i)
+                o.close()
 
     if verbose > 3:
         sys.stderr.write(" Found "+str(n_genes)+" genes\n")
-    if n_genes != n_proteins:
-        sys.stderr.write("Error: Number of genes and proteins is different")
+    if use_protein_file:
+        if n_genes != n_proteins:
+            sys.stderr.write("Error: Number of genes and proteins is different")
 
-    return genes.name, proteins.name
+    # if there are no genes, we remove the files and return None
+    if n_genes == 0:
+        os.remove(genes.name)
+        gene_file_name = None
+        if use_protein_file:
+            os.remove(proteins.name)
+            protein_file_name = None
+    else:
+        gene_file_name = genes.name
+        if use_protein_file:
+            protein_file_name = proteins.name
+        else:
+            protein_file_name = "no_protein"
+
+    return gene_file_name, protein_file_name
 
 
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
 def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds, verbose):
     all_genes_raw = dict()
+    mg_info_use_protein = dict()
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
@@ -311,6 +330,9 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
         use_protein_file = False
         if f['align_protein'][0]:
             use_protein_file = True
+            mg_info_use_protein[mg] = True
+        else:
+            mg_info_use_protein[mg] = False
         f.close()
 
         # run hmmsearch for each genome and find which genes pass the filter
@@ -343,10 +365,53 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 
     all_predicted = dict()
     for mg in database_files:
-        fna_path, faa_path = extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose)
+        fna_path, faa_path = extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, mg_info_use_protein[mg])
         all_predicted[mg] = [fna_path, faa_path]
 
     return all_predicted
+
+
+
+
+# ==============================================================================
+# TAXONOMICALLY ANNOTATE MARKER GENES
+# ==============================================================================
+# position of the script -------------------------------------------------------
+path_this = os.path.realpath(__file__)
+path_array = path_this.split("/")
+relative_path = "/".join(path_array[0:-2])
+# add stag to the path ---------------------------------------------------------
+try:
+    if os.path.isdir(relative_path):
+        sys.path.insert(0, relative_path)
+    else:
+        sys.stderr.write(relative_path+"Error when loading stag directory.\n")
+        sys.exit(1)
+except Exception as e:
+    sys.stderr.write(relative_path+"Error when loading stag directory.\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+try:
+    import stag as stag
+except Exception as e:
+    sys.stderr.write("Error: fail to load the script: "+relative_path+"/stag\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+
+# find gene ids that we can use (run hmmsearch)
+def annotate_MGs(MGS, database_files, temp_dir):
+    for mg in MGS:
+        if MGS[mg][0] != None:
+            # it means that there are some genes to classify
+            if MGS[mg][1] == "no_protein":
+                # it means that we align genes and not proteins
+                d = "dummy"
+            if MGS[mg][1] != "no_protein":
+                # it means that we align proteins
+                d = "dummy"
+
+
+
 
 #===============================================================================
 #                                      MAIN
@@ -359,12 +424,12 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
             sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose anothe name.\n")
             sys.exit(1)
 
-    # FIRST: unzip the database
+    # FIRST: unzip the database ------------------------------------------------
     if verbose > 2:
         sys.stderr.write("Unzip the database\n")
     database_files, temp_dir, gene_thresholds = load_genome_DB(database, tool_version, verbose)
 
-    # SECOND: run prodigal on the fasta genome
+    # SECOND: run prodigal on the fasta genome ---------------------------------
     if verbose > 2:
         sys.stderr.write("Run prodigal\n")
     genomes_pred = run_prodigal_genomes(genomes_file_list, verbose)
@@ -372,7 +437,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # values are lists. First value of the list is the path to the gene file and
     # second the path to the protein file
 
-    # THIRD: find the marker genes from the predicted genes
+    # THIRD: find the marker genes from the predicted genes --------------------
     if verbose > 2:
         sys.stderr.write("Extract the marker genes\n")
     MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds, verbose)
@@ -384,11 +449,12 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # Example:
     # "User/Desktop/test_genome.fna_342##COG0012"
 
-    # FOURTH: classify the marker genes
+    # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate marker genes\n")
+    annotate_MGs(MGS, database_files, temp_dir)
 
-    # we remove the temp dir
+    # we remove the temp dir ---------------------------------------------------
     shutil.rmtree(temp_dir)
     # and the result from prodigal
     for i in genomes_pred:
@@ -401,4 +467,4 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
 
 
 
-    # FIFTH: join prediction
+    # FIFTH: join prediction ---------------------------------------------------
