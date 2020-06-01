@@ -297,9 +297,10 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
     if n_genes == 0:
         os.remove(genes.name)
         gene_file_name = None
+        protein_file_name = None
         if use_protein_file:
             os.remove(proteins.name)
-            protein_file_name = None
+
     else:
         gene_file_name = genes.name
         if use_protein_file:
@@ -379,36 +380,24 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 # position of the script -------------------------------------------------------
 path_this = os.path.realpath(__file__)
 path_array = path_this.split("/")
-relative_path = "/".join(path_array[0:-2])
-# add stag to the path ---------------------------------------------------------
-try:
-    if os.path.isdir(relative_path):
-        sys.path.insert(0, relative_path)
-    else:
-        sys.stderr.write(relative_path+"Error when loading stag directory.\n")
-        sys.exit(1)
-except Exception as e:
-    sys.stderr.write(relative_path+"Error when loading stag directory.\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import stag as stag
-except Exception as e:
-    sys.stderr.write("Error: fail to load the script: "+relative_path+"/stag\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
+stag_path = "/".join(path_array[0:-2]) + "/stag"
 
-# find gene ids that we can use (run hmmsearch)
-def annotate_MGs(MGS, database_files, temp_dir):
+# we run stag classify, for each marker gene
+def annotate_MGs(MGS, database_files, database_base_path):
     for mg in MGS:
         if MGS[mg][0] != None:
             # it means that there are some genes to classify
-            if MGS[mg][1] == "no_protein":
-                # it means that we align genes and not proteins
-                d = "dummy"
+            CMD = stag_path + " classify -d "+database_base_path+"/"+mg
+            # check that the database is correct
+            if not os.path.isfile(database_base_path+"/"+mg):
+                sys.stderr.write("Error: file for gene database is missing")
+            CMD = CMD + " -i "+MGS[mg][0]
             if MGS[mg][1] != "no_protein":
                 # it means that we align proteins
-                d = "dummy"
+                CMD = CMD + " -p "+MGS[mg][1]
+            print(CMD)
+
+
 
 
 
@@ -470,8 +459,9 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
     # and the file with the marker genes
     for m in MGS:
-        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
-        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
+        if MGS[m][0] != None:
+            if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
+            if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
 
 
