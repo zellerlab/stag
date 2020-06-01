@@ -461,7 +461,18 @@ def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, ve
         # levels_annotation: 1: Bacteria: 3
         #                    2: Firmicutes: 2
         #                       Bacteroidetes: 1
-        print(levels_annotation)
+        # Find best annotaiton per level
+        genome_annotation = list()
+        for l in levels_annotation:
+            max = 0
+            sel_taxa = ""
+            for taxa in levels_annotation[l]:
+                if levels_annotation[l][taxa] > max:
+                    max = levels_annotation[l][taxa]
+                    sel_taxa = taxa
+            genome_annotation.append(sel_taxa)
+        print(g+"\t"+";".join(genome_annotation))
+
 
 
 #===============================================================================
