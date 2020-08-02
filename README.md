@@ -40,8 +40,30 @@ You can check that the tool works properly with:
 python test.py
 ```
 
+Taxonomically annotate unknown sequences
+--------------
 
-First: Create a database
+Given a fasta file (let's say `unknown_seq.fasta`), you can find the taxonomy annotation of these
+sequences using:
+```
+stag classify -d test_db.stagDB -i unknown_seq.fasta
+```
+
+The output is:
+```
+sequence	taxonomy
+geneA	d__Bacteria;p__Firmicutes;c__Bacilli;o__Staphylococcales;f__Staphylococcaceae;g__Staphylococcus
+geneB	d__Bacteria
+geneC	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria
+```
+
+You can either create a database (see [Create a database](https://github.com/AlessioMilanese/stag#create-a-database)), or use one that we already compiled:
+
+| For | Run with | Link |
+| --- | --- | --- |
+| full-length 16S gene with GTDB taxonomy | `stag classify` | [link](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/GTDB89_16S.stagDB) |
+
+Create a database
 --------------
 You need three input:
 1. a set of reference sequences to use to learn the taxonomy
@@ -80,22 +102,4 @@ stag check_input -i <fasta_seqs> -x <taxonomy_file> -a <hmmfile>
 Once there are no errors, you can run:
 ```
 stag train -i <fasta_seqs> -x <taxonomy_file> -a <hmmfile> -o test_db.stagDB
-```
-
-
-Second: Taxonomically annotate unknown sequences
---------------
-
-Given a fasta file (let's say `unknown_seq.fasta`), you can find the taxonomy annotation of these
-sequences using:
-```
-stag classify -d test_db.stagDB -i unknown_seq.fasta
-```
-
-The output is:
-```
-sequence	taxonomy
-geneA	d__Bacteria;p__Firmicutes;c__Bacilli;o__Staphylococcales;f__Staphylococcaceae;g__Staphylococcus
-geneB	d__Bacteria
-geneC	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria
 ```
