@@ -48,7 +48,7 @@ You need three input:
 2. a taxonomy file for the sequences in point 1
 3. a hmm file for the sequences in point 1 (check also: [What to do if you don't have a hmm file](https://github.com/AlessioMilanese/stag/wiki/Create-hmm-file))
 
-The reference sequences should be in fasta format:
+The reference sequences should be in fasta format ([example file](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/files/GTDB_parsed.fa)):
 ```
 >gene1
 ATATGCATTTTACGATATGCA...
@@ -63,12 +63,14 @@ as a tab separated file (where the taxonomy is separated by ";"), like:
 ```
 gene\tKingdom;Phylum;Class;...
 ```
-Example:
+Example ([example file](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/files/GTDB_parsed.tax)):
 ```
 gene1 d__Bacteria;p__Firmicutes;c__Bacilli;o__Staphylococcales;f__Staphylococcaceae;g__Staphylococcus;s__Staphylococcus aureus
 gene2 d__Bacteria;p__Firmicutes;c__Bacilli;o__Lactobacillales;f__Listeriaceae;g__Listeria;s__Listeria monocytogenes
 gene3 d__Bacteria;p__Firmicutes;c__Bacilli;o__Lactobacillales;f__Streptococcaceae;g__Streptococcus;s__Streptococcus suis
 ```
+
+Example HMM file: ([example file](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/files/bacterial_model.hmm)).
 
 To check that your files are correct, you can run:
 ```
