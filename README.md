@@ -77,7 +77,7 @@ stag check_input -i <fasta_seqs> -x <taxonomy_file> -a <hmmfile>
 
 Once there are no errors, you can run:
 ```
-stag train -i <fasta_seqs> -x <taxonomy_file> -a <hmmfile> -o test_db.htcDB
+stag train -i <fasta_seqs> -x <taxonomy_file> -a <hmmfile> -o test_db.stagDB
 ```
 
 
@@ -87,7 +87,7 @@ Second: Taxonomically annotate unknown sequences
 Given a fasta file (let's say `unknown_seq.fasta`), you can find the taxonomy annotation of these
 sequences using:
 ```
-stag classify -d test_db.htcDB -i unknown_seq.fasta
+stag classify -d test_db.stagDB -i unknown_seq.fasta
 ```
 
 The output is:
