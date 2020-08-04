@@ -6,7 +6,7 @@ This tool is design to classify metagenomic sequences (marker genes, genomes and
 Installation
 --------------
 ```bash
-git clone https://github.com/AlessioMilanese/stag.git
+git clone https://github.com/zellerlab/stag.git
 cd stag
 export PATH=`pwd`:$PATH
 ```
