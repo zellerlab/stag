@@ -61,7 +61,7 @@ You can either create a database (see [Create a database](https://github.com/Ale
 
 | For | Taxonomy used | Run with | Link |
 | --- | --- | --- | --- |
-| full-length 16S gene | GTDB | `stag classify` | [link](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/GTDB89_16S.stagDB) |
+| full-length 16S gene | GTDB 89 | `stag classify` | [link](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/GTDB89_16S.stagDB) |
 
 Create a database
 --------------
