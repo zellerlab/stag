@@ -103,3 +103,20 @@ Once there are no errors, you can run:
 ```
 stag train -i <fasta_seqs> -x <taxonomy_file> -a <hmmfile> -o test_db.stagDB
 ```
+
+During the creation of the database, a log file is saved, with the same name as
+the database + ".log".
+The training takes between 1 hour and 4 hours (depending on the number of sequences).
+
+For ~40k sequences of ~1,500 nucleotides it takes around 3 hours. You can check
+the time from the log file:
+```
+cat <db_output_file>.log | grep "MAIN"
+[2020-08-02 18:30:17,493] MAIN:Load taxonomy
+[2020-08-02 18:30:17,944] MAIN:Load alignment
+[2020-08-02 18:31:40,047] MAIN:Check taxonomy and alignment
+[2020-08-02 18:31:43,295] MAIN:Train all classifiers
+[2020-08-02 18:38:52,453] MAIN:Learn taxonomy selection function
+[2020-08-02 21:14:22,120] MAIN:Save to file
+[2020-08-02 21:14:58,667] MAIN:Finished
+```
