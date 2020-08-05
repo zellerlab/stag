@@ -842,35 +842,37 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
                         filemode='w',
                         level=logging.INFO,
                         format='[%(asctime)s] %(message)s')
-    logging.info('MAIN:start')
+    logging.info('TIME:start')
 
     # 1. load the taxonomy into the tree (global variable)
     logging.info('MAIN:Load taxonomy')
     full_taxonomy = Taxonomy(tax_file)
     full_taxonomy.load_from_file()
-    logging.info('MAIN:Finish load taxonomy')
+    logging.info('TIME:Finish load taxonomy')
 
     # 2. load the alignment into a pandas dataframe
     logging.info('MAIN:Load alignment')
     alignment = load_alignment_from_file(aligned_seq_file)
-    logging.info('MAIN:Finish load alignment')
+    logging.info('TIME:Finish load alignment')
 
     # 3. check that the taxonomy and the alignment are consistent
     logging.info('MAIN:Check taxonomy and alignment')
     check_taxonomy_alignment_consistency(alignment, full_taxonomy)
-    logging.info('MAIN:Finish check-up')
+    logging.info('TIME:Finish check-up')
 
     # 4. build a classifier for each node
     logging.info('MAIN:Train all classifiers')
     classifiers = train_all_classifiers(alignment, full_taxonomy)
-    logging.info('MAIN:Finish train all classifiers')
+    logging.info('TIME:Finish train all classifiers')
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
     tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data)
-    logging.info('MAIN:Finish learn taxonomy selection function')
+    logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. save the result
     logging.info('MAIN:Save to file')
     save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output, protein_fasta_input)
-    logging.info('MAIN:Finish save to file')
+    logging.info('TIME:Finish save to file')
+
+    logging.info('MAIN:Finished')
