@@ -215,7 +215,7 @@ def check_sequences(file_name):
     sys.stderr.write("Number of genes: "+str(n_genes) + "\n")
     sys.stderr.write("Number of unique genes: "+str(len(duplicates_info)) + "\n")
 
-    return False, duplicates_info # if we arrive here, there were no errors
+    return False, duplicates_info # if we arrive here, there were no errors (False means no error)
 
 # ------------------------------------------------------------------------------
 # 2.b if there is a protein file, then we check that it is correct and that it
