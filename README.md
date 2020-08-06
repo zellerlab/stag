@@ -29,16 +29,8 @@ The stag classifier requires:
   * sklearn
   * h5py
 
-If you have [conda](https://conda.io/docs/), you can install the dependencies by creating an environment:
-```bash
-conda env create -f conda_env_stag.yaml
-conda activate stag
-```
-
-You can check that the tool works properly with:
-```
-python test.py
-```
+If you have [conda](https://conda.io/docs/), you can install all the dependencies in `conda_env_stag.yaml`.
+See [Installation wiki](https://github.com/zellerlab/stag/wiki/Installation) for more info.
 
 Taxonomically annotate unknown sequences
 --------------
