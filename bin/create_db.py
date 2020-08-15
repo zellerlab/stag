@@ -288,6 +288,9 @@ def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
         sys.stderr.write("Error: some genes in the alignment have no taxonomy.\n")
         sys.stderr.write("       Use the command 'check_input' to find more information.\n")
         logging.info(' Error: some genes in the alignment have no taxonomy.')
+        for g in genes_in_alignment:
+            if g not in genes_taxonomy:
+                logging.info('    %s',g)
         sys.exit(1)
     else:
         logging.info('   CHECK: check all genes in the alignment have a taxonomy: correct')
