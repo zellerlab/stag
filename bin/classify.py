@@ -100,6 +100,23 @@ def load_DB(hdf5_DB_path, protein_fasta_input):
     return hmm_file.name, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version
 
 
+#===============================================================================
+#                    FUNCTION TO LOAD ALIGNED SEQUENCES
+#===============================================================================
+def file_2_generator(aligned_sequences):
+    o = open(aligned_sequences,"r")
+    for i in o:
+        merged_fasta = i.rstrip()
+        gene_id = merged_fasta.split("\t")[0]
+        converted_ali = list()
+        for u in merged_fasta.split("\t")[1:]:
+            converted_ali.append(int(u))
+        to_return = dict()
+        to_return[gene_id] = np.array(converted_ali,dtype=bool)
+        yield to_return
+    o.close()
+
+
 
 #===============================================================================
 #                     TAXONOMICALLY ANNOTATE SEQUENCES
@@ -214,7 +231,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences):
     t0 = time.time()
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input)
@@ -224,8 +241,15 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
 
     # align the sequences and classify them
     list_to_print = list()
-    for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
-        list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
+    if aligned_sequences is None:
+        for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
+            print(al_seq)
+            list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
+    else:
+        for al_seq in file_2_generator(aligned_sequences):
+            print(al_seq)
+            list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
+
 
     if verbose>2:
         time_after_classification = time.time()
