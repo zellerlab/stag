@@ -228,7 +228,7 @@ def print_menu_create_db():
 # ------------------------------------------------------------------------------
 def print_menu_classify():
     sys.stderr.write("\n")
-    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} classify {bco.LightBlue}-d{bco.ResetAll} <database> {bco.LightBlue}-i{bco.ResetAll} <fasta_seqs> [options]\n\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} classify {bco.LightBlue}-d{bco.ResetAll} <database> [{bco.LightBlue}-i{bco.ResetAll}/{bco.LightBlue}-s{bco.ResetAll}] <seq_file> [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with create_db or train {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE  sequences to taxonomically annotate (fasta format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-s{bco.ResetAll}  FILE  aligned sequences, can be provided instead of -i {bco.ResetAll}\n")
