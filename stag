@@ -246,6 +246,7 @@ def print_menu_check_input():
     sys.stderr.write(f"  {bco.LightBlue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to used as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-c{bco.ResetAll}        set if you are using a cmfile\n")
     sys.stderr.write(f"  {bco.LightBlue}-x{bco.ResetAll}  FILE  taxonomy file (tab separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-w{bco.ResetAll}  FILE  save warning messages to a file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_train():
@@ -315,6 +316,7 @@ def main(argv=None):
     parser.add_argument('-f', action='store_true', default=None, dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
     parser.add_argument('-i', action="store", dest='fasta_input', default=None, help='input fasta sequences')
     parser.add_argument('-p', action="store", dest='protein_fasta_input', default=None, help='input fasta sequences, in protein format. Corresponding to the -i sequences')
+    parser.add_argument('-w', action="store", dest='warning_file_check_input', default=None, help='for check_input there can be quite some warning messages. Use -w to save them to a file')
     parser.add_argument('-d', action="store", dest='database', default=None, help='file containing the database')
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
@@ -332,7 +334,7 @@ def main(argv=None):
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None) and (args.dir_input is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
             if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None) and (args.long_out is None):
-                if (args.keep_all_genes is None) and (args.file_thresholds is None):
+                if (args.keep_all_genes is None) and (args.file_thresholds is None) and (args.warning_file_check_input is None):
                     if args.command == 'align': print_menu_align()
                     if args.command == 'create_db': print_menu_create_db()
                     if args.command == 'classify': print_menu_classify()
@@ -528,7 +530,7 @@ def main(argv=None):
             print_error()
             sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
             sys.exit(1)
-        check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy, args.template_al, args.use_cm_align)
+        check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy, args.template_al, args.use_cm_align, args.warning_file_check_input)
 
 
     # --------------------------------------------------------------------------

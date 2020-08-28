@@ -301,7 +301,7 @@ def check_protein_file(seq_file, protein_file):
 
 # ------------------------------------------------------------------------------
 # 3. check correspondence between fasta file and sequence file
-def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_taxonomy):
+def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_taxonomy, warning_file_check_input):
     sys.stderr.write("Check correspondences of gene ids to the tax ids......")
     try:
         o = open(file_name,"r")
@@ -331,6 +331,10 @@ def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_tax
 
 
     # check that genes with same sequence have the same taxonomy ---------------
+    if warning_file_check_input != None:
+        warning_f = open(warning_file_check_input,"w")
+        warning_f.write("-- Check taxonomy of genes with same sequence --\n")
+
     sys.stderr.write("Check taxonomy of genes with same sequence............")
     found_error2 = False
     for i in duplicates_info:
@@ -339,8 +343,14 @@ def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_tax
             for j in duplicates_info[i]:
                 if full_taxonomy[j[1:]] != species_0:
                     found_error2 = True
-                    sys.stderr.write(f"\n{bcolors.WARNING}{bcolors.BOLD}{bcolors.UNDERLINE}   WARNING:{bcolors.ENDC} ")
-                    sys.stderr.write(str(duplicates_info[i])+"\n")
+                    if warning_file_check_input != None:
+                        warning_f.write(str(duplicates_info[i])+"\n")
+                    else:
+                        sys.stderr.write(f"\n{bcolors.WARNING}{bcolors.BOLD}{bcolors.UNDERLINE}   WARNING:{bcolors.ENDC} ")
+                        sys.stderr.write(str(duplicates_info[i])+"\n")
+
+    if warning_file_check_input != None:
+        warning_f.close()
 
     if not found_error2:
         sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
@@ -486,7 +496,7 @@ def check_tool(seq_file, hmm_file, use_cmalign):
 #                                      MAIN
 #===============================================================================
 
-def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign):
+def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign, warning_file_check_input):
     # 1. check taxonomy alone
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK TAXONOMY FILE:{bcolors.ENDC}\n")
     found_error_tax, gene_ids, full_taxonomy = check_taxonomy(tax_file)
@@ -503,7 +513,7 @@ def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign):
 
     # 3. check correspondences between tax and fasta file
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK CORRESPONDENCES:{bcolors.ENDC}\n")
-    found_error_corr = check_correspondence(seq_file, gene_ids, duplicates_info, full_taxonomy)
+    found_error_corr = check_correspondence(seq_file, gene_ids, duplicates_info, full_taxonomy, warning_file_check_input)
 
     # 4. test tool and alignment
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK TOOL:{bcolors.ENDC}\n")
