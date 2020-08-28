@@ -146,7 +146,8 @@ def proteinAl_2_geneAl(protein_alignment, gene_sequence, check_length):
             # some proteins do not have the '*' at the end
             if len(only_AA_from_ali)*3 != len(gene_sequence):
                 sys.stderr.write("Error, length of genes/alignment is not correct")
-                sys.stderr.write(" (protein: "+str(len(only_AA_from_ali)*3)+", gene: "+str(len(gene_sequence))+")")
+                sys.stderr.write(" (protein: "+str(len(only_AA_from_ali)*3)+", gene: "+str(len(gene_sequence))+")\n")
+                sys.stderr.write(" ID: "+gene_id+"\n")
                 correct_length = False
                 return None
 
