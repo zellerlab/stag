@@ -243,11 +243,9 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     list_to_print = list()
     if aligned_sequences is None:
         for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
-            print(al_seq)
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
     else:
         for al_seq in file_2_generator(aligned_sequences):
-            print(al_seq)
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
 
 
