@@ -51,9 +51,9 @@ geneC	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria
 
 You can either create a database (see [Create a database](https://github.com/AlessioMilanese/stag#create-a-database)), or use one that we already compiled:
 
-| For | Taxonomy used | Run with | Link |
-| --- | --- | --- | --- |
-| full-length 16S gene | GTDB 89 | `stag classify` | [link](https://www.embl.de/download/zeller/milanese/STAG/databases/16S/GTDB89_16S.stagDB) |
+- [For marker genes](https://github.com/zellerlab/stag/wiki/Classify-genes)
+- [For 16S amplicon data](https://github.com/zellerlab/stag/wiki/16S-amplicon-databases)
+- [For genomes](https://github.com/zellerlab/stag/wiki/Genomes-databases)
 
 Create a database
 --------------
