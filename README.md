@@ -32,7 +32,7 @@ The stag classifier requires:
 If you have [conda](https://conda.io/docs/), you can install all the dependencies in `conda_env_stag.yaml`.
 See [Installation wiki](https://github.com/zellerlab/stag/wiki/Installation) for more info.
 
-Taxonomically annotate unknown sequences
+Taxonomically annotate gene sequences
 --------------
 
 Given a fasta file (let's say `unknown_seq.fasta`), you can find the taxonomy annotation of these
