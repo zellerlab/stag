@@ -279,9 +279,9 @@ def print_menu_correct_seq():
 # ------------------------------------------------------------------------------
 def print_menu_train_genome():
     sys.stderr.write("\n")
-    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-e{bco.ResetAll} <gene_thresholds>\n                         {bco.LightBlue}-o{bco.ResetAll} <output_DB> [options]\n\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-T{bco.ResetAll} <gene_thresholds>\n                         {bco.LightBlue}-o{bco.ResetAll} <output_DB> [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  LIST  list of single gene databases to use (comma separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  FILE  treshold for selecting the genes {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-T{bco.ResetAll}  FILE  treshold for selecting the genes {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
@@ -324,7 +324,7 @@ def main(argv=None):
     parser.add_argument('-l', action='store_true', default=None, dest='long_out', help='Print more columns for the classification pipeline')
     parser.add_argument('-r', action='store_true', default=None, dest='keep_all_genes', help='keep all genes when doing the calssification of genomes')
     parser.add_argument('-D', action="store", dest='dir_input', default=None, help='input directory')
-    parser.add_argument('-e', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
+    parser.add_argument('-T', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -574,7 +574,7 @@ def main(argv=None):
             sys.exit(1)
         if (args.file_thresholds is None):
             print_error()
-            sys.stderr.write("missing <gene_thresholds> (-e)\n")
+            sys.stderr.write("missing <gene_thresholds> (-T)\n")
             sys.exit(1)
         # call the function
         train_genome.train_genome(args.output, args.fasta_input, args.file_thresholds, args.threads, args.verbose)
