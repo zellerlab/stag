@@ -23,6 +23,7 @@ The stag classifier requires:
 * HMMER3 (or Infernal)
 * Easel ([link](https://github.com/EddyRivasLab/easel))
 * [seqtk](https://github.com/lh3/seqtk)
+* [prodigal](https://github.com/hyattpd/Prodigal) (to predict genes in genomes)
 * python library:
   * numpy
   * pandas
