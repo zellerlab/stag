@@ -583,6 +583,17 @@ def main(argv=None):
     # CLASSIFY_GENOME routine
     # --------------------------------------------------------------------------
     if args.command == 'classify_genome':
+        # check that output dir is defined
+        if (args.output is None):
+            print_error()
+            sys.stderr.write("missing output directory (-o)\n")
+            sys.exit(1)
+        if os.path.isdir(args.output):
+            print_error()
+            sys.stderr.write("output directory (-o) exists already.\n")
+            sys.exit(1)
+       
+        # check input
         if (args.database is None):
             print_error()
             sys.stderr.write("missing <database> (-d)\n")
