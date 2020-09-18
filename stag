@@ -292,7 +292,7 @@ def print_menu_classify_genome():
     sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>] [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE   database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   genome fasta file\n")
-    sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR    directory containing genome fasta files (only fasta\n            files will be used)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR    directory containing genome fasta files (only fasta\n             files will be used)\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE   output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
