@@ -518,6 +518,18 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # means that the alignment should be done at the level of the genes and not
     # proteins
 
+    # we save in the outdir the file with the MG sequences
+    os.mkdir(output+"/MG_sequences")
+    for m in MGS:
+        try:
+            shutil.move(MGS[m][0],output+"/MG_sequences/"+m+".fna")
+            shutil.move(MGS[m][1],output+"/MG_sequences/"+m+".faa")
+            MGS[m][0] = output+"/MG_sequences/"+m+".fna"
+            MGS[m][1] = output+"/MG_sequences/"+m+".faa"
+        except:
+            sys.stderr.write("[E::main] Error: failed to save the marker gene sequences\n")
+            sys.exit(1)
+
 
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
@@ -539,10 +551,10 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
         if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
     # and the file with the marker genes
-    for m in MGS:
-        if MGS[m][0] != None:
-            if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
-            if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
+    #for m in MGS:
+    #    if MGS[m][0] != None:
+    #        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
+    #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
 
     # FIFTH: join prediction ---------------------------------------------------
