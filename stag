@@ -624,6 +624,8 @@ def main(argv=None):
                 print_error()
                 sys.stderr.write("no fasta files found in the directory.\n")
                 sys.exit(1)
+            else:
+                sys.stderr.write(" Found "+str(len(list_files))+" fasta files\n")
 
         # check that output dir is defined
         if (args.output is None):
