@@ -426,54 +426,23 @@ def annotate_MGs(MGS, database_files, database_base_path):
 # ==============================================================================
 def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes):
     # we parse "all_classifications"
-    parsed_data = dict()
+    to_print = dict()
     for i in all_classifications:
         vals = i.rstrip().split("##")
         genome = "_".join(vals[0].split("_")[0:-1])
-        if not genome in parsed_data:
-            parsed_data[genome] = dict()
-        if not vals[1] in parsed_data[genome]:
-            parsed_data[genome][vals[1]] = list()
-        parsed_data[genome][vals[1]].append(all_classifications[i])
+        mg_id = vals[1]
+        if not genome in to_print:
+            to_print[genome] = ""
+        to_print[genome] = to_print[genome] + i.rstrip() + "\t" + mg_id + "\t" + all_classifications[i] + "\n"
 
     # we go throught the genomes and analyse them
     for g in genomes_file_list:
-        if not g in parsed_data:
-            # it means that genes were not idenitified or not classified
-            print(g+"\tNone")
-            break
-
-        # annotation for each tax level
-        levels_annotation = dict()
-        for mg in parsed_data[g]:
-            for tax in parsed_data[g][mg]:
-                l = 0
-                if tax != "":
-                    for taxa in tax.split(";"):
-                        l = l + 1
-                        if not l in levels_annotation:
-                            levels_annotation[l] = dict()
-                        if not taxa in levels_annotation[l]:
-                            levels_annotation[l][taxa] = 1
-                        else:
-                            levels_annotation[l][taxa] = levels_annotation[l][taxa] + 1
-
-        # levels_annotation: 1: Bacteria: 3
-        #                    2: Firmicutes: 2
-        #                       Bacteroidetes: 1
-        # Find best annotaiton per level
-        genome_annotation = list()
-        for l in levels_annotation:
-            max = 0
-            sel_taxa = ""
-            for taxa in levels_annotation[l]:
-                if levels_annotation[l][taxa] > max:
-                    max = levels_annotation[l][taxa]
-                    sel_taxa = taxa
-            genome_annotation.append(sel_taxa)
-        print(g+"\t"+";".join(genome_annotation))
-
-
+        if not g in to_print:
+            to_print[g] = ""
+        genome_file_name = g.split("/")[-1]
+        o = open(output+"/genes_predictions/"+genome_file_name,"w")
+        o.write(to_print[g])
+        o.close()
 
 #===============================================================================
 #                                      MAIN
@@ -566,7 +535,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
 
-    # FIFTH: join prediction ---------------------------------------------------
-    if verbose > 2:
-        sys.stderr.write("Join taxonomy of different genes\n")
+    # join prediction ----------------------------------------------------------
+    os.mkdir(output+"/genes_predictions")
     merge_genes_predictions(genomes_file_list, list(database_files), all_classifications, verbose, threads, output, long_out, keep_all_genes)
