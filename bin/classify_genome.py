@@ -531,9 +531,18 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
             sys.exit(1)
 
 
-    # FOURTH: classify the marker genes ----------------------------------------
+    # FOURTH: classify the concatenation of the MGs, which represents the ------
+    #         annotation for the genome ----------------------------------------
     if verbose > 2:
-        sys.stderr.write("Taxonomically annotate marker genes\n")
+        sys.stderr.write("Taxonomically annotate genomes\n")
+    # First, create a concatenated alignment
+
+    # Second, classify the alignments
+
+
+    # FIFTH: classify the marker genes -----------------------------------------
+    if verbose > 2:
+        sys.stderr.write("Taxonomically annotate single marker genes\n")
     all_classifications = annotate_MGs(MGS, database_files, temp_dir)
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
