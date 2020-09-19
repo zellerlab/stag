@@ -631,9 +631,12 @@ def main(argv=None):
             sys.stderr.write("missing output directory (-o)\n")
             sys.exit(1)
         if os.path.isdir(args.output):
-            print_error()
-            sys.stderr.write("output directory (-o) exists already.\n")
-            sys.exit(1)
+            if args.force_rewrite:
+                shutil.rmtree(args.output)
+            else:
+                print_error()
+                sys.stderr.write("output directory (-o) exists already.\n")
+                sys.exit(1)
         # create output dir
         try:
             os.mkdir(args.output)
