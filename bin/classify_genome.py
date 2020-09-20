@@ -497,7 +497,7 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     os.chmod(concat_ali_f.name, 0o644)
     for g in genomes_file_list:
         str_g = g.split("/")[-1] + "\t"
-        str_g = str_g + "\t".join(genomes_file_list[g])
+        str_g = str_g + "\t".join(all_genes[g])
         concat_ali_f.write(str_g)
         concat_ali_f.flush()
 
