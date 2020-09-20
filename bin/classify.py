@@ -244,9 +244,13 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     if aligned_sequences is None:
         for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
+            # save alignment to file, if necessary
             if not(save_ali_to_file is None):
+                name_gene = list(al_seq.keys())[0]
+                x_arrstr = np.char.mod('%.0f', al_seq[name_gene])
+                ali_str = "\t".join(x_arrstr)
                 o = open(save_ali_to_file,"a+")
-                o.write(al_seq+"\n")
+                o.write(name_gene+"\t"+ali_str+"\n")
                 o.close()
     else:
         for al_seq in file_2_generator(aligned_sequences):
