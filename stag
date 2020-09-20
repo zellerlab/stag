@@ -584,6 +584,10 @@ def main(argv=None):
             print_error()
             sys.stderr.write("missing <gene_thresholds> (-T)\n")
             sys.exit(1)
+        if (args.intermediate_cross_val is None):
+            print_error()
+            sys.stderr.write("missing <concat_genes_DB> (-C)\n")
+            sys.exit(1)
         # call the function
         train_genome.train_genome(args.output, args.fasta_input, args.file_thresholds, args.threads, args.verbose)
 
