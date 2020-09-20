@@ -605,3 +605,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     file_ali = concat_alis(genomes_file_list,output+"/MG_ali/",gene_order,ali_lengths)
 
     # Second, classify the alignments
+
+    # we remove the file with the concatenated alignment
+    os.remove(file_ali)
