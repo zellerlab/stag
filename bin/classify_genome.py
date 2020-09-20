@@ -500,16 +500,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
             sys.exit(1)
 
 
-    # FOURTH: classify the concatenation of the MGs, which represents the ------
-    #         annotation for the genome ----------------------------------------
-    if verbose > 2:
-        sys.stderr.write("Taxonomically annotate genomes\n")
-    # First, create a concatenated alignment
-
-    # Second, classify the alignments
-
-
-    # FIFTH: classify the marker genes -----------------------------------------
+    # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate single marker genes\n")
     all_classifications = annotate_MGs(MGS, database_files, temp_dir)
@@ -534,7 +525,18 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     #        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
     #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
-
     # join prediction ----------------------------------------------------------
     os.mkdir(output+"/genes_predictions")
     merge_genes_predictions(genomes_file_list, list(database_files), all_classifications, verbose, threads, output, long_out, keep_all_genes)
+
+
+
+
+    # FIFTH: classify the concatenation of the MGs, which represents the -------
+    #         annotation for the genome ----------------------------------------
+    if verbose > 2:
+        sys.stderr.write("Taxonomically annotate genomes\n")
+    # First, create a concatenated alignment. The alignments were created in the
+    # 4th step
+
+    # Second, classify the alignments
