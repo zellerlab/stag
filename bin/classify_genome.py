@@ -381,7 +381,7 @@ path_array = path_this.split("/")
 stag_path = "/".join(path_array[0:-2]) + "/stag"
 
 # we run stag classify, for each marker gene
-def annotate_MGs(MGS, database_files, database_base_path):
+def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
     all_classifications = dict()
     for mg in MGS:
         if MGS[mg][0] != None:
@@ -394,6 +394,8 @@ def annotate_MGs(MGS, database_files, database_base_path):
             if MGS[mg][1] != "no_protein":
                 # it means that we align proteins
                 CMD = CMD + " -p "+MGS[mg][1]
+            # save intermediate alignment
+            CMD = CMD + " -S " + dir_ali + mg
             # we run stag CMD
             split_CMD = shlex.split(CMD)
             stag_CMD = subprocess.Popen(split_CMD, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -507,7 +509,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # when doing the classification, we also create the alignment files
     os.mkdir(output+"/MG_ali")
 
-    all_classifications = annotate_MGs(MGS, database_files, temp_dir)
+    all_classifications = annotate_MGs(MGS, database_files, temp_dir, output+"/MG_ali/")
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
     # Example:
