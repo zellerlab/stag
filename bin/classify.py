@@ -231,7 +231,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences, save_ali_to_file):
     t0 = time.time()
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input)
@@ -244,6 +244,10 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     if aligned_sequences is None:
         for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
+            if not(save_ali_to_file is None):
+                o = open(save_ali_to_file,"a+")
+                o.write(al_seq+"\n")
+                o.close()
     else:
         for al_seq in file_2_generator(aligned_sequences):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
