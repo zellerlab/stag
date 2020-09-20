@@ -44,6 +44,9 @@ def load_genome_DB(database, tool_version, verbose):
     if not "threshold_file.tsv" in list_files:
         sys.stderr.write("[E::align] Error: threshold_file.tsv is missing.\n")
         sys.exit(1)
+    if not "hmm_lengths_file.tsv" in list_files:
+        sys.stderr.write("[E::align] Error: hmm_lengths_file.tsv is missing.\n")
+        sys.exit(1)
     # we load the thresholds and gene order
     gene_order = list()
     gene_thresholds = dict()
@@ -53,9 +56,20 @@ def load_genome_DB(database, tool_version, verbose):
         gene_thresholds[vals[0]] = vals[1]
         gene_order.append(vals[0])
     o.close()
+
+    # we load the gene legths
+    ali_lengths = dict()
+    o = open(os.path.join(dirpath, "hmm_lengths_file.tsv"))
+    for line in o:
+        vals = line.rstrip().split("\t")
+        ali_lengths[vals[0]] = vals[1]
+    o.close()
+
+
     # we remove the threshold file from the list of genes
     list_files.remove("threshold_file.tsv")
-    return list_files,dirpath,gene_thresholds,gene_order
+    list_files.remove("hmm_lengths_file.tsv")
+    return list_files,dirpath,gene_thresholds,gene_order,ali_lengths
 
 # ==============================================================================
 # RUN PRODIGAL
@@ -476,7 +490,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # FIRST: unzip the database ------------------------------------------------
     if verbose > 2:
         sys.stderr.write("Unzip the database\n")
-    database_files, temp_dir, gene_thresholds, gene_order = load_genome_DB(database, tool_version, verbose)
+    database_files, temp_dir, gene_thresholds, gene_order, ali_lengths = load_genome_DB(database, tool_version, verbose)
 
     # SECOND: run prodigal on the fasta genome ---------------------------------
     if verbose > 2:
