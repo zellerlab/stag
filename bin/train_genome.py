@@ -88,7 +88,7 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
         f = h5py.File(name, 'r')
         for line in f['hmm_file'][0].split("\n"):
             if line.startswith("LENG"):
-                len_f.write(name_file + "\t" + line.split(" ")[-1] + "\n")
+                len_f.write(name_file + "\t" + str(int(line.split(" ")[-1])*5) + "\n")
                 len_f.flush()
                 break
         f.close()
