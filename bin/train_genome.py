@@ -95,8 +95,14 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_s
 
     # we add the file with the lengths to the tar.gz
     tar.add(len_f.name, "hmm_lengths_file.tsv")
-    tar.close()
 
+
+    # add file with stag DB of the concatenated alis ---------------------------
+    tar.add(concat_stag_db, "concatenated_genes_STAG_database.HDF5")
+
+
+    # close tar file -----------------------------------------------------------
+    tar.close()
     # close
     try:
         outfile.flush()
