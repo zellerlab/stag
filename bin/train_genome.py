@@ -39,11 +39,11 @@ def check_file_exists(file_name, isfasta = False):
 #                                      MAIN
 #===============================================================================
 def train_genome(output, list_genes, gene_thresholds, threads, verbose):
-    # temp file where to save the result -----------------------------------
+    # temp file where to save the result ---------------------------------------
     outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(outfile.name, 0o644)
 
-    # we need a file with the thresholds -----------------------------------
+    # we need a file with the thresholds ---------------------------------------
     check_file_exists(gene_thresholds,isfasta = False)
     genes_threhold_file = list()
     o = open(gene_thresholds)
@@ -57,7 +57,8 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
             sys.stderr.write("gene "+name.split("/")[-1]+" is missing from the threshold file (-e)\n")
             sys.exit(1)
 
-    # we create a tar.gz with all the genes --------------------------------
+
+    # we create a tar.gz with all the genes ------------------------------------
     tar = tarfile.open(outfile.name, "w:gz")
     for name in list_genes.split(","):
         check_file_exists(name,isfasta = False)
@@ -77,6 +78,23 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose):
 
     # we add the file with the thresholds to the tar.gz
     tar.add(gene_thresholds, "threshold_file.tsv")
+
+
+    # we need to find the length of the alignments -----------------------------
+    len_f = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(len_f.name, 0o644)
+    for name in list_genes.split(","):
+        name_file = os.path.basename(name)
+        f = h5py.File(name, 'r')
+        for line in f['hmm_file'][0].split("\n"):
+            if line.startswith("LENG"):
+                len_f.write(name_file + "\t" + line.split(" ")[-1] + "\n")
+                len_f.flush()
+                break
+        f.close()
+
+    # we add the file with the lengths to the tar.gz
+    tar.add(len_f.name, "hmm_lengths_file.tsv")
     tar.close()
 
     # close
