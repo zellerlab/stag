@@ -467,13 +467,41 @@ def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, ve
 # ==============================================================================
 # CONCAT ALIGNEMENTS
 # ==============================================================================
-def concat_alis(genomes_file_list, ali_dir, gene_order):
+def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     # we return a (tmp) file containing the concatenated alignment
     # INPUT:
     #  - list of genomes
     #  - base name of the directory containing the alignments
     #  - order of the genes
-    return "dummy"
+    #  - length of the alignments
+
+    # we create the base
+    all_genes = dict()
+    for ge in genomes_file_list:
+        all_genes[ge] = list()
+        for mg in gene_order:
+            all_genes[ge].append("\t".join(['0'] * int(ali_lengths[mg])))
+
+    # we add the alignments from the real genes
+    pos = -1
+    for mg in gene_order:
+        pos = pos + 1
+        o = open(ali_dir+mg,"r")
+        for line in o:
+            genome = "_".join(line.split("##")[0].split("_")[0:-1])
+            all_genes[genome][pos] = "\t".join(line.split("\t")[1:]).rstrip()
+        o.close()
+
+    # we create a temp file and save the sequences
+    concat_ali_f = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(concat_ali_f.name, 0o644)
+    for g in genomes_file_list:
+        str_g = g.split("/")[-1] + "\t"
+        str_g = str_g + "\t".join(genomes_file_list[g])
+        concat_ali_f.write(str_g)
+        concat_ali_f.flush()
+
+    return concat_ali_f.name
 
 
 #===============================================================================
@@ -574,6 +602,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         sys.stderr.write("Taxonomically annotate genomes\n")
     # First, create a concatenated alignment. The alignments were created in the
     # 4th step
-    file_ali = concat_alis(genomes_file_list,output+"/MG_ali/",gene_order)
+    file_ali = concat_alis(genomes_file_list,output+"/MG_ali/",gene_order,ali_lengths)
 
     # Second, classify the alignments
