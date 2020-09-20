@@ -280,9 +280,10 @@ def print_menu_correct_seq():
 # ------------------------------------------------------------------------------
 def print_menu_train_genome():
     sys.stderr.write("\n")
-    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-T{bco.ResetAll} <gene_thresholds>\n                         {bco.LightBlue}-o{bco.ResetAll} <output_DB> [options]\n\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} train_genome {bco.LightBlue}-i{bco.ResetAll} <list_gene_DBs> {bco.LightBlue}-T{bco.ResetAll} <gene_thresholds>\n                         {bco.LightBlue}-o{bco.ResetAll} <output_DB> {bco.LightBlue}-C{bco.ResetAll} <concat_genes_DB> [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  LIST  list of single gene databases to use (comma separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-T{bco.ResetAll}  FILE  hmm treshold for selecting the genes {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  stag database for the concatenated genes{bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
