@@ -459,6 +459,7 @@ def concat_alis(genomes_file_list, ali_dir, gene_order):
     #  - list of genomes
     #  - base name of the directory containing the alignments
     #  - order of the genes
+    return "dummy"
 
 
 #===============================================================================
