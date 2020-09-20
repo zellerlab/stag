@@ -38,7 +38,7 @@ def check_file_exists(file_name, isfasta = False):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_genome(output, list_genes, gene_thresholds, threads, verbose):
+def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_stag_db):
     # temp file where to save the result ---------------------------------------
     outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(outfile.name, 0o644)
