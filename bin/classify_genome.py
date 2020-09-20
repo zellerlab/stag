@@ -503,6 +503,10 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate single marker genes\n")
+
+    # when doing the classification, we also create the alignment files
+    os.mkdir(output+"/MG_ali")
+
     all_classifications = annotate_MGs(MGS, database_files, temp_dir)
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
