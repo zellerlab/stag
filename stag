@@ -511,6 +511,12 @@ def main(argv=None):
         # if -p is provided, then check that it is a fasta file
         if not(args.protein_fasta_input is None):
             check_file_exists(args.protein_fasta_input,isfasta = True)
+        # if -S is provided, we remove the file if it exists, since in the
+        # function it appends only
+        if not(args.intermediate_al is None):
+            if os.path.isfile(args.intermediate_al):
+                os.remove(args.intermediate_al)
+
 
         # call the function
         classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al)
