@@ -44,16 +44,18 @@ def load_genome_DB(database, tool_version, verbose):
     if not "threshold_file.tsv" in list_files:
         sys.stderr.write("[E::align] Error: threshold_file.tsv is missing.\n")
         sys.exit(1)
-    # we load the thresholds
+    # we load the thresholds and gene order
+    gene_order = list()
     gene_thresholds = dict()
     o = open(os.path.join(dirpath, "threshold_file.tsv"))
     for line in o:
         vals = line.rstrip().split("\t")
         gene_thresholds[vals[0]] = vals[1]
+        gene_order.append(vals[0])
     o.close()
     # we remove the threshold file from the list of genes
     list_files.remove("threshold_file.tsv")
-    return list_files,dirpath,gene_thresholds
+    return list_files,dirpath,gene_thresholds,gene_order
 
 # ==============================================================================
 # RUN PRODIGAL
@@ -446,6 +448,19 @@ def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, ve
         o.write(to_print[g])
         o.close()
 
+
+
+# ==============================================================================
+# CONCAT ALIGNEMENTS
+# ==============================================================================
+def concat_alis(genomes_file_list, ali_dir, gene_order):
+    # we return a (tmp) file containing the concatenated alignment
+    # INPUT:
+    #  - list of genomes
+    #  - base name of the directory containing the alignments
+    #  - order of the genes
+
+
 #===============================================================================
 #                                      MAIN
 #===============================================================================
@@ -460,7 +475,7 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # FIRST: unzip the database ------------------------------------------------
     if verbose > 2:
         sys.stderr.write("Unzip the database\n")
-    database_files, temp_dir, gene_thresholds = load_genome_DB(database, tool_version, verbose)
+    database_files, temp_dir, gene_thresholds, gene_order = load_genome_DB(database, tool_version, verbose)
 
     # SECOND: run prodigal on the fasta genome ---------------------------------
     if verbose > 2:
@@ -544,5 +559,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         sys.stderr.write("Taxonomically annotate genomes\n")
     # First, create a concatenated alignment. The alignments were created in the
     # 4th step
+    file_ali = concat_alis(genomes_file_list,output+"/MG_ali/",gene_order)
 
     # Second, classify the alignments
