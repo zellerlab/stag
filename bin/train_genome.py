@@ -16,6 +16,12 @@ import h5py
 import re
 import tarfile
 
+# position of the script -------------------------------------------------------
+path_this = os.path.realpath(__file__)
+path_array = path_this.split("/")
+stag_path = "/".join(path_array[0:-2]) + "/stag"
+
+
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
     try:
@@ -34,6 +40,31 @@ def check_file_exists(file_name, isfasta = False):
         sys.stderr.write("Cannot open file: "+file_name+"\n")
         sys.stderr.write(str(e)+"\n")
         sys.exit(1)
+
+# find the length of the alignments --------------------------------------------
+def find_length_ali(gene_db,temp_fasta,temp_fasta2):
+    outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(outfile.name, 0o644)
+
+    CMD = stag_path + " classify -d "+gene_db
+    CMD = CMD + " -i "+temp_fasta
+    CMD = CMD + " -p "+temp_fasta2
+    CMD = CMD + " -S "+outfile.name
+
+    split_CMD = shlex.split(CMD)
+    stag_CMD = subprocess.Popen(split_CMD)
+
+    return_code = stag_CMD.wait()
+    if return_code:
+        sys.stderr.write("[E::align] Error. cannot find length of the alignments\n\n")
+        sys.exit(1)
+
+    o = open(outfile.name,"r")
+    len_ali = len(o.readline().rstrip().split("\t")) - 1
+    o.close()
+    os.remove(outfile.name)
+
+    return len_ali
 
 #===============================================================================
 #                                      MAIN
@@ -89,16 +120,22 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_s
     # we need to find the length of the alignments -----------------------------
     len_f = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(len_f.name, 0o644)
-    for name in list_genes.split(","):
-        name_file = os.path.basename(name)
-        f = h5py.File(name, 'r')
-        for line in f['hmm_file'][0].split("\n"):
-            if line.startswith("LENG"):
-                len_f.write(name_file + "\t" + str(int(line.split(" ")[-1])*5) + "\n")
-                len_f.flush()
-                break
-        f.close()
+    # temp fasta file
+    temp_fasta = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(temp_fasta.name, 0o644)
+    temp_fasta.write(">test\nAAA\n")
+    temp_fasta.flush()
+    # protein
+    temp_fasta2 = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(temp_fasta2.name, 0o644)
+    temp_fasta2.write(">test\nA\n")
+    temp_fasta2.flush()
+    for gene_db in list_genes.split(","):
+        len_this = find_length_ali(gene_db,temp_fasta.name,temp_fasta2.name)
+        len_f.write(name_file + "\t" + str(len_this) + "\n")
+        len_f.flush()
 
+    os.remove(temp_fasta.name)
     # we add the file with the lengths to the tar.gz
     tar.add(len_f.name, "hmm_lengths_file.tsv")
 
