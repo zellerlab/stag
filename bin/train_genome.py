@@ -132,7 +132,7 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_s
     temp_fasta2.flush()
     for gene_db in list_genes.split(","):
         len_this = find_length_ali(gene_db,temp_fasta.name,temp_fasta2.name)
-        len_f.write(name_file + "\t" + str(len_this) + "\n")
+        len_f.write(os.path.basename(gene_db) + "\t" + str(len_this) + "\n")
         len_f.flush()
 
     os.remove(temp_fasta.name)
