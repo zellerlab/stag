@@ -508,6 +508,25 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     return concat_ali_f.name
 
 
+
+# ==============================================================================
+# ANNOTATE concatenation of the MGs
+# ==============================================================================
+# the annotation for the genome is based on the annotation of the
+def annotate_concat_mgs(concat_ali_stag_db,file_ali,output):
+    CMD = stag_path + " classify -d "+concat_ali_stag_db
+    CMD = CMD + " -s "+file_ali
+    CMD = CMD + " -o "+output+"/genome_annotation"
+
+    split_CMD = shlex.split(CMD)
+    stag_CMD = subprocess.Popen(split_CMD)
+
+    return_code = stag_CMD.wait()
+    if return_code:
+        sys.stderr.write("[E::align] Error. stag classify failed\n\n")
+        sys.exit(1)
+
+
 #===============================================================================
 #                                      MAIN
 #===============================================================================
@@ -581,17 +600,6 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # '/Users/alex/Dropbox/genomeBB_1853##COG0012': "Bacteria;Bacteroidetes;Bacteroidia;Bacteroidales"
     # '/Users/alex/Dropbox/genomeBB_862##COG0172': "Bacteria;Bacteroidetes;Bacteroidia"
 
-    # we remove the temp dir ---------------------------------------------------
-    shutil.rmtree(temp_dir)
-    # and the result from prodigal
-    for i in genomes_pred:
-        if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
-        if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
-    # and the file with the marker genes
-    #for m in MGS:
-    #    if MGS[m][0] != None:
-    #        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
-    #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
 
     # join prediction ----------------------------------------------------------
     os.mkdir(output+"/genes_predictions")
@@ -609,6 +617,19 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     file_ali = concat_alis(genomes_file_list,output+"/MG_ali/",gene_order,ali_lengths)
 
     # Second, classify the alignments
+    annotate_concat_mgs(concat_ali_stag_db,file_ali,output)
 
     # we remove the file with the concatenated alignment
     os.remove(file_ali)
+
+    # we remove the temp dir ---------------------------------------------------
+    shutil.rmtree(temp_dir)
+    # and the result from prodigal
+    for i in genomes_pred:
+        if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
+        if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
+    # and the file with the marker genes
+    # for m in MGS:
+    #    if MGS[m][0] != None:
+    #        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
+    #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
