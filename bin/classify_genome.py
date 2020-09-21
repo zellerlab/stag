@@ -155,7 +155,7 @@ def run_prodigal_genomes(genomes_file_list, verbose):
 # EXTRACT THE MARKER GENES
 # ==============================================================================
 # find gene ids that we can use (run hmmsearch)
-def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold):
+def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name):
     # INFO: genes_path, proteins_path [where to save the result]
     # we run hmmsearch
     temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -171,6 +171,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold):
     return_code = hmm_CMD.wait()
     if return_code:
         sys.stderr.write("[E::align] Error. hmmsearch failed\n\n")
+        sys.stderr.write("MG: "+mg_name+"\n")
         sys.stderr.write("CALL: "+hmm_cmd+"\n\n")
         sys.stderr.write(all_stderr)
         sys.exit(1)
@@ -213,7 +214,7 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_thresh
         else:
             file_to_align = genomes_pred[g][0]
         # call function that uses hmmsearch
-        all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold)
+        all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name)
 
 def select_genes(all_genes_raw, keep_all_genes):
     return_dict = dict()
