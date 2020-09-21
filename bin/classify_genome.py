@@ -171,6 +171,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold):
     return_code = hmm_CMD.wait()
     if return_code:
         sys.stderr.write("[E::align] Error. hmmsearch failed\n\n")
+        sys.stderr.write("CALL: "+hmm_cmd+"\n\n")
         sys.stderr.write(all_stderr)
         sys.exit(1)
 
