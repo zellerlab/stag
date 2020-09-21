@@ -580,8 +580,9 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
             shutil.move(MGS[m][1],output+"/MG_sequences/"+m+".faa")
             MGS[m][0] = output+"/MG_sequences/"+m+".fna"
             MGS[m][1] = output+"/MG_sequences/"+m+".faa"
-        except:
+        except Exception as e:
             sys.stderr.write("[E::main] Error: failed to save the marker gene sequences\n")
+            sys.stderr.write(e)
             sys.exit(1)
 
 
