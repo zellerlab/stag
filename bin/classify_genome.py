@@ -572,6 +572,20 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # means that the alignment should be done at the level of the genes and not
     # proteins
 
+    # check if all genes are empty
+    all_empty = True
+    for m in MGS:
+        if not(MGS[m][0] is None):
+            all_empty = False
+    if all_empty:
+        sys.stderr.write("[W::main] Warning: no marker genes identified\n          Stopping annotation.\n")
+        shutil.rmtree(temp_dir)
+        # and the result from prodigal
+        for i in genomes_pred:
+            if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
+            if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
+        sys.exit(1)
+
     # we save in the outdir the file with the MG sequences
     os.mkdir(output+"/MG_sequences")
     for m in MGS:
