@@ -54,7 +54,28 @@ You can either create a database (see [Create a database](https://github.com/Ale
 
 - [For marker genes](https://github.com/zellerlab/stag/wiki/Classify-genes)
 - [For 16S amplicon data](https://github.com/zellerlab/stag/wiki/16S-amplicon-databases)
-- [For genomes](https://github.com/zellerlab/stag/wiki/Genomes-databases)
+
+
+
+Taxonomically annotate genomes
+--------------
+
+Given a fasta file (let's say `unknown_genome.fasta`), you can find the taxonomy annotation of this genome with:
+```
+stag classify_genome -i unknown_genome.fasta -d gtdb_30.stagDB -o res_dir
+```
+
+The output is saved in the directory `res_dir`. Inside you will find the file `genome_annotation` with the annotation
+in the same format as in the gene classification.
+
+To classify multiple genomes, you can use:
+```
+stag classify_genome -D all_genomes -d gtdb_30.stagDB -o res_dir
+```
+Where `all_genomes` is a directory, and all fasta files inside the directory will be classified.
+
+Finally, you can find some databases to classify genomes (`gtdb_30.stagDB` in the examples) [here](https://github.com/zellerlab/stag/wiki/Genomes-databases).
+
 
 Create a database
 --------------
