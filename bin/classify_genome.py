@@ -492,11 +492,12 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     pos = -1
     for mg in gene_order:
         pos = pos + 1
-        o = open(ali_dir+mg,"r")
-        for line in o:
-            genome = "_".join(line.split("##")[0].split("_")[0:-1])
-            all_genes[genome][pos] = "\t".join(line.split("\t")[1:]).rstrip()
-        o.close()
+        if os.path.isfile(ali_dir+mg):
+            o = open(ali_dir+mg,"r")
+            for line in o:
+                genome = "_".join(line.split("##")[0].split("_")[0:-1])
+                all_genes[genome][pos] = "\t".join(line.split("\t")[1:]).rstrip()
+            o.close()
 
     # we create a temp file and save the sequences
     concat_ali_f = tempfile.NamedTemporaryFile(delete=False, mode="w")
