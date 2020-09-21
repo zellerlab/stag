@@ -66,13 +66,13 @@ stag classify_genome -i unknown_genome.fasta -d gtdb_30.stagDB -o res_dir
 ```
 
 The output is saved in the directory `res_dir`. Inside you will find the file `genome_annotation` with the annotation
-in the same format as in the gene classification.
+in the same format as in the gene classification. More information on the other files can be found [here](https://github.com/zellerlab/stag/wiki/Classify-genomes).
 
 To classify multiple genomes, you can use:
 ```
-stag classify_genome -D all_genomes -d gtdb_30.stagDB -o res_dir
+stag classify_genome -D all/genomes/dir -d gtdb_30.stagDB -o res_dir
 ```
-Where `all_genomes` is a directory, and all fasta files inside the directory will be classified.
+Where `all/genomes/dir` is a directory, and all fasta files inside the directory will be classified.
 
 Finally, you can find some databases to classify genomes (`gtdb_30.stagDB` in the examples) [here](https://github.com/zellerlab/stag/wiki/Genomes-databases).
 
