@@ -505,7 +505,7 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     for g in genomes_file_list:
         str_g = g.split("/")[-1] + "\t"
         str_g = str_g + "\t".join(all_genes[g])
-        concat_ali_f.write(str_g)
+        concat_ali_f.write(str_g + "\n")
         concat_ali_f.flush()
 
     return concat_ali_f.name
