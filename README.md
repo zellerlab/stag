@@ -2,6 +2,7 @@
 
 This tool is design to classify metagenomic sequences (marker genes, genomes and amplicon reads) using a Hierarchical Taxonomic Classifier.
 
+Please check also the [wiki](https://github.com/zellerlab/stag/wiki) for more information.
 
 Installation
 --------------
