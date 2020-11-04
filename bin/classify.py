@@ -122,9 +122,13 @@ def file_2_generator(aligned_sequences):
 #===============================================================================
 #                     TAXONOMICALLY ANNOTATE SEQUENCES
 #===============================================================================
-def run_lasso_prediction(seq, coeff):
+def run_logistic_prediction(seq, coeff_raw):
+    # the first value of the coeff is the intercept
+    coeff = coeff_raw[1:]
+    intercept = coeff_raw[0]
+    # calculate
     sm = coeff*seq
-    np_sum = (sm).sum()
+    np_sum = (sm).sum() + intercept
     score = 1/(1+np.exp(-np_sum))
     return score
 
@@ -142,7 +146,7 @@ def find_best_score(test_seq, sibilings, classifiers):
         best_taxa = sibilings[0]
     if len(sibilings) > 1:
         for s in sibilings:
-            this_score = run_lasso_prediction(test_seq, classifiers[s])
+            this_score = run_logistic_prediction(test_seq, classifiers[s])
             if this_score > best_score:
                 best_score = this_score
                 best_taxa = s
@@ -160,23 +164,13 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 #===============================================================================
 #                    FIND TO WHICH TAXONOMIC LEVEL WE STOP
 #===============================================================================
-def run_prediction_no_penalty(seq, coeff_raw):
-    # the first value of the coeff is the intercept
-    coeff = coeff_raw[1:]
-    intercept = coeff_raw[0]
-    # calculate
-    sm = coeff*seq
-    np_sum = (sm).sum() + intercept
-    score = 1/(1+np.exp(-np_sum))
-    return score
-
 def find_correct_level(perc, tax_function):
     prob_per_level = list()
     max_v = 0
     sel_lev = -1
     for l in sorted(list(tax_function)):
         seq = np.asarray(perc)
-        prob_this_level = run_prediction_no_penalty(seq, tax_function[l])
+        prob_this_level = run_logistic_prediction(seq, tax_function[l])
         if prob_this_level > max_v:
             max_v = prob_this_level
             sel_lev = l
