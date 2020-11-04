@@ -817,7 +817,8 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file
     f.create_group("classifiers")
     for c in classifiers:
         if classifiers[c] != "no_negative_examples":
-            f.create_dataset("classifiers/"+c, data=classifiers[c].coef_,dtype=np.float64, compression="gzip", compression_opts=8)
+            vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
+            f.create_dataset("classifiers/"+c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
         else:
             # in this case, it always predict 1, we save it as an array of
             # with the string "no_negative_examples"
