@@ -51,7 +51,7 @@ geneB	d__Bacteria
 geneC	d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria
 ```
 
-You can either create a database (see [Create a database](https://github.com/AlessioMilanese/stag#create-a-database)), or use one that we already compiled:
+You can either create a database (see [Create a database](https://github.com/zellerlab/stag/wiki/Build-STAG-database-for-genes)), or use one that we already compiled:
 
 - [For marker genes](https://github.com/zellerlab/stag/wiki/Classify-genes)
 - [For 16S amplicon data](https://github.com/zellerlab/stag/wiki/16S-amplicon-databases)

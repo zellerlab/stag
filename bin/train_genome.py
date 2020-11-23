@@ -85,7 +85,7 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_s
     for name in list_genes.split(","):
         if not name.split("/")[-1] in genes_threhold_file:
             sys.stderr.write("[E::main] Error: ")
-            sys.stderr.write("gene "+name.split("/")[-1]+" is missing from the threshold file (-e)\n")
+            sys.stderr.write("gene "+name.split("/")[-1]+" is missing from the threshold file (-T)\n")
             sys.exit(1)
 
 

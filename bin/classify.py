@@ -40,7 +40,7 @@ except:
 #===============================================================================
 #                            LOAD THE HDF5 DATABASE
 #===============================================================================
-def load_DB(hdf5_DB_path, protein_fasta_input):
+def load_DB(hdf5_DB_path, protein_fasta_input, aligned_sequences):
     f = h5py.File(hdf5_DB_path, 'r')
 
     # zero: tool version -------------------------------------------------------
@@ -51,18 +51,19 @@ def load_DB(hdf5_DB_path, protein_fasta_input):
         sys.stderr.write("[E::main] Error: this database is not designed to run with stag classify\n")
         sys.exit(1)
     # check if we used proteins
-    if not(protein_fasta_input is None):
-        # some proteins are provided in the classify
-        if not f['align_protein'][0]:
-            # but the db was constructed without using the proteins
-            sys.stderr.write("Error: protein provided, but the database was constructed on genes.\n")
-            sys.exit(1)
-    else:
-        # the classify do not have proteins
-        if f['align_protein'][0]:
-            # but the db was constructed WITH the proteins
-            sys.stderr.write("Error: missing protein file (the database was constructed aligning proteins).\n")
-            sys.exit(1)
+    if aligned_sequences is None:
+        if not(protein_fasta_input is None):
+            # some proteins are provided in the classify
+            if not f['align_protein'][0]:
+                # but the db was constructed without using the proteins
+                sys.stderr.write("Error: protein provided, but the database was constructed on genes.\n")
+                sys.exit(1)
+        else:
+            # the classify do not have proteins
+            if f['align_protein'][0]:
+                # but the db was constructed WITH the proteins
+                sys.stderr.write("Error: missing protein file (the database was constructed aligning proteins).\n")
+                sys.exit(1)
 
 
 
@@ -121,9 +122,13 @@ def file_2_generator(aligned_sequences):
 #===============================================================================
 #                     TAXONOMICALLY ANNOTATE SEQUENCES
 #===============================================================================
-def run_lasso_prediction(seq, coeff):
+def run_logistic_prediction(seq, coeff_raw):
+    # the first value of the coeff is the intercept
+    coeff = coeff_raw[1:]
+    intercept = coeff_raw[0]
+    # calculate
     sm = coeff*seq
-    np_sum = (sm).sum()
+    np_sum = (sm).sum() + intercept
     score = 1/(1+np.exp(-np_sum))
     return score
 
@@ -141,7 +146,7 @@ def find_best_score(test_seq, sibilings, classifiers):
         best_taxa = sibilings[0]
     if len(sibilings) > 1:
         for s in sibilings:
-            this_score = run_lasso_prediction(test_seq, classifiers[s])
+            this_score = run_logistic_prediction(test_seq, classifiers[s])
             if this_score > best_score:
                 best_score = this_score
                 best_taxa = s
@@ -159,23 +164,13 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 #===============================================================================
 #                    FIND TO WHICH TAXONOMIC LEVEL WE STOP
 #===============================================================================
-def run_prediction_no_penalty(seq, coeff_raw):
-    # the first value of the coeff is the intercept
-    coeff = coeff_raw[1:]
-    intercept = coeff_raw[0]
-    # calculate
-    sm = coeff*seq
-    np_sum = (sm).sum() + intercept
-    score = 1/(1+np.exp(-np_sum))
-    return score
-
 def find_correct_level(perc, tax_function):
     prob_per_level = list()
     max_v = 0
     sel_lev = -1
     for l in sorted(list(tax_function)):
         seq = np.asarray(perc)
-        prob_this_level = run_prediction_no_penalty(seq, tax_function[l])
+        prob_this_level = run_logistic_prediction(seq, tax_function[l])
         if prob_this_level > max_v:
             max_v = prob_this_level
             sel_lev = l
@@ -234,7 +229,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences, save_ali_to_file):
     t0 = time.time()
     # load the database
-    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input)
+    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input, aligned_sequences)
     if verbose>2:
         time_after_loading = time.time()
         sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")

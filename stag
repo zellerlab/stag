@@ -26,7 +26,6 @@
 # ============================================================================ #
 
 
-from __future__ import division
 import os
 import sys
 import argparse
@@ -224,6 +223,8 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify():
@@ -260,11 +261,13 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-c{bco.ResetAll}        set if you are using a cmfile\n")
     sys.stderr.write(f"  {bco.LightBlue}-x{bco.ResetAll}  FILE  taxonomy file (tab separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
     sys.stderr.write(f"{bco.Cyan}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_correct_seq():
@@ -327,6 +330,8 @@ def main(argv=None):
     parser.add_argument('-r', action='store_true', default=None, dest='keep_all_genes', help='keep all genes when doing the classification of genomes')
     parser.add_argument('-D', action="store", dest='dir_input', default=None, help='input directory')
     parser.add_argument('-T', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
+    parser.add_argument('-e', action="store", default=None,dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
+    parser.add_argument('-E', action="store", default=None,dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -371,6 +376,10 @@ def main(argv=None):
         print_error()
         sys.stderr.write("-m should be between 0 and 100. It represents the percentage\nof internal states covered by the sequence (i.e. the number of features).\n")
         sys.exit(1)
+
+    # set parameters for logistic regrssion
+    if (args.penalty_logistic is None): args.penalty_logistic = "l1"
+    if (args.solver_logistic is None): args.solver_logistic = "liblinear"
 
     # --------------------------------------------------------------------------
     # ALIGN routine
@@ -433,7 +442,7 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input)
+        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input, args.penalty_logistic, args.solver_logistic)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -480,7 +489,7 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input)
+        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input, args.penalty_logistic, args.solver_logistic)
 
         # what to do with intermediate alignment -------------------------------
         if args.intermediate_al is None:
