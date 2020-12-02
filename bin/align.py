@@ -76,7 +76,7 @@ encoding_dic_numpy = {
                "others":[True,False,False,False,False]
                }
 def convert_alignment(merged_fasta,verbose):
-    converted_ali = merged_fasta.split("\t")[0]
+    converted_ali = merged_fasta.split("\t")[0] # first value is the gene_id
     for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
@@ -84,14 +84,15 @@ def convert_alignment(merged_fasta,verbose):
         # for example also 'N' is converted to "-" -> "1,0,0,0,0"
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
-        i_c = ""
+        five_vals = ""
         if not character.islower():
             try:
-                i_c = encoding_dic[character]
+                five_vals = encoding_dic[character]
             except KeyError:
-                i_c = encoding_dic["others"]
-            i_c = "\t"+i_c
-        converted_ali = converted_ali + i_c
+                five_vals = encoding_dic["others"]
+            five_vals = "\t"+five_vals
+        # if it was lower case character, then five_vals = ""
+        converted_ali = converted_ali + five_vals
     return converted_ali
 
 def convert_alignment_numpy(merged_fasta,verbose):
