@@ -77,7 +77,7 @@ encoding_dic_numpy = {
                }
 def convert_alignment(merged_fasta,verbose):
     converted_ali = merged_fasta.split("\t")[0]
-    for i in merged_fasta.split("\t")[1]:
+    for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
         # as a gap ('-').
@@ -85,9 +85,9 @@ def convert_alignment(merged_fasta,verbose):
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
         i_c = ""
-        if not i.islower():
+        if not character.islower():
             try:
-                i_c = encoding_dic[i]
+                i_c = encoding_dic[character]
             except KeyError:
                 i_c = encoding_dic["others"]
             i_c = "\t"+i_c
@@ -97,16 +97,16 @@ def convert_alignment(merged_fasta,verbose):
 def convert_alignment_numpy(merged_fasta,verbose):
     gene_id = merged_fasta.split("\t")[0]
     converted_ali = list()
-    for i in merged_fasta.split("\t")[1]:
+    for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
         # as a gap ('-').
         # for example also 'N' is converted to "-" -> "1,0,0,0,0"
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
-        if not i.islower():
+        if not character.islower():
             try:
-                converted_ali.extend(encoding_dic_numpy[i])
+                converted_ali.extend(encoding_dic_numpy[character])
             except KeyError:
                 converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
