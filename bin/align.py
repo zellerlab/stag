@@ -86,9 +86,9 @@ def convert_alignment(merged_fasta,verbose):
         # hidden state of the HMM.
         i_c = ""
         if not i.islower():
-            if i in encoding_dic:
+            try:
                 i_c = encoding_dic[i]
-            else:
+            except KeyError:
                 i_c = encoding_dic["others"]
             i_c = "\t"+i_c
         converted_ali = converted_ali + i_c
@@ -105,9 +105,9 @@ def convert_alignment_numpy(merged_fasta,verbose):
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
         if not i.islower():
-            if i in encoding_dic_numpy:
+            try:
                 converted_ali.extend(encoding_dic_numpy[i])
-            else:
+            except KeyError:
                 converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
