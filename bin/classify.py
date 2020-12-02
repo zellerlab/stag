@@ -234,7 +234,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
         perc_text.append(str(i))
 
     # return the result --------------------------------------------------------
-    res_string = res_string + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
+    res_string = res_string + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level) + "\t" + str(n_aligned_characters)
     return res_string
 
 
@@ -286,7 +286,7 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
         outfile = sys.stdout
 
     if long_out:
-        outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\n")
+        outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\tn_aligned_characters\n")
     else:
         outfile.write("sequence\ttaxonomy\n")
 
