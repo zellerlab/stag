@@ -183,10 +183,17 @@ def find_correct_level(perc, tax_function):
 #===============================================================================
 #              FIND THE NUMBER OF MATCH FROM AN ALIGNED SEQUENCE
 #===============================================================================
-# al_seq is a dictionary with one element, example:
-# {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
-def find_n_aligned_characters(al_seq):
-    return 1
+# test_seq is a numpy array, example:
+# [False,  True, False,  True, False,  True, False,  True, False]
+def find_n_aligned_characters(test_seq):
+    # we go by multiple of five, for the one-hot encoding.
+    # hence, 0\t0\t0\t0\t1 corresponds to "A". If a character doesnt match to an
+    # internal state, then we have: "1\t0\t0\t0\t0".
+    # Hence, it's enough to check positions 0,5,10,... and if there is a 0 (False)
+    # it means that there was a match to an internal state
+    pos_0_array = test_seq[0::5]
+    n_False = np.size(pos_0_array)-np.sum(pos_0_array)
+    return n_False
 
 
 #===============================================================================
@@ -201,6 +208,8 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     res_string = list(al_seq.keys())[0]
     # sequence in numpy format
     test_seq = al_seq[res_string]
+    # number of characters that map to the internal states of the HMM
+    n_aligned_characters = find_n_aligned_characters(test_seq)
 
     # now we evaluate across the taxonomy --------------------------------------
     tax = list()
