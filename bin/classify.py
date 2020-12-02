@@ -234,7 +234,14 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
         perc_text.append(str(i))
 
     # return the result --------------------------------------------------------
-    res_string = gene_id + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level) + "\t" + str(n_aligned_characters)
+    res_string = gene_id + "\t"
+    res_string = res_string + ";".join(tax[0:(int(sel_lev)+1)]) + "\t"
+    res_string = res_string + "/".join(tax) + "\t"
+    res_string = res_string + sel_lev + "\t"
+    res_string = res_string + "/".join(perc_text) + "\t"
+    res_string = res_string + "/".join(prob_per_level) + "\t"
+    res_string = res_string + str(n_aligned_characters)
+
     return res_string
 
 
