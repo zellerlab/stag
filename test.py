@@ -15,8 +15,8 @@ import shlex
 import errno
 
 # position of the script -------------------------------------------------------
-path_mOTUs = os.path.realpath(__file__)
-path_array = path_mOTUs.split("/")
+path_STAG = os.path.realpath(__file__)
+path_array = path_STAG.split("/")
 relative_path = "/".join(path_array[0:-1])
 relative_path = relative_path + "/"
 
