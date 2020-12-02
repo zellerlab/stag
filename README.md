@@ -5,7 +5,7 @@ This tool is design to classify metagenomic sequences (marker genes, genomes and
 
 Please check also the [wiki](https://github.com/zellerlab/stag/wiki) for more information.
 
-<br/><br/><br/>
+<br/><br/><br/><br/>
 
 Installation
 --------------
