@@ -75,7 +75,9 @@ encoding_dic_numpy = {
                "U":[False,True,False,False,False],
                "others":[True,False,False,False,False]
                }
+
 def convert_alignment(merged_fasta,verbose):
+    n_aligned_characters = 0
     converted_ali = merged_fasta.split("\t")[0] # first value is the gene_id
     for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
@@ -88,6 +90,8 @@ def convert_alignment(merged_fasta,verbose):
         if not character.islower():
             try:
                 five_vals = encoding_dic[character]
+                # if it doesnt break, we count it as an aligned character
+                n_aligned_characters = n_aligned_characters + 1
             except KeyError:
                 five_vals = encoding_dic["others"]
             five_vals = "\t"+five_vals
@@ -96,6 +100,7 @@ def convert_alignment(merged_fasta,verbose):
     return converted_ali
 
 def convert_alignment_numpy(merged_fasta,verbose):
+    n_aligned_characters = 0
     gene_id = merged_fasta.split("\t")[0]
     converted_ali = list()
     for character in merged_fasta.split("\t")[1]:
@@ -108,6 +113,8 @@ def convert_alignment_numpy(merged_fasta,verbose):
         if not character.islower():
             try:
                 converted_ali.extend(encoding_dic_numpy[character])
+                # if it doesnt break, we count it as an aligned character
+                n_aligned_characters = n_aligned_characters + 1
             except KeyError:
                 converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
