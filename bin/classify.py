@@ -162,7 +162,7 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 
 
 #===============================================================================
-#                    FIND TO WHICH TAXONOMIC LEVEL WE STOP
+#                    FIND TO WHICH TAXONOMIC LEVEL TO STOP
 #===============================================================================
 def find_correct_level(perc, tax_function):
     prob_per_level = list()
@@ -179,6 +179,14 @@ def find_correct_level(perc, tax_function):
     # note that sel_lev represents which level to predict, so 2 means that we
     # predict 0,1,2. If it is "-1", then we cannot predict anything
     return sel_lev, prob_per_level
+
+#===============================================================================
+#              FIND THE NUMBER OF MATCH FROM AN ALIGNED SEQUENCE
+#===============================================================================
+# al_seq is a dictionary with one element, example:
+# {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
+def find_n_aligned_characters(al_seq):
+    return 1
 
 
 #===============================================================================
@@ -236,6 +244,7 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
 
     # align the sequences and classify them
     list_to_print = list()
+    # if there is no aligned sequences file
     if aligned_sequences is None:
         for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
@@ -247,6 +256,7 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
                 o = open(save_ali_to_file,"a+")
                 o.write(name_gene+"\t"+ali_str+"\n")
                 o.close()
+    # if the file with the alignments is already provided
     else:
         for al_seq in file_2_generator(aligned_sequences):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
