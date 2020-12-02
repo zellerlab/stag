@@ -205,9 +205,9 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
 
     # name of the gene
-    res_string = list(al_seq.keys())[0]
+    gene_id = list(al_seq.keys())[0]
     # sequence in numpy format
-    test_seq = al_seq[res_string]
+    test_seq = al_seq[gene_id]
     # number of characters that map to the internal states of the HMM
     n_aligned_characters = find_n_aligned_characters(test_seq)
 
@@ -234,7 +234,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
         perc_text.append(str(i))
 
     # return the result --------------------------------------------------------
-    res_string = res_string + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level) + "\t" + str(n_aligned_characters)
+    res_string = gene_id + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level) + "\t" + str(n_aligned_characters)
     return res_string
 
 
