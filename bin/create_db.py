@@ -254,6 +254,14 @@ class Taxonomy:
 #===============================================================================
 #                   FUNCTIONS TO LOAD AND CHECK THE ALIGNMENT
 #===============================================================================
+# Function to identify the rownames and number of columns in an alignment
+def find_raw_names_ncol(file_name):
+    gene_names = list()
+    with open(file_name, "r") as f:
+        for line in f.readlines():
+            gene_names.append(line.split("\t")[0])
+        n_col = len(line.split("\t"))
+    return gene_names, n_col
 
 # function to load an alignment produced by the "align" option =================
 # Input:
