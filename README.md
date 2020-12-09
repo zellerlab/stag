@@ -37,6 +37,15 @@ The stag classifier requires:
 If you have [conda](https://conda.io/docs/), you can install all the dependencies in `conda_env_stag.yaml`.
 See [Installation wiki](https://github.com/zellerlab/stag/wiki/Installation) for more info.
 
+You can test the correct installation of STAG with:
+```
+stag test
+```
+or:
+```
+python test.py
+```
+
 Taxonomically annotate gene sequences
 --------------
 
