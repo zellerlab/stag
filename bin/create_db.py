@@ -283,8 +283,7 @@ def load_alignment_from_file(file_name):
             pos = pos + 1
 
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
-    alignment = alignment.astype('bool') # apparently you cannot load directly
-                                         # bool if the rownames are not bool
+
     # we remove duplicates
     alignment = alignment.drop_duplicates()
     logging.info('   LOAD_AL: Number of genes, after removing duplicates: %s', str(len(list(alignment.index.values))))
