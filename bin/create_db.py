@@ -272,7 +272,7 @@ def find_raw_names_ncol(file_name):
 # It works also on .gz files
 def load_alignment_from_file(file_name):
     # create empty numpy array
-    gene_names,ncol = find_raw_names(file_name)
+    gene_names,ncol = find_raw_names_ncol(file_name)
     numpy_ali = np.zeros((len(gene_names),ncol-1),dtype = "bool")
     # add correct values
     pos = 0
@@ -282,8 +282,8 @@ def load_alignment_from_file(file_name):
             numpy_ali[pos] = [ False if x == "0" else True for x in vals[1:]]
             pos = pos + 1
     # create pandas
-    alignment = pd.DataFrame(data=my_data, index=gene_names)
-    
+    alignment = pd.DataFrame(data=numpy_ali, index=gene_names)
+
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
     alignment = alignment.astype('bool') # apparently you cannot load directly
                                          # bool if the rownames are not bool
