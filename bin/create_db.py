@@ -263,7 +263,7 @@ class Taxonomy:
 # as a note, numpy.loadtxt is way slower than pandas read.csv
 # It works also on .gz files
 def load_alignment_from_file(file_name):
-    alignment = pd.read_csv(file_name,delimiter='\t',index_col = 0, header=None)
+    alignment = pd.read_csv(file_name,delimiter='\t',index_col = 0, header=None, na_filter=False)
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
     alignment = alignment.astype('bool') # apparently you cannot load directly
                                          # bool if the rownames are not bool
