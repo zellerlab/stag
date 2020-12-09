@@ -271,9 +271,9 @@ def find_raw_names_ncol(file_name):
 # as a note, numpy.loadtxt is way slower than pandas read.csv
 # It works also on .gz files
 def load_alignment_from_file(file_name):
-    # create empty numpy array
+    # create empty pandas object of the correct size
     gene_names,ncol = find_raw_names_ncol(file_name)
-    numpy_ali = np.zeros((len(gene_names),ncol-1),dtype = "bool")
+    alignment = pd.DataFrame(False,index = gene_names,columns = range(ncol-1))
     # add correct values
     pos = 0
     with open(file_name, "r") as f:
