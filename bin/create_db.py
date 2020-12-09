@@ -273,7 +273,14 @@ def find_raw_names_ncol(file_name):
 def load_alignment_from_file(file_name):
     # create empty numpy array
     gene_names,ncol = find_raw_names(file_name)
-    my_data = np.zeros((len(gene_names),ncol-1),dtype = "bool")
+    numpy_ali = np.zeros((len(gene_names),ncol-1),dtype = "bool")
+    # add correct values
+    pos = 0
+    with open(file_name, "r") as f:
+        for line in f.readlines():
+            vals = line.rstrip().split("\t")
+            numpy_ali[pos] = [ False if x == "0" else True for x in vals[1:]]
+            pos = pos + 1
     alignment = pd.read_csv(file_name,delimiter='\t',index_col = 0, header=None, na_filter=False)
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
     alignment = alignment.astype('bool') # apparently you cannot load directly
