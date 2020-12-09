@@ -41,10 +41,7 @@ You can test the correct installation of STAG with:
 ```
 stag test
 ```
-or:
-```
-python test.py
-```
+
 
 Taxonomically annotate gene sequences
 --------------
