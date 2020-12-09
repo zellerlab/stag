@@ -297,11 +297,11 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     else:
         outfile.write("sequence\ttaxonomy\n")
 
-    for i in list_to_print:
+    for line in list_to_print:
         if long_out:
-            outfile.write(i+"\n")
+            outfile.write(line+"\n")
         else:
-            outfile.write("\t".join(i.split("\t")[0:2])+"\n")
+            outfile.write("\t".join(line.split("\t")[0:2])+"\n")
 
     # close
     if not(output is None):
