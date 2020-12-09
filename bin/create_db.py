@@ -281,7 +281,9 @@ def load_alignment_from_file(file_name):
             vals = line.rstrip().split("\t")
             numpy_ali[pos] = [ False if x == "0" else True for x in vals[1:]]
             pos = pos + 1
-    alignment = pd.read_csv(file_name,delimiter='\t',index_col = 0, header=None, na_filter=False)
+    # create pandas
+    alignment = pd.DataFrame(data=my_data, index=gene_names)
+    
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
     alignment = alignment.astype('bool') # apparently you cannot load directly
                                          # bool if the rownames are not bool
