@@ -279,10 +279,8 @@ def load_alignment_from_file(file_name):
     with open(file_name, "r") as f:
         for line in f.readlines():
             vals = line.rstrip().split("\t")
-            numpy_ali[pos] = [ False if x == "0" else True for x in vals[1:]]
+            alignment.iloc[pos]= np.array([ False if x == "0" else True for x in vals[1:]])
             pos = pos + 1
-    # create pandas
-    alignment = pd.DataFrame(data=numpy_ali, index=gene_names)
 
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
     alignment = alignment.astype('bool') # apparently you cannot load directly
