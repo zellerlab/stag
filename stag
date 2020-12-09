@@ -310,7 +310,7 @@ def print_menu_classify_genome():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test'])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
@@ -336,6 +336,16 @@ def main(argv=None):
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
     args = parser.parse_args()
+
+    # --------------------------------------------------------------------------
+    # TEST routine
+    # --------------------------------------------------------------------------
+    if args.command == 'test':
+        popenCMD = shlex.split("python "+relative_path+"test.py")
+        child = subprocess.Popen(popenCMD)
+        child.communicate()
+        rc = child.wait()
+        return(rc)
 
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None) and (args.dir_input is None):
