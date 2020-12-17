@@ -121,6 +121,13 @@ except Exception as e:
     sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
+    import convert_ali as convert_ali
+except Exception as e:
+    print_error()
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/convert_ali.py\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+try:
     import classify_genome as classify_genome
 except Exception as e:
     print_error()
