@@ -608,7 +608,6 @@ def main(argv=None):
             sys.exit(1)
         # check that '-s' and '-a' are files
         check_file_exists(args.fasta_input,isfasta = False)
-        check_file_exists(args.output,isfasta = False)
 
         # call function
         convert_ali.convert_ali(args.fasta_input, args.output, args.verbose,)
