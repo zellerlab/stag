@@ -181,7 +181,25 @@ def proteinAl_2_geneAl(protein_alignment, gene_sequence, check_length):
 
     return gene_id + "\t" + al_gene
 
+# function that identify the type of input -------------------------------------
+# either 1-hot encoding or fasta
+# return either "1-hot" or "fasta"
+def find_input_type(file_in, verbose):
+    o = open(file_in)
+    line1 = o.readline()
+    line2 = o.readline()
+    o.close()
+
+    last_val = line2.rstrip().split("\t")[-1]
+    if last_val == "1" or  last_val == "0":
+        return "1-hot"
+    else:
+        return "fasta"
+
+
 # ------------------------------------------------------------------------------
 # main function
 def convert_ali(file_in, file_out, verbose):
-    print("Enter function convert_ali")
+    # First, we need to understand the type of input
+    input_type = find_input_type(file_in, verbose)
+    print(input_type)
