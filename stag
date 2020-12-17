@@ -306,7 +306,7 @@ def print_menu_classify_genome():
 # ------------------------------------------------------------------------------
 def print_menu_convert_ali():
     sys.stderr.write("\n")
-    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} convert_ali {bco.LightBlue}-i{bco.ResetAll} <file_in> {bco.LightBlue}-o{bco.ResetAll} file_out [options]\n\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} convert_ali {bco.LightBlue}-i{bco.ResetAll} <file_in> {bco.LightBlue}-o{bco.ResetAll} <file_out> [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   Input file, either a 1-hot-encoding created by stag align,\n")
     sys.stderr.write(f"             or a fasta file of aligned sequences created by hmmalign.\n")
     sys.stderr.write(f"             The input type is detected automatically {bco.LightMagenta}[required]{bco.ResetAll}\n")
@@ -591,6 +591,26 @@ def main(argv=None):
 
         # call the function
         correct_seq.correct_seq(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.min_perc_state, args.output)
+
+    # --------------------------------------------------------------------------
+    # CONVERT_ALI routine
+    # --------------------------------------------------------------------------
+    if args.command == 'convert_ali':
+        # check that '-i' and '-o' have been provided
+        if (args.fasta_input is None):
+            print_error()
+            sys.stderr.write("missing <file_in> (-i)\n")
+            sys.exit(1)
+        if (args.output is None):
+            print_error()
+            sys.stderr.write("missing <file_out> (-o)\n")
+            sys.exit(1)
+        # check that '-s' and '-a' are files
+        check_file_exists(args.fasta_input,isfasta = False)
+        check_file_exists(args.output,isfasta = False)
+
+        # call function
+        convert_ali.convert_ali(args.fasta_input, args.output)
 
     # --------------------------------------------------------------------------
     # TRAIN_GENOME routine
