@@ -327,6 +327,13 @@ def print_menu_convert_ali():
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE   A 1-hot-encoding if the input was fasta,\n")
     sys.stderr.write(f"             or a fasta file if the input was 1-hot-encoding {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_unzip_db():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} unzip_db {bco.LightBlue}-d{bco.ResetAll} <database> {bco.LightBlue}-o{bco.ResetAll} <dir_out> [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with create_db or train {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  DIR   create a dir with the unzipped database {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -385,6 +392,7 @@ def main(argv=None):
                     if args.command == 'train_genome': print_menu_train_genome()
                     if args.command == 'classify_genome': print_menu_classify_genome()
                     if args.command == 'convert_ali': print_menu_convert_ali()
+                    if args.command == 'unzip_db': print_menu_unzip_db()
                     sys.exit(1)
 
 
