@@ -203,6 +203,7 @@ def msg(name=None):
       {bco.LightBlue}check_input{bco.ResetAll}  Check the input for the train command
       {bco.LightBlue}correct_seq{bco.ResetAll}  Correct sequences that are in wrong orientation
       {bco.LightBlue}convert_ali{bco.ResetAll}  Convert between 1-hot-encoding and fasta, and vice versa
+      {bco.LightBlue}unzip_db{bco.ResetAll}     Create a directory with the content of a database
 
  {bco.LightGreen}-- Genome{bco.ResetAll}
       {bco.LightBlue}train_genome{bco.ResetAll}     Merge classifiers of single genes
