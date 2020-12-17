@@ -104,6 +104,7 @@ def find_input_type(file_in, verbose):
         return "fasta"
 
 # function to convert to 1-hot encoding ----------------------------------------
+# given an aligned fasta input
 def convert_to_1_hot(file_in, file_out, verbose):
     # open the temporary file where to save the result
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -130,6 +131,39 @@ def convert_to_1_hot(file_in, file_out, verbose):
     except:
         sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
         sys.exit(1)
+
+
+
+# function to convert back to fasta ali ----------------------------------------
+# given a 1-hot encoding input
+def convert_to_fasta(file_in, file_out, verbose):
+    # open the temporary file where to save the result
+    temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    os.chmod(temp_file.name, 0o644)
+    # go through the input file
+    o = open(file_in,"r")
+    for line in o:
+        fasta_line = back_to_fasta(line)
+        temp_file.write(fasta_line+"\n")
+    o.close()
+
+    # we saved the result to a temp file, then we close it now
+    try:
+        temp_file.flush()
+        os.fsync(temp_file.fileno())
+        temp_file.close()
+    except:
+        if verbose>4: sys.stderr.write("[E::align] Error when saving the resulting file\n")
+        sys.exit(1)
+    # move temp file to the final destination
+    try:
+        #os.rename(bam_temp_file.name,args.profile_bam_file) # atomic operation
+        shutil.move(temp_file.name,file_out) #It is not atomic if the files are on different filsystems.
+    except:
+        sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
+        sys.exit(1)
+
+
 
 # ------------------------------------------------------------------------------
 # main function
