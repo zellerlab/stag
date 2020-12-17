@@ -650,7 +650,7 @@ def main(argv=None):
             sys.stderr.write("missing <dir_out> (-o)\n")
             sys.exit(1)
         # check that '-d' is a file
-        check_file_exists(args.fasta_input,isfasta = False)
+        check_file_exists(args.database,isfasta = False)
 
         # call function
         unzip_db.unzip_db(args.database, args.output, args.verbose,)
