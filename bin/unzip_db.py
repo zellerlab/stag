@@ -66,6 +66,9 @@ def load_DB(hdf5_DB_path):
 #===============================================================================
 def unzip_db(database, verbose, dir_output):
     # load the database
-    hmm_file.name, db_tool_version, use_proteins, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
+    hmm_file, db_tool_version, use_proteins, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
 
-    sys.exit(0) # correct
+    # check if the output dir exists already
+    if os.path.isdir(dir_output):
+        sys.stderr.write("Error, output dir exists already\n")
+        sys.exit(1)
