@@ -629,11 +629,31 @@ def main(argv=None):
             print_error()
             sys.stderr.write("missing <file_out> (-o)\n")
             sys.exit(1)
-        # check that '-s' and '-a' are files
+        # check that '-i' is a file
         check_file_exists(args.fasta_input,isfasta = False)
 
         # call function
         convert_ali.convert_ali(args.fasta_input, args.output, args.verbose,)
+
+
+    # --------------------------------------------------------------------------
+    # UNZIP_db routine
+    # --------------------------------------------------------------------------
+    if args.command == 'unzip_db':
+        # check that '-d' and '-o' have been provided
+        if (args.database is None):
+            print_error()
+            sys.stderr.write("missing <database> (-d)\n")
+            sys.exit(1)
+        if (args.output is None):
+            print_error()
+            sys.stderr.write("missing <dir_out> (-o)\n")
+            sys.exit(1)
+        # check that '-d' is a file
+        check_file_exists(args.fasta_input,isfasta = False)
+
+        # call function
+        unzip_db.unzip_db(args.database, args.output, args.verbose,)
 
     # --------------------------------------------------------------------------
     # TRAIN_GENOME routine
