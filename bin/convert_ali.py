@@ -56,13 +56,12 @@ encoding_dic = {
                "U":"0\t1\t0\t0\t0",
                "others":"1\t0\t0\t0\t0"
                }
-encoding_dic_numpy = {
-               "A":[False,False,False,False,True],
-               "C":[False,False,False,True,False],
-               "G":[False,False,True,False,False],
-               "T":[False,True,False,False,False],
-               "U":[False,True,False,False,False],
-               "others":[True,False,False,False,False]
+decoding_dic = {
+               '00001':"A",
+               '00010':"C",
+               '00100':"G",
+               '01000':"T",
+               '10000':"-",
                }
 
 def convert_alignment(merged_fasta,verbose):
@@ -134,6 +133,22 @@ def convert_to_1_hot(file_in, file_out, verbose):
 
 
 
+
+# function to convert 1 single line of 1-hot encoding to a fasta ---------------
+def back_to_fasta(line):
+    # split by "\t"
+    vals = line.rstrip().split("\t")
+    # first value is the fasta id
+    fasta_res = vals[0] + "\n"
+    # now we parse the values
+    vals = vals[1:]
+    for pos in range(0,len(vals),5):
+        this_val = "".join(vals[pos:pos+5])
+        fasta_res = fasta_res + decoding_dic[this_val]
+    fasta_res = fasta_res + "\n"
+    return fasta_res
+
+
 # function to convert back to fasta ali ----------------------------------------
 # given a 1-hot encoding input
 def convert_to_fasta(file_in, file_out, verbose):
@@ -144,7 +159,7 @@ def convert_to_fasta(file_in, file_out, verbose):
     o = open(file_in,"r")
     for line in o:
         fasta_line = back_to_fasta(line)
-        temp_file.write(fasta_line+"\n")
+        temp_file.write(fasta_line)
     o.close()
 
     # we saved the result to a temp file, then we close it now
