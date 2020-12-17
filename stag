@@ -188,6 +188,7 @@ def msg(name=None):
       {bco.LightBlue}create_db{bco.ResetAll}    Create a database given the aligned sequences
       {bco.LightBlue}check_input{bco.ResetAll}  Check the input for the train command
       {bco.LightBlue}correct_seq{bco.ResetAll}  Correct sequences that are in wrong orientation
+      {bco.LightBlue}convert_ali{bco.ResetAll}  Convert between 1-hot-encoding and fasta, and vice versa
 
  {bco.LightGreen}-- Genome{bco.ResetAll}
       {bco.LightBlue}train_genome{bco.ResetAll}     Merge classifiers of single genes
@@ -302,7 +303,15 @@ def print_menu_classify_genome():
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-r{bco.ResetAll}         use all genes above the filter {bco.LightMagenta}[False]{bco.ResetAll}\n\n")
-
+# ------------------------------------------------------------------------------
+def print_menu_convert_ali():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} convert_ali {bco.LightBlue}-i{bco.ResetAll} <file_in> {bco.LightBlue}-o{bco.ResetAll} file_out [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   Input file, either a 1-hot-encoding created by stag align,\n")
+    sys.stderr.write(f"             or a fasta file of aligned sequences created by hmmalign.\n")
+    sys.stderr.write(f"             The input type is detected automatically {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE   A 1-hot-encoding if the input was fasta,\n")
+    sys.stderr.write(f"             or a fasta file if the input was 1-hot-encoding {bco.LightMagenta}[required]{bco.ResetAll}\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -310,7 +319,7 @@ def print_menu_classify_genome():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test','convert_ali'])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
@@ -360,6 +369,7 @@ def main(argv=None):
                     if args.command == 'correct_seq': print_menu_correct_seq()
                     if args.command == 'train_genome': print_menu_train_genome()
                     if args.command == 'classify_genome': print_menu_classify_genome()
+                    if args.command == 'convert_ali': print_menu_convert_ali()
                     sys.exit(1)
 
 
