@@ -128,6 +128,13 @@ except Exception as e:
     sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
+    import unzip_db as unzip_db
+except Exception as e:
+    print_error()
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/unzip_db.py\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+try:
     import classify_genome as classify_genome
 except Exception as e:
     print_error()
@@ -327,7 +334,7 @@ def print_menu_convert_ali():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test','convert_ali'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test','convert_ali',"unzip_db"])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
