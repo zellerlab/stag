@@ -139,7 +139,7 @@ def back_to_fasta(line):
     # split by "\t"
     vals = line.rstrip().split("\t")
     # first value is the fasta id
-    fasta_res = vals[0] + "\n"
+    fasta_res = ">" + vals[0] + "\n"
     # now we parse the values
     vals = vals[1:]
     for pos in range(0,len(vals),5):
