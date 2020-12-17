@@ -653,7 +653,7 @@ def main(argv=None):
         check_file_exists(args.database,isfasta = False)
 
         # call function
-        unzip_db.unzip_db(args.database, args.output, args.verbose,)
+        unzip_db.unzip_db(args.database, args.verbose, args.output)
 
     # --------------------------------------------------------------------------
     # TRAIN_GENOME routine
