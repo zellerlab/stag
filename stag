@@ -312,6 +312,7 @@ def print_menu_convert_ali():
     sys.stderr.write(f"             The input type is detected automatically {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE   A 1-hot-encoding if the input was fasta,\n")
     sys.stderr.write(f"             or a fasta file if the input was 1-hot-encoding {bco.LightMagenta}[required]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -610,7 +611,7 @@ def main(argv=None):
         check_file_exists(args.output,isfasta = False)
 
         # call function
-        convert_ali.convert_ali(args.fasta_input, args.output)
+        convert_ali.convert_ali(args.fasta_input, args.output, args.verbose,)
 
     # --------------------------------------------------------------------------
     # TRAIN_GENOME routine
