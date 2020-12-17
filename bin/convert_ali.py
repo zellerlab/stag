@@ -115,6 +115,22 @@ def convert_to_1_hot(file_in, file_out, verbose):
         temp_file.write(converted_line+"\n")
     o.close()
 
+    # we saved the result to a temp file, then we close it now
+    try:
+        temp_file.flush()
+        os.fsync(temp_file.fileno())
+        temp_file.close()
+    except:
+        if verbose>4: sys.stderr.write("[E::align] Error when saving the resulting file\n")
+        sys.exit(1)
+    # move temp file to the final destination
+    try:
+        #os.rename(bam_temp_file.name,args.profile_bam_file) # atomic operation
+        shutil.move(temp_file.name,file_out) #It is not atomic if the files are on different filsystems.
+    except:
+        sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
+        sys.exit(1)
+
 # ------------------------------------------------------------------------------
 # main function
 def convert_ali(file_in, file_out, verbose):
