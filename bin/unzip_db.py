@@ -64,7 +64,7 @@ def load_DB(hdf5_DB_path):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def extract_db(database, verbose, dir_output):
+def unzip_db(database, verbose, dir_output):
     # load the database
     hmm_file.name, db_tool_version, use_proteins, use_cmalign, taxonomy, tax_function, classifiers = load_DB(database)
 
