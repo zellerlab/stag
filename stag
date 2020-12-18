@@ -39,7 +39,7 @@ import errno
 import tarfile
 
 # add version of the tool ------------------------------------------------------
-tool_version = "0.0"
+tool_version = "0.7"
 
 # position of the script -------------------------------------------------------
 path_stag = os.path.realpath(__file__)
