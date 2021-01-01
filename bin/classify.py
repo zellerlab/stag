@@ -250,7 +250,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences, save_ali_to_file):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences, save_ali_to_file, min_perc_state):
     t0 = time.time()
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input, aligned_sequences)
@@ -262,7 +262,7 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
     list_to_print = list()
     # if there is no aligned sequences file
     if aligned_sequences is None:
-        for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
+        for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True, min_perc_state):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
             # save alignment to file, if necessary
             if not(save_ali_to_file is None):

@@ -576,7 +576,7 @@ def main(argv=None):
 
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al)
+        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al, args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine
