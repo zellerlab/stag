@@ -99,7 +99,7 @@ def convert_alignment(merged_fasta,verbose):
             five_vals = "\t"+five_vals
         # if it was lower case character, then five_vals = ""
         converted_ali = converted_ali + five_vals
-    return converted_ali, n_aligned_characters/n_char
+    return converted_ali, (n_aligned_characters/n_char)*100
 
 def convert_alignment_numpy(merged_fasta,verbose):
     n_aligned_characters = 0
@@ -123,7 +123,7 @@ def convert_alignment_numpy(merged_fasta,verbose):
                 converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
-    return to_return, n_aligned_characters/n_char
+    return to_return, (n_aligned_characters/n_char)*100
 
 # function that read genes and return them as one line -------------------------
 def yield_genes(seq_file):
