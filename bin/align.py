@@ -183,7 +183,7 @@ def proteinAl_2_geneAl(protein_alignment, gene_sequence, check_length):
 
 # ------------------------------------------------------------------------------
 # main function as a generator
-def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy):
+def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy, min_ali_char):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
@@ -244,7 +244,8 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
                 converted_line, n_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
                 converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            yield converted_line
+            if n_aligned_characters >= min_ali_char:
+                yield converted_line
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
@@ -254,7 +255,8 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
                 converted_line, n_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
                 converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            yield converted_line
+            if n_aligned_characters >= min_ali_char:
+                yield converted_line
 
 
 
@@ -273,7 +275,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
 
 # ------------------------------------------------------------------------------
 # main function
-def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
+def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, res_file, min_ali_char):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
@@ -335,13 +337,16 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     if protein_file == None:
         for line in merge_fasta(parse_cmd.stdout):
             converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            temp_file.write(converted_line+"\n")
+            if n_aligned_characters >= min_ali_char:
+                temp_file.write(converted_line+"\n")
+
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
         for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
             converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            temp_file.write(converted_line+"\n")
+            if n_aligned_characters >= min_ali_char:
+                temp_file.write(converted_line+"\n")
 
 
     # if we save the result to a file, then we close it now
