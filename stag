@@ -451,10 +451,10 @@ def main(argv=None):
 
         # call the function
         if args.output is None:
-            for i in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False):
+            for i in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False, args.min_perc_state):
                 print(i)
         else:
-            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
+            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output, args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CREATE_DB routine
@@ -517,7 +517,7 @@ def main(argv=None):
         al_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         os.chmod(al_file.name, 0o644)
         # call the function
-        align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, al_file.name)
+        align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, al_file.name, args.min_perc_state)
 
         # SECOND: CREATE_DB ----------------------------------------------------
         # check that '-x' has been provided (taxonomy file)
