@@ -78,6 +78,7 @@ encoding_dic_numpy = {
 
 def convert_alignment(merged_fasta,verbose):
     n_aligned_characters = 0
+    n_char = 0
     converted_ali = merged_fasta.split("\t")[0] # first value is the gene_id
     for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
