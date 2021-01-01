@@ -402,7 +402,10 @@ def main(argv=None):
     # --------------------------------------------------------------------------
     if (args.threads is None): args.threads = 1
     if (args.verbose is None): args.verbose = 3
-    if (args.min_perc_state is None): args.min_perc_state = 5
+    if args.command == 'align':
+        if (args.min_perc_state is None): args.min_perc_state = 0
+    else:
+        if (args.min_perc_state is None): args.min_perc_state = 5
     if (args.use_cm_align is None): args.use_cm_align = False
     if (args.force_rewrite is None): args.force_rewrite = False
     if (args.long_out is None): args.long_out = False
