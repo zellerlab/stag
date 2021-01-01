@@ -287,8 +287,9 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
         sys.exit(1)
 
     # print the number of sequences that were filtered
-    sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
-    sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
+    if verbose > 3:
+        sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
+        sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
 
 # ------------------------------------------------------------------------------
 # main function
@@ -405,5 +406,6 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
         sys.exit(1)
 
     # print the number of sequences that were filtered
-    sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
-    sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
+    if verbose > 3:
+        sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
+        sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
