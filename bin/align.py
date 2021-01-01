@@ -206,6 +206,9 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
      'fasta_id\taligned_sequence'
     """
 
+    # number of sequences that pass and sont pass the filter
+    n_pass = 0
+    n_not_pass = 0
     # check that the tools are available
     if use_cmalign:
         if not is_tool("cmalign"):
@@ -250,6 +253,9 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
                 converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:
                 yield converted_line
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
@@ -261,6 +267,9 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
                 converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:
                 yield converted_line
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
 
 
@@ -276,6 +285,10 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     if return_code:
         sys.stderr.write("[E::align] Error. esl-reformat failed\n")
         sys.exit(1)
+
+    # print the number of sequences that were filtered
+    sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
+    sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
 
 # ------------------------------------------------------------------------------
 # main function
@@ -297,6 +310,9 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
      It will save the aligned sequences to the specified file.
     """
 
+    # number of sequences that pass and sont pass the filter
+    n_pass = 0
+    n_not_pass = 0
     # check that the tools are available
     if use_cmalign:
         if not is_tool("cmalign"):
@@ -343,6 +359,9 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
             converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:
                 temp_file.write(converted_line+"\n")
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
@@ -351,6 +370,9 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
             converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:
                 temp_file.write(converted_line+"\n")
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
 
     # if we save the result to a file, then we close it now
@@ -381,3 +403,7 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     if return_code:
         sys.stderr.write("[E::align] Error. esl-reformat failed\n")
         sys.exit(1)
+
+    # print the number of sequences that were filtered
+    sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
+    sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
