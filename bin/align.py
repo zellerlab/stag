@@ -88,6 +88,7 @@ def convert_alignment(merged_fasta,verbose):
         # hidden state of the HMM.
         five_vals = ""
         if not character.islower():
+            n_char = n_char + 1
             try:
                 five_vals = encoding_dic[character]
                 # if it doesnt break, we count it as an aligned character
@@ -97,10 +98,11 @@ def convert_alignment(merged_fasta,verbose):
             five_vals = "\t"+five_vals
         # if it was lower case character, then five_vals = ""
         converted_ali = converted_ali + five_vals
-    return converted_ali, n_aligned_characters
+    return converted_ali, n_aligned_characters/n_char
 
 def convert_alignment_numpy(merged_fasta,verbose):
     n_aligned_characters = 0
+    n_char = 0
     gene_id = merged_fasta.split("\t")[0]
     converted_ali = list()
     for character in merged_fasta.split("\t")[1]:
@@ -111,6 +113,7 @@ def convert_alignment_numpy(merged_fasta,verbose):
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
         if not character.islower():
+            n_char = n_char + 1
             try:
                 converted_ali.extend(encoding_dic_numpy[character])
                 # if it doesnt break, we count it as an aligned character
@@ -119,7 +122,7 @@ def convert_alignment_numpy(merged_fasta,verbose):
                 converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
-    return to_return, n_aligned_characters
+    return to_return, n_aligned_characters/n_char
 
 # function that read genes and return them as one line -------------------------
 def yield_genes(seq_file):
@@ -241,10 +244,10 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     if protein_file == None:
         for line in merge_fasta(parse_cmd.stdout):
             if return_numpy:
-                converted_line, n_aligned_characters = convert_alignment_numpy(line,verbose)
+                converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
-                converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            if n_aligned_characters >= min_ali_char:
+                converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_ali_char:
                 yield converted_line
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
@@ -252,10 +255,10 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
         for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
             if return_numpy:
-                converted_line, n_aligned_characters = convert_alignment_numpy(line,verbose)
+                converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
-                converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            if n_aligned_characters >= min_ali_char:
+                converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_ali_char:
                 yield converted_line
 
 
@@ -336,16 +339,16 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     # parse the result and return/save to file - NORMAL ------------------------
     if protein_file == None:
         for line in merge_fasta(parse_cmd.stdout):
-            converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            if n_aligned_characters >= min_ali_char:
+            converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_ali_char:
                 temp_file.write(converted_line+"\n")
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
         for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
-            converted_line, n_aligned_characters = convert_alignment(line,verbose)
-            if n_aligned_characters >= min_ali_char:
+            converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_ali_char:
                 temp_file.write(converted_line+"\n")
 
 
