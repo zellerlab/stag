@@ -223,6 +223,7 @@ def print_menu_align():
     sys.stderr.write(f"  {bco.LightBlue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to use as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
     sys.stderr.write(f"{bco.Cyan}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
