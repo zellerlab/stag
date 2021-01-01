@@ -39,7 +39,7 @@ import errno
 import tarfile
 
 # add version of the tool ------------------------------------------------------
-tool_version = "0.0"
+tool_version = "0.7"
 
 # position of the script -------------------------------------------------------
 path_stag = os.path.realpath(__file__)
@@ -121,6 +121,20 @@ except Exception as e:
     sys.stderr.write(str(e)+"\n")
     sys.exit(1)
 try:
+    import convert_ali as convert_ali
+except Exception as e:
+    print_error()
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/convert_ali.py\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+try:
+    import unzip_db as unzip_db
+except Exception as e:
+    print_error()
+    sys.stderr.write("fail to load the script: "+relative_path+"bin/unzip_db.py\n")
+    sys.stderr.write(str(e)+"\n")
+    sys.exit(1)
+try:
     import classify_genome as classify_genome
 except Exception as e:
     print_error()
@@ -188,6 +202,8 @@ def msg(name=None):
       {bco.LightBlue}create_db{bco.ResetAll}    Create a database given the aligned sequences
       {bco.LightBlue}check_input{bco.ResetAll}  Check the input for the train command
       {bco.LightBlue}correct_seq{bco.ResetAll}  Correct sequences that are in wrong orientation
+      {bco.LightBlue}convert_ali{bco.ResetAll}  Convert between 1-hot-encoding and fasta, and vice versa
+      {bco.LightBlue}unzip_db{bco.ResetAll}     Create a directory with the content of a database
 
  {bco.LightGreen}-- Genome{bco.ResetAll}
       {bco.LightBlue}train_genome{bco.ResetAll}     Merge classifiers of single genes
@@ -207,6 +223,7 @@ def print_menu_align():
     sys.stderr.write(f"  {bco.LightBlue}-a{bco.ResetAll}  FILE  hmmfile or cmfile to use as template for the alignment {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-c{bco.ResetAll}        set if you are using a cmfile\n")
+    sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
     sys.stderr.write(f"{bco.Cyan}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
@@ -237,6 +254,7 @@ def print_menu_classify():
     sys.stderr.write(f"  {bco.LightBlue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_check_input():
@@ -265,6 +283,7 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
@@ -302,7 +321,23 @@ def print_menu_classify_genome():
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-r{bco.ResetAll}         use all genes above the filter {bco.LightMagenta}[False]{bco.ResetAll}\n\n")
-
+# ------------------------------------------------------------------------------
+def print_menu_convert_ali():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} convert_ali {bco.LightBlue}-i{bco.ResetAll} <file_in> {bco.LightBlue}-o{bco.ResetAll} <file_out> [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   Input file, either a 1-hot-encoding created by stag align,\n")
+    sys.stderr.write(f"             or a fasta file of aligned sequences created by hmmalign.\n")
+    sys.stderr.write(f"             The input type is detected automatically {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE   A 1-hot-encoding if the input was fasta,\n")
+    sys.stderr.write(f"             or a fasta file if the input was 1-hot-encoding {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_unzip_db():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} unzip_db {bco.LightBlue}-d{bco.ResetAll} <database> {bco.LightBlue}-o{bco.ResetAll} <dir_out> [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with create_db or train {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  DIR   create a dir with the unzipped database {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -310,7 +345,7 @@ def print_menu_classify_genome():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome'])
+    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test','convert_ali',"unzip_db"])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
@@ -337,6 +372,16 @@ def main(argv=None):
 
     args = parser.parse_args()
 
+    # --------------------------------------------------------------------------
+    # TEST routine
+    # --------------------------------------------------------------------------
+    if args.command == 'test':
+        popenCMD = shlex.split("python "+relative_path+"test.py")
+        child = subprocess.Popen(popenCMD)
+        child.communicate()
+        rc = child.wait()
+        return(rc)
+
     # print menus --------------------------------------------------------------
     if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None) and (args.dir_input is None):
         if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
@@ -350,6 +395,8 @@ def main(argv=None):
                     if args.command == 'correct_seq': print_menu_correct_seq()
                     if args.command == 'train_genome': print_menu_train_genome()
                     if args.command == 'classify_genome': print_menu_classify_genome()
+                    if args.command == 'convert_ali': print_menu_convert_ali()
+                    if args.command == 'unzip_db': print_menu_unzip_db()
                     sys.exit(1)
 
 
@@ -358,7 +405,10 @@ def main(argv=None):
     # --------------------------------------------------------------------------
     if (args.threads is None): args.threads = 1
     if (args.verbose is None): args.verbose = 3
-    if (args.min_perc_state is None): args.min_perc_state = 5
+    if args.command == 'correct_seq':
+        if (args.min_perc_state is None): args.min_perc_state = 5
+    else:
+        if (args.min_perc_state is None): args.min_perc_state = 0
     if (args.use_cm_align is None): args.use_cm_align = False
     if (args.force_rewrite is None): args.force_rewrite = False
     if (args.long_out is None): args.long_out = False
@@ -404,10 +454,10 @@ def main(argv=None):
 
         # call the function
         if args.output is None:
-            for i in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False):
+            for i in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False, args.min_perc_state):
                 print(i)
         else:
-            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output)
+            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output, args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CREATE_DB routine
@@ -470,7 +520,7 @@ def main(argv=None):
         al_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         os.chmod(al_file.name, 0o644)
         # call the function
-        align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, al_file.name)
+        align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, al_file.name, args.min_perc_state)
 
         # SECOND: CREATE_DB ----------------------------------------------------
         # check that '-x' has been provided (taxonomy file)
@@ -529,7 +579,7 @@ def main(argv=None):
 
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al)
+        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al, args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine
@@ -571,6 +621,45 @@ def main(argv=None):
 
         # call the function
         correct_seq.correct_seq(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.min_perc_state, args.output)
+
+    # --------------------------------------------------------------------------
+    # CONVERT_ALI routine
+    # --------------------------------------------------------------------------
+    if args.command == 'convert_ali':
+        # check that '-i' and '-o' have been provided
+        if (args.fasta_input is None):
+            print_error()
+            sys.stderr.write("missing <file_in> (-i)\n")
+            sys.exit(1)
+        if (args.output is None):
+            print_error()
+            sys.stderr.write("missing <file_out> (-o)\n")
+            sys.exit(1)
+        # check that '-i' is a file
+        check_file_exists(args.fasta_input,isfasta = False)
+
+        # call function
+        convert_ali.convert_ali(args.fasta_input, args.output, args.verbose,)
+
+
+    # --------------------------------------------------------------------------
+    # UNZIP_db routine
+    # --------------------------------------------------------------------------
+    if args.command == 'unzip_db':
+        # check that '-d' and '-o' have been provided
+        if (args.database is None):
+            print_error()
+            sys.stderr.write("missing <database> (-d)\n")
+            sys.exit(1)
+        if (args.output is None):
+            print_error()
+            sys.stderr.write("missing <dir_out> (-o)\n")
+            sys.exit(1)
+        # check that '-d' is a file
+        check_file_exists(args.database,isfasta = False)
+
+        # call function
+        unzip_db.unzip_db(args.database, args.verbose, args.output)
 
     # --------------------------------------------------------------------------
     # TRAIN_GENOME routine

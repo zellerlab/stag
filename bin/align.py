@@ -75,43 +75,55 @@ encoding_dic_numpy = {
                "U":[False,True,False,False,False],
                "others":[True,False,False,False,False]
                }
+
 def convert_alignment(merged_fasta,verbose):
-    converted_ali = merged_fasta.split("\t")[0]
-    for i in merged_fasta.split("\t")[1]:
+    n_aligned_characters = 0
+    n_char = 0
+    converted_ali = merged_fasta.split("\t")[0] # first value is the gene_id
+    for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
         # as a gap ('-').
         # for example also 'N' is converted to "-" -> "1,0,0,0,0"
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
-        i_c = ""
-        if not i.islower():
-            if i in encoding_dic:
-                i_c = encoding_dic[i]
-            else:
-                i_c = encoding_dic["others"]
-            i_c = "\t"+i_c
-        converted_ali = converted_ali + i_c
-    return converted_ali
+        five_vals = ""
+        if not character.islower():
+            n_char = n_char + 1
+            try:
+                five_vals = encoding_dic[character]
+                # if it doesnt break, we count it as an aligned character
+                n_aligned_characters = n_aligned_characters + 1
+            except KeyError:
+                five_vals = encoding_dic["others"]
+            five_vals = "\t"+five_vals
+        # if it was lower case character, then five_vals = ""
+        converted_ali = converted_ali + five_vals
+    return converted_ali, (n_aligned_characters/n_char)*100
 
 def convert_alignment_numpy(merged_fasta,verbose):
+    n_aligned_characters = 0
+    n_char = 0
     gene_id = merged_fasta.split("\t")[0]
     converted_ali = list()
-    for i in merged_fasta.split("\t")[1]:
+    for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
         # as a gap ('-').
         # for example also 'N' is converted to "-" -> "1,0,0,0,0"
         # Note that the upper case letters and "-" represents alignment to the
         # hidden state of the HMM.
-        if not i.islower():
-            if i in encoding_dic_numpy:
-                converted_ali.extend(encoding_dic_numpy[i])
-            else:
+        if not character.islower():
+            n_char = n_char + 1
+            try:
+                converted_ali.extend(encoding_dic_numpy[character])
+                # if it doesnt break, we count it as an aligned character
+                n_aligned_characters = n_aligned_characters + 1
+            except KeyError:
                 converted_ali.extend(encoding_dic_numpy["others"])
     to_return = dict()
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
-    return to_return
+    return to_return, (n_aligned_characters/n_char)*100
 
 # function that read genes and return them as one line -------------------------
 def yield_genes(seq_file):
@@ -175,7 +187,7 @@ def proteinAl_2_geneAl(protein_alignment, gene_sequence, check_length):
 
 # ------------------------------------------------------------------------------
 # main function as a generator
-def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy):
+def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy, min_perc_state):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
@@ -194,6 +206,9 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
      'fasta_id\taligned_sequence'
     """
 
+    # number of sequences that pass and sont pass the filter
+    n_pass = 0
+    n_not_pass = 0
     # check that the tools are available
     if use_cmalign:
         if not is_tool("cmalign"):
@@ -233,20 +248,28 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     if protein_file == None:
         for line in merge_fasta(parse_cmd.stdout):
             if return_numpy:
-                converted_line = convert_alignment_numpy(line,verbose)
+                converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
-                converted_line = convert_alignment(line,verbose)
-            yield converted_line
+                converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_perc_state:
+                yield converted_line
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
         for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
             if return_numpy:
-                converted_line = convert_alignment_numpy(line,verbose)
+                converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
-                converted_line = convert_alignment(line,verbose)
-            yield converted_line
+                converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_perc_state:
+                yield converted_line
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
 
 
@@ -263,9 +286,14 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
         sys.stderr.write("[E::align] Error. esl-reformat failed\n")
         sys.exit(1)
 
+    # print the number of sequences that were filtered
+    if verbose > 3:
+        sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
+        sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
+
 # ------------------------------------------------------------------------------
 # main function
-def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, res_file):
+def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, res_file, min_perc_state):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
     Parameters
@@ -283,6 +311,9 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
      It will save the aligned sequences to the specified file.
     """
 
+    # number of sequences that pass and sont pass the filter
+    n_pass = 0
+    n_not_pass = 0
     # check that the tools are available
     if use_cmalign:
         if not is_tool("cmalign"):
@@ -326,14 +357,23 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     # parse the result and return/save to file - NORMAL ------------------------
     if protein_file == None:
         for line in merge_fasta(parse_cmd.stdout):
-            converted_line = convert_alignment(line,verbose)
-            temp_file.write(converted_line+"\n")
+            converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_perc_state:
+                temp_file.write(converted_line+"\n")
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
+
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
         for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
-            converted_line = convert_alignment(line,verbose)
-            temp_file.write(converted_line+"\n")
+            converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            if perc_aligned_characters >= min_perc_state:
+                temp_file.write(converted_line+"\n")
+                n_pass = n_pass + 1
+            else:
+                n_not_pass = n_not_pass + 1
 
 
     # if we save the result to a file, then we close it now
@@ -364,3 +404,8 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     if return_code:
         sys.stderr.write("[E::align] Error. esl-reformat failed\n")
         sys.exit(1)
+
+    # print the number of sequences that were filtered
+    if verbose > 3:
+        sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
+        sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")

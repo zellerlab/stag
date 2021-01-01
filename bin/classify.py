@@ -162,7 +162,7 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 
 
 #===============================================================================
-#                    FIND TO WHICH TAXONOMIC LEVEL WE STOP
+#                    FIND TO WHICH TAXONOMIC LEVEL TO STOP
 #===============================================================================
 def find_correct_level(perc, tax_function):
     prob_per_level = list()
@@ -180,6 +180,21 @@ def find_correct_level(perc, tax_function):
     # predict 0,1,2. If it is "-1", then we cannot predict anything
     return sel_lev, prob_per_level
 
+#===============================================================================
+#              FIND THE NUMBER OF MATCH FROM AN ALIGNED SEQUENCE
+#===============================================================================
+# test_seq is a numpy array, example:
+# [False,  True, False,  True, False,  True, False,  True, False]
+def find_n_aligned_characters(test_seq):
+    # we go by multiple of five, for the one-hot encoding.
+    # hence, 0\t0\t0\t0\t1 corresponds to "A". If a character doesnt match to an
+    # internal state, then we have: "1\t0\t0\t0\t0".
+    # Hence, it's enough to check positions 0,5,10,... and if there is a 0 (False)
+    # it means that there was a match to an internal state
+    pos_0_array = test_seq[0::5]
+    n_False = np.size(pos_0_array)-np.sum(pos_0_array)
+    return n_False
+
 
 #===============================================================================
 #                             CLASSIFY ONE SEQUENCE
@@ -190,9 +205,11 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
 
     # name of the gene
-    res_string = list(al_seq.keys())[0]
+    gene_id = list(al_seq.keys())[0]
     # sequence in numpy format
-    test_seq = al_seq[res_string]
+    test_seq = al_seq[gene_id]
+    # number of characters that map to the internal states of the HMM
+    n_aligned_characters = find_n_aligned_characters(test_seq)
 
     # now we evaluate across the taxonomy --------------------------------------
     tax = list()
@@ -217,7 +234,14 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
         perc_text.append(str(i))
 
     # return the result --------------------------------------------------------
-    res_string = res_string + "\t" + ";".join(tax[0:(int(sel_lev)+1)]) + "\t" + "/".join(tax) + "\t" + sel_lev + "\t" + "/".join(perc_text) + "\t" + "/".join(prob_per_level)
+    res_string = gene_id + "\t"
+    res_string = res_string + ";".join(tax[0:(int(sel_lev)+1)]) + "\t"
+    res_string = res_string + "/".join(tax) + "\t"
+    res_string = res_string + sel_lev + "\t"
+    res_string = res_string + "/".join(perc_text) + "\t"
+    res_string = res_string + "/".join(prob_per_level) + "\t"
+    res_string = res_string + str(n_aligned_characters)
+
     return res_string
 
 
@@ -226,7 +250,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences, save_ali_to_file):
+def classify(database, fasta_input, protein_fasta_input, verbose, threads, output, long_out, current_tool_version, aligned_sequences, save_ali_to_file, min_perc_state):
     t0 = time.time()
     # load the database
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = load_DB(database, protein_fasta_input, aligned_sequences)
@@ -236,8 +260,9 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
 
     # align the sequences and classify them
     list_to_print = list()
+    # if there is no aligned sequences file
     if aligned_sequences is None:
-        for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True):
+        for al_seq in align.align_generator(fasta_input,protein_fasta_input,hmm_file_path, use_cmalign, threads, verbose, True, min_perc_state):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
             # save alignment to file, if necessary
             if not(save_ali_to_file is None):
@@ -247,6 +272,7 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
                 o = open(save_ali_to_file,"a+")
                 o.write(name_gene+"\t"+ali_str+"\n")
                 o.close()
+    # if the file with the alignments is already provided
     else:
         for al_seq in file_2_generator(aligned_sequences):
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
@@ -267,15 +293,15 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
         outfile = sys.stdout
 
     if long_out:
-        outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\n")
+        outfile.write("sequence\ttaxonomy\tfull_taxonomy\tselected_level\tprob_from_classifiers\tprob_per_level\tn_aligned_characters\n")
     else:
         outfile.write("sequence\ttaxonomy\n")
 
-    for i in list_to_print:
+    for line in list_to_print:
         if long_out:
-            outfile.write(i+"\n")
+            outfile.write(line+"\n")
         else:
-            outfile.write("\t".join(i.split("\t")[0:2])+"\n")
+            outfile.write("\t".join(line.split("\t")[0:2])+"\n")
 
     # close
     if not(output is None):

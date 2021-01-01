@@ -254,6 +254,14 @@ class Taxonomy:
 #===============================================================================
 #                   FUNCTIONS TO LOAD AND CHECK THE ALIGNMENT
 #===============================================================================
+# Function to identify the rownames and number of columns in an alignment
+def find_raw_names_ncol(file_name):
+    gene_names = list()
+    with open(file_name, "r") as f:
+        for line in f.readlines():
+            gene_names.append(line.split("\t")[0])
+        n_col = len(line.split("\t"))
+    return gene_names, n_col
 
 # function to load an alignment produced by the "align" option =================
 # Input:
@@ -263,10 +271,19 @@ class Taxonomy:
 # as a note, numpy.loadtxt is way slower than pandas read.csv
 # It works also on .gz files
 def load_alignment_from_file(file_name):
-    alignment = pd.read_csv(file_name,delimiter='\t',index_col = 0, header=None)
+    # create empty pandas object of the correct size
+    gene_names,ncol = find_raw_names_ncol(file_name)
+    alignment = pd.DataFrame(False,index = gene_names,columns = range(ncol-1))
+    # add correct values
+    pos = 0
+    with open(file_name, "r") as f:
+        for line in f.readlines():
+            vals = line.rstrip().split("\t")
+            alignment.iloc[pos]= np.array([ False if x == "0" else True for x in vals[1:]])
+            pos = pos + 1
+
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
-    alignment = alignment.astype('bool') # apparently you cannot load directly
-                                         # bool if the rownames are not bool
+
     # we remove duplicates
     alignment = alignment.drop_duplicates()
     logging.info('   LOAD_AL: Number of genes, after removing duplicates: %s', str(len(list(alignment.index.values))))
