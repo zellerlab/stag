@@ -1,31 +1,4 @@
 #!/usr/bin/env python
-
-# ============================================================================ #
-# stag - Supervised Taxonomic Assignment of marker Genes
-#
-# Authors: Alessio Milanese (milanese@embl.de),
-#
-# Type "stag" for usage help
-#
-#  LICENSE:
-#    stag - Supervised Taxonomic Assignment of marker Genes (C) 2020 A. Milanese
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# ============================================================================ #
-
-
 import os
 import sys
 import argparse
@@ -38,142 +11,25 @@ import tempfile
 import errno
 import tarfile
 
-# add version of the tool ------------------------------------------------------
-tool_version = "0.7"
+from . import __version__ as tool_version
+from .helpers import bco, print_error, check_file_exists, check_file_doesnt_exists
+import stag.align as align
+import stag.create_db as create_db
+import stag.classify as classify
+import stag.check_create_db_input_files as check_create_db_input_files
+import stag.correct_seq as correct_seq
+import stag.unzip_db as unzip_db
+import stag.classify_genome as classify_genome
+import stag.train_genome as train_genome
+import stag.convert_ali as convert_ali
+
+
 
 # position of the script -------------------------------------------------------
 path_stag = os.path.realpath(__file__)
 path_array = path_stag.split("/")
 relative_path = "/".join(path_array[0:-1])
 relative_path = relative_path + "/"
-
-# colors for the shell ---------------------------------------------------------
-class bco:
-    ResetAll = "\033[0m"
-    Bold       = "\033[1m"
-    Underlined = "\033[4m"
-    Green        = "\033[32m"
-    Yellow       = "\033[33m"
-    Blue         = "\033[34m"
-    Red          = "\033[31m"
-    Magenta      = "\033[35m"
-    Cyan         = "\033[36m"
-    LightRed     = "\033[91m"
-    LightGreen   = "\033[92m"
-    LightYellow  = "\033[93m"
-    LightBlue    = "\033[94m"
-    LightMagenta = "\033[95m"
-    LightCyan    = "\033[96m"
-
-def print_error():
-    try:
-        sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-    except Exception as e:
-        sys.stderr.write("[E::main] Error: ")
-
-
-# add /bin to the path ---------------------------------------------------------
-try:
-    if os.path.isdir(relative_path+'bin'):
-        sys.path.insert(0, relative_path+'bin')
-    else:
-        print_error()
-        sys.stderr.write(relative_path+"bin directory is missing.\n")
-        sys.exit(1)
-except Exception as e:
-    print_error()
-    sys.stderr.write(relative_path+"bin directory is missing.\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import align as align
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/align.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import create_db as create_db
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/create_db.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import classify as classify
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/classify.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import check_create_db_input_files as check_create_db_input_files
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/check_create_db_input_files.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import correct_seq as correct_seq
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/correct_seq.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import convert_ali as convert_ali
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/convert_ali.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import unzip_db as unzip_db
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/unzip_db.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import classify_genome as classify_genome
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/classify_genome.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-try:
-    import train_genome as train_genome
-except Exception as e:
-    print_error()
-    sys.stderr.write("fail to load the script: "+relative_path+"bin/train_genome.py\n")
-    sys.stderr.write(str(e)+"\n")
-    sys.exit(1)
-
-# function that checks if a file exists ----------------------------------------
-def check_file_exists(file_name, isfasta = False):
-    try:
-        o = open(file_name,"r")
-        # if fasta file, then check that it starts with ">"
-        if isfasta:
-            if not(o.readline().startswith(">")):
-                print_error()
-                sys.stderr.write("Not a fasta file: "+file_name+"\n")
-                sys.stderr.write("          Fasta file is expected to start with '>'\n")
-                o.close()
-                sys.exit(1)
-        o.close()
-    except Exception as e:
-        print_error()
-        sys.stderr.write("Cannot open file: "+file_name+"\n")
-        sys.stderr.write(str(e)+"\n")
-        sys.exit(1)
-
-# function that checks if a file exists already, and give an error -------------
-def check_file_doesnt_exists(file_name):
-    if os.path.exists(file_name):
-        print_error()
-        sys.stderr.write("Output file exists already: "+file_name+"\n")
-        sys.exit(1)
 
 # ------------------------------------------------------------------------------
 #       print the help informations
@@ -376,7 +232,8 @@ def main(argv=None):
     # TEST routine
     # --------------------------------------------------------------------------
     if args.command == 'test':
-        popenCMD = shlex.split("python "+relative_path+"test.py")
+        # popenCMD = shlex.split("python "+relative_path+"test.py")
+        popenCMD = "stag_test"
         child = subprocess.Popen(popenCMD)
         child.communicate()
         rc = child.wait()

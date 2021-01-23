@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # ============================================================================ #
-# test.py: test stag
+# stag_test Run stag tests
 #
 # Author: Alessio Milanese (milanese@embl.de)
 #
@@ -13,13 +13,11 @@ import tempfile
 import subprocess
 import shlex
 import errno
+import pkg_resources
 
-# position of the script -------------------------------------------------------
-path_STAG = os.path.realpath(__file__)
-path_array = path_STAG.split("/")
-relative_path = "/".join(path_array[0:-1])
-relative_path = relative_path + "/"
+from .helpers import bco
 
+TEST_DATA_PATH = pkg_resources.resource_filename("stag", "test")
 
 # ------------------------------------------------------------------------------
 # function to check if a specific tool exists
@@ -49,24 +47,6 @@ def is_tool(name):
             return False
     return True
 
-
-# colors for the shell ---------------------------------------------------------
-class bco:
-    ResetAll = "\033[0m"
-    Bold       = "\033[1m"
-    Underlined = "\033[4m"
-    Green        = "\033[32m"
-    Yellow       = "\033[33m"
-    Blue         = "\033[34m"
-    Red          = "\033[31m"
-    Magenta      = "\033[35m"
-    Cyan         = "\033[36m"
-    LightRed     = "\033[91m"
-    LightGreen   = "\033[92m"
-    LightYellow  = "\033[93m"
-    LightBlue    = "\033[94m"
-    LightMagenta = "\033[95m"
-    LightCyan    = "\033[96m"
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -168,13 +148,13 @@ def main(argv=None):
 
     sys.stderr.write("  ■ train:      ") #--------------------------------------
     sys.stderr.flush()
-    seq_file = relative_path+'test/sequences.fasta'
-    tax_file = relative_path+'test/sequences.taxonomy'
-    hmm_file = relative_path+'test/gene.hmm'
+    seq_file = os.path.join(TEST_DATA_PATH, "sequences.fasta")
+    tax_file = os.path.join(TEST_DATA_PATH, "sequences.taxonomy")
+    hmm_file = os.path.join(TEST_DATA_PATH, "gene.hmm")
     temp_file_db = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
 
-    stag_command = "python "+relative_path+"stag train -f -o "+temp_file_db.name+" -i "+seq_file+" -x "+tax_file+" -a "+hmm_file
+    stag_command = "stag train -f -o "+temp_file_db.name+" -i "+seq_file+" -x "+tax_file+" -a "+hmm_file
     process = subprocess.run(stag_command.split())
 
     if process.returncode:
@@ -187,7 +167,7 @@ def main(argv=None):
     sys.stderr.flush()
     temp_file_res = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
-    stag_command = "python "+relative_path+"stag classify -v 1 -d "+temp_file_db.name+" -i "+seq_file+" -o "+temp_file_res.name
+    stag_command = "stag classify -v 1 -d "+temp_file_db.name+" -i "+seq_file+" -o "+temp_file_res.name
     process = subprocess.run(stag_command.split())
 
     if process.returncode:
