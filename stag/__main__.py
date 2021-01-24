@@ -23,13 +23,11 @@ import stag.classify_genome as classify_genome
 import stag.train_genome as train_genome
 import stag.convert_ali as convert_ali
 
-
-
-# position of the script -------------------------------------------------------
-path_stag = os.path.realpath(__file__)
-path_array = path_stag.split("/")
-relative_path = "/".join(path_array[0:-1])
-relative_path = relative_path + "/"
+def handle_error(error, help_f):
+    help_f()
+    print_error()
+    print(error, file=sys.stderr)
+    sys.exit(1)
 
 # ------------------------------------------------------------------------------
 #       print the help informations
@@ -201,15 +199,17 @@ def print_menu_unzip_db():
 def main(argv=None):
 
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
-    parser.add_argument('command', action="store", default=None, help='mode to use the mOTU tool',choices=['align','train','classify','create_db','check_input','correct_seq','train_genome','classify_genome','test','convert_ali',"unzip_db"])
+    parser.add_argument('command', action="store", default=None, help='mode to run stag',
+                        choices=['align','train','classify','create_db','check_input','correct_seq','train_genome',
+                                 'classify_genome','test','convert_ali',"unzip_db"])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
-    parser.add_argument('-t', type=int, action="store", dest='threads', default=None, help='Number of threads to be used.')
-    parser.add_argument('-v', action='store', type=int, default=None, dest='verbose', help='Verbose levels')
-    parser.add_argument('-c', action='store_true', default=None, dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
+    parser.add_argument('-t', type=int, action="store", dest='threads', default=1, help='Number of threads to be used.')
+    parser.add_argument('-v', action='store', type=int, default=3, dest='verbose', help='Verbose levels', choices=list(range(1,5)))
+    parser.add_argument('-c', action='store_true', dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
     parser.add_argument('-s', action="store", default=None,dest='aligned_sequences', help='sequences that needs to be aligned')
     parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')
     parser.add_argument('-x', action="store", default=None,dest='taxonomy', help='taxonomy file path')
-    parser.add_argument('-f', action='store_true', default=None, dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
+    parser.add_argument('-f', action='store_true', dest='force_rewrite', help='Set if you want to rewrite the file, even if it exists')
     parser.add_argument('-i', action="store", dest='fasta_input', default=None, help='input fasta sequences')
     parser.add_argument('-p', action="store", dest='protein_fasta_input', default=None, help='input fasta sequences, in protein format. Corresponding to the -i sequences')
     parser.add_argument('-w', action="store", dest='warning_file_check_input', default=None, help='for check_input there can be quite some warning messages. Use -w to save them to a file')
@@ -217,12 +217,12 @@ def main(argv=None):
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
     parser.add_argument('-m', action='store', type=int, default=None, dest='min_perc_state', help='Minimum number of mapping states, i.e. how many features of the classifier we cover')
-    parser.add_argument('-l', action='store_true', default=None, dest='long_out', help='Print more columns for the classification pipeline')
-    parser.add_argument('-r', action='store_true', default=None, dest='keep_all_genes', help='keep all genes when doing the classification of genomes')
+    parser.add_argument('-l', action='store_true', dest='long_out', help='Print more columns for the classification pipeline')
+    parser.add_argument('-r', action='store_true', dest='keep_all_genes', help='keep all genes when doing the classification of genomes')
     parser.add_argument('-D', action="store", dest='dir_input', default=None, help='input directory')
     parser.add_argument('-T', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
-    parser.add_argument('-e', action="store", default=None,dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
-    parser.add_argument('-E', action="store", default=None,dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
+    parser.add_argument('-e', action="store", default="l1", dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
+    parser.add_argument('-E', action="store", default="liblinear", dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -232,288 +232,255 @@ def main(argv=None):
     # TEST routine
     # --------------------------------------------------------------------------
     if args.command == 'test':
-        # popenCMD = shlex.split("python "+relative_path+"test.py")
         popenCMD = "stag_test"
         child = subprocess.Popen(popenCMD)
         child.communicate()
         rc = child.wait()
         return(rc)
 
-    # print menus --------------------------------------------------------------
-    if (args.output is None) and (args.threads is None) and (args.verbose is None) and (args.use_cm_align is None) and (args.intermediate_cross_val is None) and (args.dir_input is None):
-        if (args.aligned_sequences is None) and (args.template_al is None) and (args.force_rewrite is None) and (args.taxonomy is None) and (args.min_perc_state is None):
-            if (args.fasta_input is None) and (args.database is None) and (args.protein_fasta_input is None) and (args.intermediate_al is None) and (args.long_out is None):
-                if (args.keep_all_genes is None) and (args.file_thresholds is None) and (args.warning_file_check_input is None):
-                    if args.command == 'align': print_menu_align()
-                    if args.command == 'create_db': print_menu_create_db()
-                    if args.command == 'classify': print_menu_classify()
-                    if args.command == 'check_input': print_menu_check_input()
-                    if args.command == 'train': print_menu_train()
-                    if args.command == 'correct_seq': print_menu_correct_seq()
-                    if args.command == 'train_genome': print_menu_train_genome()
-                    if args.command == 'classify_genome': print_menu_classify_genome()
-                    if args.command == 'convert_ali': print_menu_convert_ali()
-                    if args.command == 'unzip_db': print_menu_unzip_db()
-                    sys.exit(1)
-
-
     # --------------------------------------------------------------------------
     # set defaults for the parameters
     # --------------------------------------------------------------------------
-    if (args.threads is None): args.threads = 1
-    if (args.verbose is None): args.verbose = 3
     if args.command == 'correct_seq':
         if (args.min_perc_state is None): args.min_perc_state = 5
     else:
         if (args.min_perc_state is None): args.min_perc_state = 0
-    if (args.use_cm_align is None): args.use_cm_align = False
-    if (args.force_rewrite is None): args.force_rewrite = False
-    if (args.long_out is None): args.long_out = False
-    if (args.keep_all_genes is None): args.keep_all_genes = False
 
-    if args.verbose < 1:
-        print_error()
-        sys.stderr.write("verbose level (-v) is less than 1\n")
-        sys.exit(1)
     if args.threads < 1:
-        print_error()
-        sys.stderr.write("number of threads (-t) is less than 1\n")
-        sys.exit(1)
+        handle_error("number of threads (-t) is less than 1", None)
     if args.min_perc_state < 0 or args.min_perc_state > 100:
-        print_error()
-        sys.stderr.write("-m should be between 0 and 100. It represents the percentage\nof internal states covered by the sequence (i.e. the number of features).\n")
-        sys.exit(1)
+        handle_error("-m should be between 0 and 100. It represents the percentage\n"
+                     "of internal states covered by the sequence (i.e. the number of features).", None)
 
-    # set parameters for logistic regrssion
-    if (args.penalty_logistic is None): args.penalty_logistic = "l1"
-    if (args.solver_logistic is None): args.solver_logistic = "liblinear"
 
     # --------------------------------------------------------------------------
     # ALIGN routine
     # --------------------------------------------------------------------------
+    error = ""
     if args.command == 'align':
         # check that '-i' and '-a' have been provided
-        if (args.fasta_input is None):
-            print_error()
-            sys.stderr.write("missing <seqfile> (-i)\n")
-            sys.exit(1)
-        if (args.template_al is None):
-            print_error()
-            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
-            sys.exit(1)
+        if not args.fasta_input:
+            error = "missing <seqfile> (-i)"
+        elif not args.template_al:
+            error = "missing <hmmfile>/<cmfile> (-a)"
+
+        if error:
+            handle_error(error, print_menu_align)
+
         # check that '-s' and '-a' are files
-        check_file_exists(args.fasta_input,isfasta = True)
-        check_file_exists(args.template_al,isfasta = False)
+        check_file_exists(args.fasta_input, isfasta = True)
+        check_file_exists(args.template_al, isfasta = False)
 
         # if -p is provided, then check that it is a fasta file
-        if not(args.protein_fasta_input is None):
-            check_file_exists(args.protein_fasta_input,isfasta = True)
+        if args.protein_fasta_input:
+            check_file_exists(args.protein_fasta_input, isfasta = True)
 
         # call the function
         if args.output is None:
-            for i in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, False, args.min_perc_state):
-                print(i)
+            for ali in align.align_generator(args.fasta_input, args.protein_fasta_input, args.template_al,
+                                             args.use_cm_align, args.threads, args.verbose, False, args.min_perc_state):
+                print(ali)
         else:
-            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.output, args.min_perc_state)
+            align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads,
+                             args.verbose, args.output, args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CREATE_DB routine
     # --------------------------------------------------------------------------
-    if args.command == 'create_db':
-        # check that '-s' has been provided (alignment produced by stag align)
-        if (args.aligned_sequences is None):
-            print_error()
-            sys.stderr.write("missing <aligned_file> (-s)\n")
-            sys.exit(1)
-        # check that '-x' has been provided (taxonomy file)
-        if (args.taxonomy is None):
-            print_error()
-            sys.stderr.write("missing <taxonomy_file> (-x)\n")
-            sys.exit(1)
-        # check that the hmm file is provided
-        if (args.template_al is None):
-            print_error()
-            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
-            sys.exit(1)
-        # check that '-s' and '-a' are files
-        check_file_exists(args.aligned_sequences,isfasta = False)
-        check_file_exists(args.taxonomy,isfasta = False)
-        check_file_exists(args.template_al,isfasta = False)
+    elif args.command == 'create_db':
 
-        # check that output is set
-        if args.output is None:
-            print_error()
-            sys.stderr.write("missing <output_DB> (-o)\n")
-            sys.exit(1)
+        if not args.aligned_sequences:
+            # check that '-s' has been provided (alignment produced by stag align)
+            error = "missing <aligned_file> (-s)"
+        elif not args.taxonomy:
+            # check that '-x' has been provided (taxonomy file)
+            error = "missing <taxonomy_file> (-x)"
+        elif not args.template_al:
+            # check that the hmm file is provided
+            error = "missing <hmmfile>/<cmfile> (-a)"
+        elif not args.output:
+            # check that output is set
+            error = "missing <output_DB> (-o)"
+
+        if error:
+            handle_error(error, print_menu_create_db)
+
+        # check that '-s' and '-a' are files
+        check_file_exists(args.aligned_sequences, isfasta = False)
+        check_file_exists(args.taxonomy, isfasta = False)
+        check_file_exists(args.template_al, isfasta = False)
+
         if not args.force_rewrite:
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input, args.penalty_logistic, args.solver_logistic)
+        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
+                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
+                            args.penalty_logistic, args.solver_logistic)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
     # --------------------------------------------------------------------------
-    if args.command == 'train':
-        # FIRST: ALIGN ---------------------------------------------------------
+    elif args.command == 'train':
         # check that '-i' and '-a' have been provided
-        if (args.fasta_input is None):
-            print_error()
-            sys.stderr.write("missing <seqfile> (-i)\n")
-            sys.exit(1)
-        if (args.template_al is None):
-            print_error()
-            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
-            sys.exit(1)
+        if not args.fasta_input:
+            error = "missing <seqfile> (-i)"
+        elif not args.template_al:
+            error = "missing <hmmfile>/<cmfile> (-a)"
+        elif not args.taxonomy:
+            # check that '-x' has been provided (taxonomy file)
+            error = "missing <taxonomy_file> (-x)"
+        elif not args.output:
+            # check that output is set
+            error = "missing <output_DB> (-o)"
+
+        if error:
+            handle_error(error, print_menu_train)
+
         # check that '-s' and '-a' are files
-        check_file_exists(args.fasta_input,isfasta = True)
-        check_file_exists(args.template_al,isfasta = False)
+        check_file_exists(args.fasta_input, isfasta = True)
+        check_file_exists(args.template_al, isfasta = False)
 
         # if -p is provided, then check that it is a fasta file
-        if not(args.protein_fasta_input is None):
-            check_file_exists(args.protein_fasta_input,isfasta = True)
+        if args.protein_fasta_input:
+            check_file_exists(args.protein_fasta_input, isfasta = True)
 
+        check_file_exists(args.taxonomy, isfasta = False)
+
+        if not args.force_rewrite:
+            check_file_doesnt_exists(args.output)
+
+        # FIRST: ALIGN ---------------------------------------------------------
         # we create a temporary file that will contain the alignments
         al_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         os.chmod(al_file.name, 0o644)
         # call the function
-        align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, al_file.name, args.min_perc_state)
+        align.align_file(args.fasta_input, args.protein_fasta_input, args.template_al, args.use_cm_align,
+                         args.threads, args.verbose, al_file.name, args.min_perc_state)
 
         # SECOND: CREATE_DB ----------------------------------------------------
-        # check that '-x' has been provided (taxonomy file)
-        if (args.taxonomy is None):
-            print_error()
-            sys.stderr.write("missing <taxonomy_file> (-x)\n")
-            sys.exit(1)
-        check_file_exists(args.taxonomy,isfasta = False)
-
-        # check that output is set
-        if args.output is None:
-            print_error()
-            sys.stderr.write("missing <output_DB> (-o)\n")
-            sys.exit(1)
-        if not args.force_rewrite:
-            check_file_doesnt_exists(args.output)
-
         # call the function to create the database
-        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align, args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input, args.penalty_logistic, args.solver_logistic)
+        create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
+                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
+                            args.penalty_logistic, args.solver_logistic)
 
         # what to do with intermediate alignment -------------------------------
-        if args.intermediate_al is None:
+        if not args.intermediate_al:
             # remove it
             os.remove(al_file.name)
         else:
             # save it
-            shutil.move(al_file.name,args.intermediate_al)
+            shutil.move(al_file.name, args.intermediate_al)
 
 
     # --------------------------------------------------------------------------
     # CLASSIFY routine
     # --------------------------------------------------------------------------
-    if args.command == 'classify':
+    elif args.command == 'classify':
         # check that '-i' has been provided (alignment produced by stag align)
-        if (args.fasta_input is None) and (args.aligned_sequences is None):
-            print_error()
-            sys.stderr.write("missing <fasta_seqs> (-i) or <aligned_seq> (-s)\n")
-            sys.exit(1)
-        # check that '-d' has been provided (taxonomy file)
-        if (args.database is None):
-            print_error()
-            sys.stderr.write("missing <database> (-d)\n")
-            sys.exit(1)
+        if not args.fasta_input and not args.aligned_sequences:
+            error = "missing <fasta_seqs> (-i) or <aligned_seq> (-s)"
+        elif not args.database:
+            # check that '-d' has been provided (taxonomy file)
+            error = "missing <database> (-d)"
+
+        if error:
+            handle_error(error, print_menu_classify)
+
         # check that they are files
-        if not(args.fasta_input is None):
-            check_file_exists(args.fasta_input,isfasta = True)
-        check_file_exists(args.database,isfasta = False)
+        if args.fasta_input:
+            check_file_exists(args.fasta_input, isfasta = True)
+        check_file_exists(args.database, isfasta = False)
         # if -p is provided, then check that it is a fasta file
-        if not(args.protein_fasta_input is None):
-            check_file_exists(args.protein_fasta_input,isfasta = True)
+        if args.protein_fasta_input:
+            check_file_exists(args.protein_fasta_input, isfasta = True)
         # if -S is provided, we remove the file if it exists, since in the
         # function it appends only
-        if not(args.intermediate_al is None):
+        if args.intermediate_al:
             if os.path.isfile(args.intermediate_al):
                 os.remove(args.intermediate_al)
 
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads, args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al, args.min_perc_state)
+        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads,
+                          args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al, 
+                          args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine
     # --------------------------------------------------------------------------
-    if args.command == 'check_input':
-        if (args.fasta_input is None):
-            print_error()
-            sys.stderr.write("missing <fasta_seqs> (-i)\n")
-            sys.exit(1)
-        if (args.taxonomy is None):
-            print_error()
-            sys.stderr.write("missing <taxonomy_file> (-x)\n")
-            sys.exit(1)
-        if (args.template_al is None):
-            print_error()
-            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
-            sys.exit(1)
-        check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy, args.template_al, args.use_cm_align, args.warning_file_check_input)
+    elif args.command == 'check_input':
+        if not args.fasta_input:
+            error = "missing <fasta_seqs> (-i)"
+        elif not args.taxonomy:
+            error = "missing <taxonomy_file> (-x)"
+        elif not args.template_al:
+            error = "missing <hmmfile>/<cmfile> (-a)"
 
+        if error:
+            handle_error(error, print_menu_check_input)
+
+        check_create_db_input_files.check_input_files(args.fasta_input, args.protein_fasta_input, args.taxonomy,
+                                                      args.template_al, args.use_cm_align, args.warning_file_check_input)
 
     # --------------------------------------------------------------------------
     # CORRECT_SEQ routine
     # --------------------------------------------------------------------------
     # check if the sequences are in correct orientation, if they are not, then
     # take reverse complement. Save to -o all the seqeunces is correct order
-    if args.command == 'correct_seq':
+    elif args.command == 'correct_seq':
         # check that '-i' and '-a' have been provided
-        if (args.fasta_input is None):
-            print_error()
-            sys.stderr.write("missing <seqfile> (-i)\n")
-            sys.exit(1)
-        if (args.template_al is None):
-            print_error()
-            sys.stderr.write("missing <hmmfile>/<cmfile> (-a)\n")
-            sys.exit(1)
+        if not args.fasta_input:
+            error = "missing <seqfile> (-i)"
+        elif not args.template_al:
+            error = "missing <hmmfile>/<cmfile> (-a)"
+
+        if error:
+            handle_error(error, print_menu_correct_seq)
+
         # check that '-s' and '-a' are files
-        check_file_exists(args.fasta_input,isfasta = True)
-        check_file_exists(args.template_al,isfasta = False)
+        check_file_exists(args.fasta_input, isfasta = True)
+        check_file_exists(args.template_al, isfasta = False)
 
         # call the function
-        correct_seq.correct_seq(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose, args.min_perc_state, args.output)
+        correct_seq.correct_seq(args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose,
+                                args.min_perc_state, args.output)
 
     # --------------------------------------------------------------------------
     # CONVERT_ALI routine
     # --------------------------------------------------------------------------
-    if args.command == 'convert_ali':
+    elif args.command == 'convert_ali':
         # check that '-i' and '-o' have been provided
-        if (args.fasta_input is None):
-            print_error()
-            sys.stderr.write("missing <file_in> (-i)\n")
-            sys.exit(1)
-        if (args.output is None):
-            print_error()
-            sys.stderr.write("missing <file_out> (-o)\n")
-            sys.exit(1)
+        if not args.fasta_input:
+            error = "missing <file_in> (-i)"
+        elif not args.output:
+            error = "missing <file_out> (-o)"
+
+        if error:
+            handle_error(error, print_menu_convert_ali)
+
         # check that '-i' is a file
-        check_file_exists(args.fasta_input,isfasta = False)
+        check_file_exists(args.fasta_input, isfasta = False)
 
         # call function
-        convert_ali.convert_ali(args.fasta_input, args.output, args.verbose,)
+        convert_ali.convert_ali(args.fasta_input, args.output, args.verbose)
 
 
     # --------------------------------------------------------------------------
     # UNZIP_db routine
     # --------------------------------------------------------------------------
-    if args.command == 'unzip_db':
+    elif args.command == 'unzip_db':
         # check that '-d' and '-o' have been provided
-        if (args.database is None):
-            print_error()
-            sys.stderr.write("missing <database> (-d)\n")
-            sys.exit(1)
-        if (args.output is None):
-            print_error()
-            sys.stderr.write("missing <dir_out> (-o)\n")
-            sys.exit(1)
+        if not args.database:
+            error = "missing <database> (-d)"
+        elif not args.output:
+            error = "missing <dir_out> (-o)" 
+
+        if error:
+            handle_error(error, print_menu_unzip_db)
+
         # check that '-d' is a file
-        check_file_exists(args.database,isfasta = False)
+        check_file_exists(args.database, isfasta = False)
 
         # call function
         unzip_db.unzip_db(args.database, args.verbose, args.output)
@@ -525,103 +492,83 @@ def main(argv=None):
     # calssifiers for the seingle genes
     # Input: single gene databases
     # Output: a database file (hdf5) that can be used by stag classify_genome
-    if args.command == 'train_genome':
+    elif args.command == 'train_genome':
         # check that parameters are set ----------------------------------------
-        if args.output is None:
-            print_error()
-            sys.stderr.write("missing <output_DB> (-o)\n")
-            sys.exit(1)
-        if (args.fasta_input is None):
-            print_error()
-            sys.stderr.write("missing <list_gene_DBs> (-i)\n")
-            sys.exit(1)
-        if (args.file_thresholds is None):
-            print_error()
-            sys.stderr.write("missing <gene_thresholds> (-T)\n")
-            sys.exit(1)
-        if (args.intermediate_cross_val is None):
-            print_error()
-            sys.stderr.write("missing <concat_genes_DB> (-C)\n")
-            sys.exit(1)
+        if not args.output:
+            error = "missing <output_DB> (-o)"
+        elif not args.fasta_input:
+            error = "missing <list_gene_DBs> (-i)"
+        elif not args.file_thresholds:
+            error = "missing <gene_thresholds> (-T)"
+        elif not args.intermediate_cross_val:
+            error = "missing <concat_genes_DB> (-C)"
+
+        if error:
+            handle_error(error, print_menu_train_genome)
+
         # call the function
-        train_genome.train_genome(args.output, args.fasta_input, args.file_thresholds, args.threads, args.verbose, args.intermediate_cross_val)
+        train_genome.train_genome(args.output, args.fasta_input, args.file_thresholds,
+                                  args.threads, args.verbose, args.intermediate_cross_val)
 
     # --------------------------------------------------------------------------
     # CLASSIFY_GENOME routine
     # --------------------------------------------------------------------------
     if args.command == 'classify_genome':
         # check input
-        if (args.database is None):
-            print_error()
-            sys.stderr.write("missing <database> (-d)\n")
-            sys.exit(1)
-        if (args.fasta_input is None and args.dir_input is None):
-            print_error()
-            sys.stderr.write("you need to provide at least -i or -D.\n")
-            sys.exit(1)
-        if (not(args.fasta_input is None) and not(args.dir_input is None)):
-            print_error()
-            sys.stderr.write("you need to provide -i or -D, not both.\n")
-            sys.exit(1)
-        # check that the input is correct
+        if not args.database:
+            error = "missing <database> (-d)"
+        elif not args.fasta_input and not args.dir_input:
+            error = "you need to provide at least -i or -D."
+        elif args.fasta_input and args.dir_input:
+            error = "you need to provide -i or -D, not both."
+        elif args.dir_input and not os.path.isdir(args.dir_input):
+            error = "-D is not a directory."
+        elif not args.output:
+            # check that output dir is defined
+            error = "missing output directory (-o)"
+
+        if error:
+            handle_error(error, print_menu_classify_genome)
 
         # find files to classify
-        if not(args.fasta_input is None):
-            check_file_exists(args.fasta_input,isfasta = True)
-            list_files = [args.fasta_input]
+        list_files = list()
+        if args.fasta_input:
+            check_file_exists(args.fasta_input, isfasta = True)
+            list_files.append(args.fasta_input)
         else:
-            if not os.path.isdir(args.dir_input):
-                print_error()
-                sys.stderr.write("-D is not a directory.\n")
-                sys.exit(1)
-            raw_list_files = [f for f in os.listdir(args.dir_input) if os.path.isfile(os.path.join(args.dir_input, f))]
-            list_files = list()
-            for i in raw_list_files:
-                path_i = os.path.join(args.dir_input,i)
+            for f in os.listdir(args.dir_input):
+                f = os.path.join(args.dir_input, f)
                 try:
-                    o = open(path_i,"r")
-                    if o.readline().startswith(">"):
-                        list_files.append(path_i)
-                    o.close()
+                    if os.path.isfile(f) and open(f).read(1)[0] == ">":
+                        list_files.append(f)
                 except Exception as e:
                     if args.verbose > 1:
                         sys.stderr.write("[W::main] Warning: ")
-                        sys.stderr.write("Cannot open file: "+path_i+"\n")
-            if len(list_files) == 0:
-                print_error()
-                sys.stderr.write("no fasta files found in the directory.\n")
-                sys.exit(1)
-            else:
-                sys.stderr.write(" Found "+str(len(list_files))+" fasta files\n")
+                        sys.stderr.write("Cannot open file: {}\n".format(f))
 
-        # check that output dir is defined
-        if (args.output is None):
-            print_error()
-            sys.stderr.write("missing output directory (-o)\n")
-            sys.exit(1)
+            if not list_files:
+                handle_error("no fasta files found in the directory.", None)
+            sys.stderr.write(" Found "+str(len(list_files))+" fasta files\n")
+
         if os.path.isdir(args.output):
             if args.force_rewrite:
                 shutil.rmtree(args.output)
             else:
-                print_error()
-                sys.stderr.write("output directory (-o) exists already.\n")
-                sys.exit(1)
+                handle_error("output directory (-o) exists already.", None)
+
         # create output dir
         try:
-            os.mkdir(args.output)
+            pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
         except:
-            print_error()
-            sys.stderr.write("creating the output directory (-o).\n")
-            sys.exit(1)
-
+            handle_error("creating the output directory (-o).", None)
 
         # call the function
-        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output, args.long_out, tool_version, args.keep_all_genes)
+        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output,
+                                        args.long_out, tool_version, args.keep_all_genes)
 
 
-    return 0        # success
+    return None        # success
 
 #-------------------------------- run main -------------------------------------
 if __name__ == '__main__':
-    status = main()
-    sys.exit(status)
+    main()

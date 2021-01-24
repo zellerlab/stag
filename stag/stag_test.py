@@ -223,13 +223,12 @@ def main(argv=None):
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
 
 
-    if (error_found or error_flag):
-        return 1
-    else:
-        return 0        # success
+    if error_found or error_flag:
+        sys.exit(1)
+
+    return None        # success
 
 
 #-------------------------------- run main -------------------------------------
 if __name__ == '__main__':
-    status = main()
-    sys.exit(status)
+    main()
