@@ -16,12 +16,6 @@ import h5py
 import re
 import tarfile
 
-# position of the script -------------------------------------------------------
-path_this = os.path.realpath(__file__)
-path_array = path_this.split("/")
-stag_path = "/".join(path_array[0:-2]) + "/stag"
-
-
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
     try:
@@ -46,7 +40,7 @@ def find_length_ali(gene_db,temp_fasta,temp_fasta2):
     outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(outfile.name, 0o644)
 
-    CMD = stag_path + " classify -d "+gene_db
+    CMD = "stag classify -d "+gene_db
     CMD = CMD + " -i "+temp_fasta
     CMD = CMD + " -p "+temp_fasta2
     CMD = CMD + " -S "+outfile.name

@@ -397,10 +397,6 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 # ==============================================================================
 # TAXONOMICALLY ANNOTATE MARKER GENES
 # ==============================================================================
-# position of the script -------------------------------------------------------
-path_this = os.path.realpath(__file__)
-path_array = path_this.split("/")
-stag_path = "/".join(path_array[0:-2]) + "/stag"
 
 # we run stag classify, for each marker gene
 def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
@@ -408,7 +404,7 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
     for mg in MGS:
         if MGS[mg][0] != None:
             # it means that there are some genes to classify
-            CMD = stag_path + " classify -d "+database_base_path+"/"+mg
+            CMD = "stag classify -d "+database_base_path+"/"+mg
             # check that the database is correct
             if not os.path.isfile(database_base_path+"/"+mg):
                 sys.stderr.write("Error: file for gene database is missing")
@@ -517,7 +513,7 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
 # ==============================================================================
 # the annotation for the genome is based on the annotation of the
 def annotate_concat_mgs(concat_ali_stag_db,file_ali,output):
-    CMD = stag_path + " classify -d "+concat_ali_stag_db
+    CMD = "stag classify -d "+concat_ali_stag_db
     CMD = CMD + " -s "+file_ali
     CMD = CMD + " -o "+output+"/genome_annotation"
 

@@ -7,23 +7,11 @@ Please check also the [wiki](https://github.com/zellerlab/stag/wiki) for more in
 
 <br/><br/><br/><br/>
 
-Installation
---------------
-```bash
-git clone https://github.com/zellerlab/stag.git
-cd stag
-export PATH=`pwd`:$PATH
-```
-
-Note: in the following examples we assume that the python script ```stag``` is in the system path.
-
-
-
 Dependencies
 --------------
 
 The stag classifier requires:
-* Python 3 (or higher)
+* Python 3.6 (or higher)
 * HMMER3 (or Infernal)
 * Easel ([link](https://github.com/EddyRivasLab/easel))
 * [seqtk](https://github.com/lh3/seqtk)
@@ -37,8 +25,27 @@ The stag classifier requires:
 If you have [conda](https://conda.io/docs/), you can install all the dependencies in `conda_env_stag.yaml`.
 See [Installation wiki](https://github.com/zellerlab/stag/wiki/Installation) for more info.
 
-You can test the correct installation of STAG with:
+
+Installation
+--------------
+```bash
+git clone https://github.com/zellerlab/stag.git
+cd stag
+# if environment is needed
+conda env create -f conda_env_stag.yaml
+python setup.py bdist_wheel
+pip install --no-deps --force-reinstall dist/*.whl
 ```
+
+Note: in the following examples we assume that the python script `stag` is in the system path.
+
+Execution
+---------
+
+```bash
+# if environment was installed
+conda activate stag
+# test the installation
 stag test
 ```
 
