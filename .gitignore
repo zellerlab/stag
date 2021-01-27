@@ -1,3 +1,6 @@
 *.pyc
 *.DS_Store
 
+build/
+dist/
+stag.egg-info/
