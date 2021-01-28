@@ -402,9 +402,10 @@ def main(argv=None):
 
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads,
-                          args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al, 
-                          args.min_perc_state)
+        classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input, 
+                          verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out, 
+                          current_tool_version=tool_version, aligned_sequences=args.aligned_sequences,
+                          save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine

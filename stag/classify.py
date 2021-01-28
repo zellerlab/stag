@@ -17,7 +17,7 @@ import tempfile
 import shutil
 import contextlib
 
-
+from stag import __version__ as tool_version
 import stag.align as align
 from stag.load_db import load_db
 
@@ -206,8 +206,9 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #                                      MAIN
 #===============================================================================
 
-def classify(database, fasta_input, protein_fasta_input, verbose, threads, output,
-             long_out, current_tool_version, aligned_sequences, save_ali_to_file, min_perc_state):
+def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, threads=1, output=None,
+             long_out=False, current_tool_version=tool_version, 
+             aligned_sequences=None, save_ali_to_file=None, min_perc_state=0):
     t0 = time.time()
     # load the database
     db = load_db(database, protein_fasta_input=protein_fasta_input, aligned_sequences=aligned_sequences)
@@ -216,10 +217,13 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
         time_after_loading = time.time()
         sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")
 
+    alignment_length = None
     # align the sequences and classify them
     list_to_print = list()
     if aligned_sequences:
         for al_seq in alignment_reader(aligned_sequences):
+            if not alignment_length:
+                alignment_length = len(list(al_seq.values())[0])
             list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
     else:
         alignment_out = open(save_ali_to_file, "w") if save_ali_to_file else contextlib.nullcontext()
@@ -228,6 +232,8 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
                                                threads, verbose, True, min_perc_state)
 
             for al_seq in alignments:
+                if not alignment_length:
+                    alignment_length = len(list(al_seq.values())[0])
                 list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
                 if save_ali_to_file:
                     name_gene = list(al_seq.keys())[0]
@@ -275,3 +281,5 @@ def classify(database, fasta_input, protein_fasta_input, verbose, threads, outpu
                 sys.stderr.write("[E::main] Error: failed to save the profile\n")
                 sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
                 sys.exit(1)
+
+    return alignment_length

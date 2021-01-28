@@ -16,49 +16,33 @@ import h5py
 import re
 import tarfile
 
-# function that checks if a file exists ----------------------------------------
-def check_file_exists(file_name, isfasta = False):
-    try:
-        o = open(file_name,"r")
-        # if fasta file, then check that it starts with ">"
-        if isfasta:
-            if not(o.readline().startswith(">")):
-                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-                sys.stderr.write("Not a fasta file: "+file_name+"\n")
-                sys.stderr.write("          Fasta file is expected to start with '>'\n")
-                o.close()
-                sys.exit(1)
-        o.close()
-    except Exception as e:
-        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-        sys.stderr.write("Cannot open file: "+file_name+"\n")
-        sys.stderr.write(str(e)+"\n")
-        sys.exit(1)
+from stag.helpers import check_file_exists
+from stag.classify import classify
 
 # find the length of the alignments --------------------------------------------
-def find_length_ali(gene_db,temp_fasta,temp_fasta2):
-    outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    os.chmod(outfile.name, 0o644)
+def find_length_ali(gene_db, fasta_input, protein_fasta_input):
+    #outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    #os.chmod(outfile.name, 0o644)
 
-    CMD = "stag classify -d "+gene_db
-    CMD = CMD + " -i "+temp_fasta
-    CMD = CMD + " -p "+temp_fasta2
-    CMD = CMD + " -S "+outfile.name
+    return classify(gene_db, fasta_input=fasta_input, protein_fasta_input=protein_fasta_input) #, save_ali_to_file=outfile.name)
 
-    split_CMD = shlex.split(CMD)
-    stag_CMD = subprocess.Popen(split_CMD)
+    #CMD = "stag classify -d "+gene_db
+    #CMD = CMD + " -i "+temp_fasta
+    #CMD = CMD + " -p "+temp_fasta2
+    #CMD = CMD + " -S "+outfile.name
 
-    return_code = stag_CMD.wait()
-    if return_code:
-        sys.stderr.write("[E::align] Error. cannot find length of the alignments\n\n")
-        sys.exit(1)
+    #split_CMD = shlex.split(CMD)
+    #stag_CMD = subprocess.Popen(split_CMD)
 
-    o = open(outfile.name,"r")
-    len_ali = len(o.readline().rstrip().split("\t")) - 1
-    o.close()
-    os.remove(outfile.name)
+    #return_code = stag_CMD.wait()
+    #if return_code:
+    #    sys.stderr.write("[E::align] Error. cannot find length of the alignments\n\n")
+    #    sys.exit(1)
 
-    return len_ali
+    #len_ali = len(next(open(outfile.name)).rstrip().split("\t")) - 1
+    #os.remove(outfile.name)
+
+    #return len_ali
 
 #===============================================================================
 #                                      MAIN
@@ -90,17 +74,17 @@ def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_s
         try:
             name_file = os.path.basename(name)
             if name_file == "threshold_file.tsv":
-                sys.stderr.write("[E::main] Error: gene databases cannot have name 'threshold_file.tsv'. Please, choose anothe name.\n")
+                sys.stderr.write("[E::main] Error: gene databases cannot have name 'threshold_file.tsv'. Please, choose another name.\n")
                 sys.exit(1)
             if name_file == "hmm_lengths_file.tsv":
-                sys.stderr.write("[E::main] Error: gene databases cannot have name 'hmm_lengths_file.tsv'. Please, choose anothe name.\n")
+                sys.stderr.write("[E::main] Error: gene databases cannot have name 'hmm_lengths_file.tsv'. Please, choose another name.\n")
                 sys.exit(1)
             if name_file == "concatenated_genes_STAG_database.HDF5":
-                sys.stderr.write("[E::main] Error: gene databases cannot have name 'concatenated_genes_STAG_database.HDF5'. Please, choose anothe name.\n")
+                sys.stderr.write("[E::main] Error: gene databases cannot have name 'concatenated_genes_STAG_database.HDF5'. Please, choose another name.\n")
                 sys.exit(1)
             if len(name_file.split("##")) > 1:
                 sys.stderr.write("Error with: "+name_file+"\n")
-                sys.stderr.write("[E::main] Error: gene databases cannot have in the name '##'. Please, choose anothe name.\n")
+                sys.stderr.write("[E::main] Error: gene databases cannot have in the name '##'. Please, choose another name.\n")
                 sys.exit(1)
             tar.add(name, name_file)
         except:

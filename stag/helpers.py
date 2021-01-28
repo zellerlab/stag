@@ -27,24 +27,48 @@ def print_error():
 	except Exception as e:
 		sys.stderr.write("[E::main] Error: ")
 
+## function that checks if a file exists ----------------------------------------
+#def check_file_exists(file_name, isfasta = False):
+#	try:
+#		o = open(file_name,"r")
+#		# if fasta file, then check that it starts with ">"
+#		if isfasta:
+#			if not(o.readline().startswith(">")):
+#				print_error()
+#				sys.stderr.write("Not a fasta file: "+file_name+"\n")
+#				sys.stderr.write("          Fasta file is expected to start with '>'\n")
+#				o.close()
+#				sys.exit(1)
+#		o.close()
+#	except Exception as e:
+#		print_error()
+#		sys.stderr.write("Cannot open file: "+file_name+"\n")
+#		sys.stderr.write(str(e)+"\n")
+#		sys.exit(1)
+
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
-	try:
-		o = open(file_name,"r")
-		# if fasta file, then check that it starts with ">"
-		if isfasta:
-			if not(o.readline().startswith(">")):
-				print_error()
-				sys.stderr.write("Not a fasta file: "+file_name+"\n")
-				sys.stderr.write("          Fasta file is expected to start with '>'\n")
-				o.close()
-				sys.exit(1)
-		o.close()
-	except Exception as e:
-		print_error()
-		sys.stderr.write("Cannot open file: "+file_name+"\n")
-		sys.stderr.write(str(e)+"\n")
-		sys.exit(1)
+    try:
+        o = open(file_name,"r")
+        # if fasta file, then check that it starts with ">"
+        if isfasta:
+            if not(o.readline().startswith(">")):
+                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+                sys.stderr.write("Not a fasta file: "+file_name+"\n")
+                sys.stderr.write("          Fasta file is expected to start with '>'\n")
+                o.close()
+                sys.exit(1)
+        o.close()
+    except Exception as e:
+        sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+        sys.stderr.write("Cannot open file: "+file_name+"\n")
+        sys.stderr.write(str(e)+"\n")
+        sys.exit(1)
+
+
+
+
+
 
 # function that checks if a file exists already, and give an error -------------
 def check_file_doesnt_exists(file_name):
