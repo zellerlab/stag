@@ -248,7 +248,7 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
     if use_protein_file:
         proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
     else:
-        proteins contextlib.nullcontext()
+        proteins = contextlib.nullcontext()
          
 
     def filter_sequences(fasta_in, fasta_out, whitelist, mg):
