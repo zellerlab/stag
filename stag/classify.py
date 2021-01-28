@@ -208,7 +208,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 
 def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, threads=1, output=None,
              long_out=False, current_tool_version=tool_version, 
-             aligned_sequences=None, save_ali_to_file=None, min_perc_state=0):
+             aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, internal_call=False):
     t0 = time.time()
     # load the database
     db = load_db(database, protein_fasta_input=protein_fasta_input, aligned_sequences=aligned_sequences)
@@ -258,28 +258,29 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
     out_header = ["sequence", "taxonomy", "full_taxonomy", "selected_level",
                   "prob_from_classifiers", "prob_per_level", "n_aligned_characters"]
 
-    if not long_out:
+    if not long_out or internal_call:
         out_header = out_header[:2]
         list_to_print = [item[:2] for item in list_to_print]
 
-    with outfile:
-        print(*out_header, sep="\t", file=outfile)
-        for line in list_to_print:
-            print(*line, sep="\t", file=outfile)
+    if not internal_call:
+        with outfile:
+            print(*out_header, sep="\t", file=outfile)
+            for line in list_to_print:
+                print(*line, sep="\t", file=outfile)
+    
+            if output:
+                try:
+                    outfile.flush()
+                    os.fsync(outfile.fileno())
+                except:
+                    sys.stderr.write("[E::main] Error: failed to save the result\n")
+                    sys.exit(1)
+                try:
+                    #os.rename(outfile.name,output) # atomic operation
+                    shutil.move(outfile.name, output) #It is not atomic if the files are on different filsystems.
+                except:
+                    sys.stderr.write("[E::main] Error: failed to save the profile\n")
+                    sys.stderr.write("[E::main] you can find the file here:\n" + outfile.name + "\n")
+                    sys.exit(1)
 
-        if output:
-            try:
-                outfile.flush()
-                os.fsync(outfile.fileno())
-            except:
-                sys.stderr.write("[E::main] Error: failed to save the result\n")
-                sys.exit(1)
-            try:
-                #os.rename(outfile.name,output) # atomic operation
-                shutil.move(outfile.name,output) #It is not atomic if the files are on different filsystems.
-            except:
-                sys.stderr.write("[E::main] Error: failed to save the profile\n")
-                sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
-                sys.exit(1)
-
-    return alignment_length
+    return alignment_length, list_to_print

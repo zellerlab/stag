@@ -15,7 +15,10 @@ import errno
 import h5py
 import re
 
-from stag.helpers import is_tool
+import contextlib
+
+from stag.helpers import is_tool, read_fasta
+from stag.classify import classify
 
 # ------------------------------------------------------------------------------
 # dev null
@@ -97,42 +100,28 @@ def run_prodigal(genome, verbose):
     # we re-name the header of the fasta files ---------------------------------
     # we expect to have the same number of genes and proteins, and also that the
     #
+    def copy_fasta(fasta_in, fasta_out, is_binary=True, head_start=0):
+        for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary)):
+            print(">{genome}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
+        return index + 1
+
     parsed_genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     parsed_proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
-    o = open(genes.name,"r")
-    count = 0
-    for i in o:
-        if i.startswith(">"):
-            parsed_genes.write(">"+genome+"_"+str(count)+"\n")
-            count = count + 1
-        else:
-            parsed_genes.write(i)
-    o.close()
-
-    o = open(proteins.name,"r")
-    count = 0
-    for i in o:
-        if i.startswith(">"):
-            parsed_proteins.write(">"+genome+"_"+str(count)+"\n")
-            count = count + 1
-        else:
-            parsed_proteins.write(i)
-    o.close()
+    with parsed_genes, open(genes.name) as genes_in:
+        n_genes = copy_fasta(genes_in, parsed_genes, is_binary=False, head_start=1)
+        parsed_genes.flush()
+        os.fsync(parsed_genes.fileno())
+    with parsed_proteins, open(proteins.name) as proteins_in:
+        n_proteins = copy_fasta(proteins_in, parsed_proteins, is_binary=False, head_start=1)
+        parsed_proteins.flush()
+        os.fsync(parsed_proteins.fileno())
 
     # remove old files
     os.remove(genes.name)
     os.remove(proteins.name)
 
-    # close new files
-    parsed_proteins.flush()
-    os.fsync(parsed_proteins.fileno())
-    parsed_proteins.close()
-    parsed_genes.flush()
-    os.fsync(parsed_genes.fileno())
-    parsed_genes.close()
-
-    return [parsed_genes.name, parsed_proteins.name]
+    return parsed_genes.name, parsed_proteins.name
 
 # run prodigal on all the genomes listed in fasta_input
 def run_prodigal_genomes(genomes_file_list, verbose):
@@ -254,49 +243,32 @@ def select_genes(all_genes_raw, keep_all_genes):
 # function that extract the genes and proteins based on the IDs from
 # "selected_genes", only for one marker gene
 def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_protein_file):
+    n_genes, n_proteins = 0, 0
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    n_genes = 0
     if use_protein_file:
         proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        n_proteins = 0
+    else:
+        proteins contextlib.nullcontext()
+         
 
-    for genome in selected_genes:
-        if not(mg in selected_genes[genome]):
-            sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
-        else:
-            # for genes
-            o = open(genomes_pred[genome][0])
-            print_this = False
-            for i in o:
-                if i.startswith(">"):
-                    if i[1:].rstrip() in selected_genes[genome][mg]:
-                        print_this = True
-                        n_genes = n_genes + 1
-                        # we print a different header
-                        genes.write(i.rstrip()+"##"+mg+"\n")
-                    else:
-                        print_this = False
-                else:
-                    if print_this:
-                        genes.write(i)
-            o.close()
-            # for proteins
-            if use_protein_file:
-                o = open(genomes_pred[genome][1])
-                print_this = False
-                for i in o:
-                    if i.startswith(">"):
-                        if i[1:].rstrip() in selected_genes[genome][mg]:
-                            print_this = True
-                            n_proteins = n_proteins + 1
-                            # we print a different header
-                            proteins.write(i.rstrip()+"##"+mg+"\n")
-                        else:
-                            print_this = False
-                    else:
-                        if print_this:
-                            proteins.write(i)
-                o.close()
+    def filter_sequences(fasta_in, fasta_out, whitelist, mg):
+        n_written = 0
+        for sid, seq in read_fasta(fasta_in, head_start=1, is_binary=False):
+            if sid in whitelist:
+                n_written += 1
+                print(">{sid}##{mg}".format(sid=sid, mg=mg), seq, sep="\n", file=fasta_out)
+        return n_written
+
+    with genes, proteins:
+        for genome in selected_genes:
+            if not mg in selected_genes[genome]:
+                sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")        
+            else:
+                with open(genomes_pred[genome][0]) as fna_in:
+                    n_genes = filter_sequences(fna_in, genes, selected_genes[genome][mg], mg)
+                if use_protein_file:
+                    with open(genomes_pred[genome][1]) as faa_in:
+                        n_proteins = filter_sequences(faa_in, proteins, selected_genes[genome][mg], mg)
 
     if verbose > 3:
         sys.stderr.write(" Found "+str(n_genes)+" genes\n")
@@ -317,7 +289,7 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
         if use_protein_file:
             protein_file_name = proteins.name
         else:
-            protein_file_name = "no_protein"
+            protein_file_name = None #"no_protein"
 
     return gene_file_name, protein_file_name
 
@@ -389,8 +361,26 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 # TAXONOMICALLY ANNOTATE MARKER GENES
 # ==============================================================================
 
-# we run stag classify, for each marker gene
 def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
+    all_classifications = dict()
+    for mg, (fna, faa) in MGS.items():
+        if fna:
+            db = os.path.join(database_base_path, mg)
+            if not os.path.isfile(db):
+                sys.stderr.write("Error: file for gene database {} is missing".format(db))
+                sys.exit(1)
+            # faa = faa if faa != "no_protein" else None
+            align_out = os.path.join(dir_ali, mg)
+            _, results = classify(db, fasta_input=fna, protein_fasta_input=faa,
+                                  save_ali_to_file=align_out, internal_call=True)
+            all_classifications.update(dict(results))
+
+    return all_classifications 
+                 
+                
+
+# we run stag classify, for each marker gene
+def annotate_MGs_old(MGS, database_files, database_base_path, dir_ali):
     all_classifications = dict()
     for mg in MGS:
         if MGS[mg][0] != None:

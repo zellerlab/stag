@@ -114,18 +114,40 @@ def is_tool_and_return0(name):
 # CGGTTA
 ### TO:
 # >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-def linearise_fasta(filein, head_start=0):
+def linearise_fasta(fasta_stream, head_start=0, is_binary=True):
+    for sid, seq in read_fasta(fasta_stream, head_start=head_start):
+        yield "\t".join((sid, seq))
     # filein is a stream of data (from hmmalign)
-    seq = ""
-    for line_b in filein:
-        line = line_b.decode("utf-8").rstrip()
+    #seq = ""
+    #for line_b in filein:
+    #    line = line_b.decode("utf-8").rstrip()
+    #    if line.startswith(">"):
+    #        if seq:
+    #            yield seq[head_start:] # we skip the 0 character, which is ">"
+    #        seq = line + "\t"
+    #    else:
+    #        seq += line
+    ## give back the last sequence
+    #if seq:
+    #    yield seq[head_start:] # we skip the 0 character, which is ">"
+#def copy_fasta(fasta_in, fasta_out, is_binary=True):
+#    for nseqs, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary), start=1):
+#        print(sid, seq, sep="\n", file=fasta_out)
+#    return nseqs
+
+def read_fasta(fasta_stream, head_start=0, is_binary=True):
+    sid, seq = None, list()
+    for line in fasta_stream:
+        if is_binary:
+            line = line.decode("utf-8")
+        line = line.rstrip()
         if line.startswith(">"):
             if seq:
-                yield seq[head_start:] # we skip the 0 character, which is ">"
-            seq = line + "\t"
+                yield sid, "".join(seq) 
+            sid = line[head_start:]
+            seq.clear()
         else:
-            seq += line
-    # give back the last sequence
+            seq.append(line)
     if seq:
-        yield seq[head_start:] # we skip the 0 character, which is ">"
+        yield sid, "".join(seq)
 
