@@ -1,5 +1,7 @@
 import os
 import sys
+import shlex
+import subprocess
 
 # colors for the shell ---------------------------------------------------------
 class bco:
@@ -50,3 +52,56 @@ def check_file_doesnt_exists(file_name):
 		print_error()
 		sys.stderr.write("Output file exists already: "+file_name+"\n")
 		sys.exit(1)
+
+# ------------------------------------------------------------------------------
+# function to check if a specific tool exists
+def is_tool(name):
+    try:
+        devnull = open(os.devnull)
+        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return False
+    return True
+
+def is_tool_and_return0(name):
+    try:
+        devnull = open(os.devnull)
+        popenCMD = shlex.split(name)
+        child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
+        streamdata = child.communicate()
+        rc = child.wait()
+        if rc == 0:
+            return True
+        else:
+            return False
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return False
+    return True
+
+# ------------------------------------------------------------------------------
+# function to convert a fasta file with multiple lines into a one line separated
+# by a "\t"
+# Example:
+# >test_fasta_header
+# ATTGCGATTTCT
+# CGGTATCGGTAT
+# CGGTTA
+### TO:
+# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
+def linearise_fasta(filein, head_start=0):
+    # filein is a stream of data (from hmmalign)
+    seq = ""
+    for line_b in filein:
+        line = line_b.decode("utf-8").rstrip()
+        if line.startswith(">"):
+            if seq:
+                yield seq[head_start:] # we skip the 0 character, which is ">"
+            seq = line + "\t"
+        else:
+            seq += line
+    # give back the last sequence
+    if seq:
+        yield seq[head_start:] # we skip the 0 character, which is ">"
+

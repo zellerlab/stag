@@ -8,6 +8,8 @@ import subprocess
 import tempfile
 import shlex
 
+from stag.helpers import is_tool, linearise_fasta
+
 # there are two input files to check:
 # - the taxonomy file
 # - the fasta file
@@ -21,43 +23,6 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
-
-
-# ------------------------------------------------------------------------------
-# function to convert a fasta file with multiple lines into a one line separated
-# by a "\t"
-# Example:
-# >test_fasta_header
-# ATTGCGATTTCT
-# CGGTATCGGTAT
-# CGGTTA
-### TO:
-# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-def merge_fasta(filein):
-    # filein is a stream of data (from hmmalign)
-    seq = ""
-    for line_b in filein:
-        line = line_b.decode("utf-8").rstrip()
-        if line.startswith(">"):
-            if seq != "":
-                yield seq[1:] # we skip the 0 character, which is ">"
-            seq = line+"\t"
-        else:
-            seq = seq + line
-    # give back the last sequence
-    if seq != "":
-        yield seq[1:] # we skip the 0 character, which is ">"
 
 
 # ------------------------------------------------------------------------------
@@ -431,7 +396,7 @@ def check_tool(seq_file, hmm_file, use_cmalign):
     parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
 
     all_lines = list()
-    for line in merge_fasta(parse_cmd.stdout):
+    for line in linearise_fasta(parse_cmd.stdout, head_start=1):
         all_lines.append(line)
 
     align_cmd.stdout.close()

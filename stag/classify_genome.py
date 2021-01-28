@@ -15,16 +15,7 @@ import errno
 import h5py
 import re
 
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
+from stag.helpers import is_tool
 
 # ------------------------------------------------------------------------------
 # dev null

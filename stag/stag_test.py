@@ -15,37 +15,9 @@ import shlex
 import errno
 import pkg_resources
 
-from .helpers import bco
+from .helpers import bco, is_tool, is_tool_and_return0
 
 TEST_DATA_PATH = pkg_resources.resource_filename("stag", "test")
-
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-# ------------------------------------------------------------------------------
-def is_tool_and_return0(name):
-    try:
-        devnull = open(os.devnull)
-        popenCMD = shlex.split(name)
-        child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
-        streamdata = child.communicate()
-        rc = child.wait()
-        if rc == 0:
-            return True
-        else:
-            return False
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
-
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
 
 
 # ------------------------------------------------------------------------------
@@ -210,6 +182,10 @@ def main(argv=None):
     # let's check the values
     if not set(pred_tax.keys()) == set(correct_tax.keys()):
         sys.stderr.write(f"{bco.Red}{bco.Bold} Error: different number of predicted genes{bco.ResetAll}\n")
+        print(len(pred_tax), len(correct_tax), file=sys.stderr)
+        print(*pred_tax.keys(), sep="\n")
+        print("****")
+        print(*correct_tax.keys(), sep="\n")
         sys.exit(1)
     # if we arrive here, we have the same set of predicted genes
     # let's check the predicted taxonomies

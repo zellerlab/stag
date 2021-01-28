@@ -15,45 +15,11 @@ import tempfile
 import numpy as np
 import re
 
+from stag.helpers import is_tool, linearise_fasta
+
 #===============================================================================
 #                                 FUNCTIONS
 #===============================================================================
-
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
-
-# ------------------------------------------------------------------------------
-# function to convert a fasta file with multiple lines into a one line separated
-# by a "\t"
-# Example:
-# >test_fasta_header
-# ATTGCGATTTCT
-# CGGTATCGGTAT
-# CGGTTA
-### TO:
-# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-def merge_fasta(filein):
-    # filein is a stream of data (from hmmalign)
-    seq = ""
-    for line_b in filein:
-        line = line_b.decode("utf-8").rstrip()
-        if line.startswith(">"):
-            if seq != "":
-                yield seq[1:] # we skip the 0 character, which is ">"
-            seq = line+"\t"
-        else:
-            seq = seq + line
-    # give back the last sequence
-    if seq != "":
-        yield seq[1:] # we skip the 0 character, which is ">"
 
 # ------------------------------------------------------------------------------
 # function to convert the nucleotide alignment into 1-hot encoding.
@@ -246,7 +212,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
 
     # parse the result and return/save to file - NORMAL ------------------------
     if protein_file == None:
-        for line in merge_fasta(parse_cmd.stdout):
+        for line in linearise_fasta(parse_cmd.stdout, head_start=1):
             if return_numpy:
                 converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
             else:
@@ -259,7 +225,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
-        for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
+        for protein_line, gene_line in zip(linearise_fasta(parse_cmd.stdout, head_start=1), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
             if return_numpy:
                 converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
@@ -356,7 +322,7 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
 
     # parse the result and return/save to file - NORMAL ------------------------
     if protein_file == None:
-        for line in merge_fasta(parse_cmd.stdout):
+        for line in linearise_fasta(parse_cmd.stdout, head_start=1):
             converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:
                 temp_file.write(converted_line+"\n")
@@ -366,7 +332,7 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
     if protein_file != None:
-        for protein_line, gene_line in zip(merge_fasta(parse_cmd.stdout), yield_genes(seq_file)):
+        for protein_line, gene_line in zip(linearise_fasta(parse_cmd.stdout, head_start=1), yield_genes(seq_file)):
             line = proteinAl_2_geneAl(protein_line, gene_line, True)
             converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:

@@ -15,34 +15,11 @@ import tempfile
 import numpy as np
 import re
 
+from stag.helpers import linearise_fasta
+
 #===============================================================================
 #                                 FUNCTIONS
 #===============================================================================
-
-# ------------------------------------------------------------------------------
-# function to convert a fasta file with multiple lines into a one line separated
-# by a "\t"
-# Example:
-# >test_fasta_header
-# ATTGCGATTTCT
-# CGGTATCGGTAT
-# CGGTTA
-### TO:
-# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-def merge_fasta(filein):
-    # filein is a stream of data (from hmmalign)
-    seq = ""
-    for line_b in filein:
-        line = line_b.rstrip()
-        if line.startswith(">"):
-            if seq != "":
-                yield seq[1:] # we skip the 0 character, which is ">"
-            seq = line+"\t"
-        else:
-            seq = seq + line
-    # give back the last sequence
-    if seq != "":
-        yield seq[1:] # we skip the 0 character, which is ">"
 
 # ------------------------------------------------------------------------------
 # function to convert the nucleotide alignment into 1-hot encoding.
@@ -110,7 +87,7 @@ def convert_to_1_hot(file_in, file_out, verbose):
     os.chmod(temp_file.name, 0o644)
     # go through the input file
     o = open(file_in,"r")
-    for line in merge_fasta(o):
+    for line in linearise_fasta(o, head_start=1):
         converted_line, n_aligned_characters = convert_alignment(line,verbose)
         temp_file.write(converted_line+"\n")
     o.close()
