@@ -21,28 +21,8 @@ from stag.classify import classify
 
 # find the length of the alignments --------------------------------------------
 def find_length_ali(gene_db, fasta_input, protein_fasta_input):
-    #outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    #os.chmod(outfile.name, 0o644)
-
-    return classify(gene_db, fasta_input=fasta_input, protein_fasta_input=protein_fasta_input, internal_call=True)[0] #, save_ali_to_file=outfile.name)
-
-    #CMD = "stag classify -d "+gene_db
-    #CMD = CMD + " -i "+temp_fasta
-    #CMD = CMD + " -p "+temp_fasta2
-    #CMD = CMD + " -S "+outfile.name
-
-    #split_CMD = shlex.split(CMD)
-    #stag_CMD = subprocess.Popen(split_CMD)
-
-    #return_code = stag_CMD.wait()
-    #if return_code:
-    #    sys.stderr.write("[E::align] Error. cannot find length of the alignments\n\n")
-    #    sys.exit(1)
-
-    #len_ali = len(next(open(outfile.name)).rstrip().split("\t")) - 1
-    #os.remove(outfile.name)
-
-    #return len_ali
+    return classify(gene_db, fasta_input=fasta_input,
+                    protein_fasta_input=protein_fasta_input, internal_call=True)[0]
 
 #===============================================================================
 #                                      MAIN
