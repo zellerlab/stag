@@ -53,7 +53,7 @@ encoding_dic_both = {
 }
 
 def convert_alignment(alignment, verbose, as_numpy=False):
-    n_aligned_characters, nchar = 0, 0
+    n_aligned_characters, n_char = 0, 0
     converted_ali = list()
     for character in alignment:
         # 1-hot encoding
@@ -76,7 +76,7 @@ def convert_alignment(alignment, verbose, as_numpy=False):
 # function that transform a protein MSA to a nucleotide MSA --------------------
 # if check_length is True, then we check that
 # len(protein) == len(gene)*3 OR len(protein)-3 == len(gene)*3
-def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_length=True)
+def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_length=True):
 
     # check that the lenght is correct
     only_AA_from_ali = re.sub(r'\-', '', protein_alignment)
@@ -180,13 +180,12 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
                 sys.exit(1)
             gid, gseq = protein2gene_alignment(gid, pseq, gseq, check_length=True)
         else:
-            gid, seq = item
+            gid, gseq = item
 
         converted_ali, perc_aligned_characters = convert_alignment(gseq, verbose, as_numpy=return_numpy)
         if perc_aligned_characters >= min_perc_state:
             n_pass += 1
-            #TODO: specific reason why this is a dict and not a tuple?
-            yield {gid: converted_line} if return_numpy else gid, converted_ali
+            yield gid, converted_ali
         else:
             n_not_pass += 1
 

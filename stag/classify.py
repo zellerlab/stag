@@ -59,7 +59,7 @@ from stag.load_db import load_db
 #    taxonomy = {key: list(f['taxonomy/{}'.format(key)]) for key in f['taxonomy']}
 #
 #    # fourth: tax_function -----------------------------------------------------
-#    tax_function = {str(key): np.array(f['tax_function/{}'.format(key)], dtype=np.float64) 
+#    tax_function = {str(key): np.array(f['tax_function/{}'.format(key)], dtype=np.float64)
 #                    for key in f['tax_function']}
 #
 #
@@ -68,7 +68,7 @@ from stag.load_db import load_db
 #    for key in f['classifiers']:
 #        classifier = f['classifiers/{}'.format(key)]
 #        if not isinstance(classifier[0], str):
-#            classifiers[key] = np.array(classifier, dtype=np.float64) 
+#            classifiers[key] = np.array(classifier, dtype=np.float64)
 #        else:
 #            classifiers[key] = "no_negative_examples"
 #
@@ -84,7 +84,7 @@ def alignment_reader(aligned_sequences):
         for ali_line in align_in:
             gene_id = ali_line[:ali_line.find("\t")]
             aligned_seq = [int(col) for col in ali_line.split("\t")[1:].rstrip()]
-            yield {gene_id: np.array(aligned_seq, dtype=bool)}
+            yield gene_id, np.array(aligned_seq, dtype=bool)
 
 #===============================================================================
 #                     TAXONOMICALLY ANNOTATE SEQUENCES
@@ -167,11 +167,11 @@ def find_n_aligned_characters(test_seq):
 #                             CLASSIFY ONE SEQUENCE
 #===============================================================================
 
-def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
+def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # al_seq is a dictionary with one element, example:
     # {'gene1': array([False,  True, False,  True, False,  True, False,  True, False])}
 
-    gene_id, test_seq = list(al_seq.items())[0]
+    #gene_id, test_seq = list(al_seq.items())[0]
     # number of characters that map to the internal states of the HMM
     n_aligned_characters = find_n_aligned_characters(test_seq)
 
@@ -207,7 +207,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
 #===============================================================================
 
 def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, threads=1, output=None,
-             long_out=False, current_tool_version=tool_version, 
+             long_out=False, current_tool_version=tool_version,
              aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, internal_call=False):
     t0 = time.time()
     # load the database
@@ -220,25 +220,25 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
     alignment_length = None
     # align the sequences and classify them
     list_to_print = list()
-    if aligned_sequences:
-        for al_seq in alignment_reader(aligned_sequences):
-            if not alignment_length:
-                alignment_length = len(list(al_seq.values())[0])
-            list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
-    else:
-        alignment_out = open(save_ali_to_file, "w") if save_ali_to_file else contextlib.nullcontext()
-        with alignment_out:
-            alignments = align.align_generator(fasta_input, protein_fasta_input, hmm_file_path, use_cmalign,
-                                               threads, verbose, True, min_perc_state)
 
-            for al_seq in alignments:
-                if not alignment_length:
-                    alignment_length = len(list(al_seq.values())[0])
-                list_to_print.append(classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose))
-                if save_ali_to_file:
-                    name_gene = list(al_seq.keys())[0]
-                    ali_str = np.char.mod('%.0f', al_seq[name_gene])
-                    print(name_gene, *ali_str, sep="\t", file=alignment_out)
+    alignment_out, write_alignments = contextlib.nullcontext(), False
+    if aligned_sequences:
+        alignments = alignment_reader(aligned_sequences)
+    else:
+        alignments = align.align_generator(fasta_input, protein_fasta_input, hmm_file_path, use_cmalign,
+                                           threads, verbose, True, min_perc_state)
+        if save_ali_to_file:
+            alignment_out, write_alignments = open(save_ali_to_file, "w"), True
+
+    with alignment_out:
+        for gene_id, ali in alignments:
+            if not alignment_length:
+                alignment_length = len(ali)
+            list_to_print.append(classify_seq(gene_id, ali, taxonomy, tax_function, classifiers, threads, verbose))
+
+            if write_alignments:
+                ali_str = np.char.mod('%.0f', ali)
+                print(gene_id, *ali_str, sep="\t", file=alignment_out)
 
     if verbose > 2:
         time_after_classification = time.time()
@@ -267,7 +267,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
             print(*out_header, sep="\t", file=outfile)
             for line in list_to_print:
                 print(*line, sep="\t", file=outfile)
-    
+
             if output:
                 try:
                     outfile.flush()
