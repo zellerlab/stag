@@ -15,7 +15,8 @@ import tempfile
 import numpy as np
 import re
 
-from stag.helpers import is_tool, linearise_fasta
+from stag.helpers import is_tool, linearise_fasta, read_fasta
+#TODO: linearise_fasta may not be necessary
 
 #===============================================================================
 #                                 FUNCTIONS
@@ -91,22 +92,6 @@ def convert_alignment_numpy(merged_fasta,verbose):
     to_return[gene_id] = np.array(converted_ali,dtype=bool)
     return to_return, (n_aligned_characters/n_char)*100
 
-# function that read genes and return them as one line -------------------------
-def yield_genes(seq_file):
-    o = open(seq_file,"r")
-    seq = ""
-    for line in o:
-        if line.startswith(">"):
-            if seq != "":
-                yield seq[1:] # we skip the 0 character, which is ">"
-            seq = line.rstrip()+"\t"
-        else:
-            seq = seq + line.rstrip()
-    o.close()
-    # give back the last sequence
-    if seq != "":
-        yield seq[1:] # we skip the 0 character, which is ">"
-
 # function that transform a protein MSA to a nucleotide MSA --------------------
 # if check_length is True, then we check that
 # len(protein) == len(gene)*3 OR len(protein)-3 == len(gene)*3
@@ -180,10 +165,9 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
         if not is_tool("cmalign"):
             sys.stderr.write("[E::align] Error: cmalign is not in the path. Please install Infernal.\n")
             sys.exit(1)
-    else:
-        if not is_tool("hmmalign"):
-            sys.stderr.write("[E::align] Error: hmmalign is not in the path. Please install HMMER3.\n")
-            sys.exit(1)
+    elif not is_tool("hmmalign"):
+        sys.stderr.write("[E::align] Error: hmmalign is not in the path. Please install HMMER3.\n")
+        sys.exit(1)
     if not is_tool("esl-reformat"):
         sys.stderr.write("[E::align] Error: esl-reformat is not in the path. Please install Easel.\n")
         sys.exit(1)
@@ -209,41 +193,36 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     cmd2 = "esl-reformat a2m -"
     CMD2 = shlex.split(cmd2)
     parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
+    conv_f = convert_alignment_numpy if return_numpy else convert_alignment
 
     # parse the result and return/save to file - NORMAL ------------------------
-    if protein_file == None:
+    if not protein_file:
         for line in linearise_fasta(parse_cmd.stdout, head_start=1):
-            if return_numpy:
-                converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
-            else:
-                converted_line, perc_aligned_characters = convert_alignment(line,verbose)
+            converted_line, perc_aligned_characters = conv_f(line, verbose)
             if perc_aligned_characters >= min_perc_state:
                 yield converted_line
-                n_pass = n_pass + 1
+                n_pass += 1
             else:
-                n_not_pass = n_not_pass + 1
+                n_not_pass += 1
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
-    if protein_file != None:
-        for protein_line, gene_line in zip(linearise_fasta(parse_cmd.stdout, head_start=1), yield_genes(seq_file)):
-            line = proteinAl_2_geneAl(protein_line, gene_line, True)
-            if return_numpy:
-                converted_line, perc_aligned_characters = convert_alignment_numpy(line,verbose)
-            else:
-                converted_line, perc_aligned_characters = convert_alignment(line,verbose)
-            if perc_aligned_characters >= min_perc_state:
-                yield converted_line
-                n_pass = n_pass + 1
-            else:
-                n_not_pass = n_not_pass + 1
-
-
+    else:
+        with open(seq_file) as seq_in:
+            for protein_line, gene_line in zip(linearise_fasta(parse_cmd.stdout, head_start=1),
+                                               read_fasta(seq_in, is_binary=False, head_start=1)):
+                line = proteinAl_2_geneAl(protein_line, gene_line[1:], True)
+                converted_line, perc_aligned_characters = conv_f(line, verbose)
+                if perc_aligned_characters >= min_perc_state:
+                    yield converted_line
+                    n_pass += 1
+                else:
+                    n_not_pass += 1
 
     # check that hmmalign/cmalign finished correctly
     align_cmd.stdout.close()
     return_code = align_cmd.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. hmmalig/cmalign failed\n")
+        sys.stderr.write("[E::align] Error. hmmalign/cmalign failed\n")
         sys.exit(1)
     # check that converting the file worked correctly
     parse_cmd.stdout.close()
@@ -321,26 +300,27 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     os.chmod(temp_file.name, 0o644)
 
     # parse the result and return/save to file - NORMAL ------------------------
-    if protein_file == None:
+    if not protein_file:
         for line in linearise_fasta(parse_cmd.stdout, head_start=1):
             converted_line, perc_aligned_characters = convert_alignment(line,verbose)
             if perc_aligned_characters >= min_perc_state:
                 temp_file.write(converted_line+"\n")
-                n_pass = n_pass + 1
+                n_pass += 1
             else:
-                n_not_pass = n_not_pass + 1
+                n_not_pass += 1
 
     # parse the result and return/save to file - WITH PROTEINS -----------------
-    if protein_file != None:
-        for protein_line, gene_line in zip(linearise_fasta(parse_cmd.stdout, head_start=1), yield_genes(seq_file)):
-            line = proteinAl_2_geneAl(protein_line, gene_line, True)
-            converted_line, perc_aligned_characters = convert_alignment(line,verbose)
-            if perc_aligned_characters >= min_perc_state:
-                temp_file.write(converted_line+"\n")
-                n_pass = n_pass + 1
-            else:
-                n_not_pass = n_not_pass + 1
-
+    if protein_file:
+        with open(seq_file) as seq_in:
+            for protein_line, gene_line in zip(linearise_fasta(parse_cmd.stdout, head_start=1),
+                                               read_fasta(seq_in, is_binary=False, head_start=1)):
+                line = proteinAl_2_geneAl(protein_line, gene_line[1:], True)
+                converted_line, perc_aligned_characters = convert_alignment(line, verbose)
+                if perc_aligned_characters >= min_perc_state:
+                    temp_file.write(converted_line+"\n")
+                    n_pass += 1
+                else:
+                    n_not_pass += 1
 
     # if we save the result to a file, then we close it now
     try:
@@ -362,7 +342,7 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     align_cmd.stdout.close()
     return_code = align_cmd.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. hmmalig/cmalign failed\n")
+        sys.stderr.write("[E::align] Error. hmmalign/cmalign failed\n")
         sys.exit(1)
     # check that converting the file worked correctly
     parse_cmd.stdout.close()
