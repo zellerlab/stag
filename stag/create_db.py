@@ -49,8 +49,8 @@ def find_raw_names_ncol(file_name):
 # It works also on .gz files
 def load_alignment_from_file(file_name):
     # create empty pandas object of the correct size
-    gene_names,ncol = find_raw_names_ncol(file_name)
-    alignment = pd.DataFrame(False,index = gene_names,columns = range(ncol-1))
+    gene_names, ncol = find_raw_names_ncol(file_name)
+    alignment = pd.DataFrame(index = gene_names, columns = range(ncol-1))
     # add correct values
     with open(file_name, "r") as f:
         for pos, line in enumerate(f):
