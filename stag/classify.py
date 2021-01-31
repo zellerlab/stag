@@ -135,7 +135,7 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
     selected_level, prob_per_level = find_correct_level(perc, tax_function)
 
     prob_per_level = "/".join(prob_per_level)
-    perc_text = "\t".join([str(p) for p in perc])
+    perc_text = "/".join([str(p) for p in perc])
     assigned_tax_text = ";".join(tax[0:(int(selected_level) + 1)])
     tax_text = "/".join(tax)
 
