@@ -27,23 +27,6 @@ from stag.helpers import is_tool, linearise_fasta, read_fasta
 # Note that we select only the nucleotides that corresponds to the inner state
 # of the HMM.
 encoding_dic = {
-               "A":"0\t0\t0\t0\t1",
-               "C":"0\t0\t0\t1\t0",
-               "G":"0\t0\t1\t0\t0",
-               "T":"0\t1\t0\t0\t0",
-               "U":"0\t1\t0\t0\t0",
-               "others":"1\t0\t0\t0\t0"
-               }
-encoding_dic_numpy = {
-               "A":[False,False,False,False,True],
-               "C":[False,False,False,True,False],
-               "G":[False,False,True,False,False],
-               "T":[False,True,False,False,False],
-               "U":[False,True,False,False,False],
-               "others":[True,False,False,False,False]
-               }
-
-encoding_dic_both = {
     "A": [0, 0, 0, 0, 1],
     "C": [0, 0, 0, 1, 0],
     "G": [0, 0, 1, 0, 0],
@@ -64,14 +47,14 @@ def convert_alignment(alignment, verbose, as_numpy=False):
         # hidden state of the HMM.
         if not character.islower():
             n_char += 1
-            encoded_block = encoding_dic_both.get(character, encoding_dic_both["others"])
+            encoded_block = encoding_dic.get(character, encoding_dic["others"])
             if not encoded_block[0]:
                 # others' high bit = 1
                 n_aligned_characters += 1
             converted_ali.extend(encoded_block)
-    if as_numpy:
-        converted_ali = np.array(list(map(bool, converted_ali)), dtype=bool)
-    return converted_ali, n_aligned_characters / n_char * 100
+    #if as_numpy:
+    #    converted_ali = np.array(list(map(bool, converted_ali)), dtype=bool)
+    return np.array(converted_ali, dtype=bool), n_aligned_characters / n_char * 100
 
 # function that transform a protein MSA to a nucleotide MSA --------------------
 # if check_length is True, then we check that
@@ -233,7 +216,7 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     with temp_file:
         for gid, ali in align_generator(seq_file, protein_file, hmm_file, use_cmalign,
                                         n_threads, verbose, False, min_perc_state):
-            print(gid, *ali, sep="\t", file=temp_file)
+            print(gid, *map(int, ali), sep="\t", file=temp_file)
 
         # if we save the result to a file, then we close it now
         try:
