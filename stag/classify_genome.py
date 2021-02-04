@@ -377,50 +377,6 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
 
     return all_classifications 
                  
-                
-
-# we run stag classify, for each marker gene
-def annotate_MGs_old(MGS, database_files, database_base_path, dir_ali):
-    all_classifications = dict()
-    for mg in MGS:
-        if MGS[mg][0] != None:
-            # it means that there are some genes to classify
-            CMD = "stag classify -d "+database_base_path+"/"+mg
-            # check that the database is correct
-            if not os.path.isfile(database_base_path+"/"+mg):
-                sys.stderr.write("Error: file for gene database is missing")
-            CMD = CMD + " -i "+MGS[mg][0]
-            if MGS[mg][1] != "no_protein":
-                # it means that we align proteins
-                CMD = CMD + " -p "+MGS[mg][1]
-            # save intermediate alignment
-            CMD = CMD + " -S " + dir_ali + mg
-            # we run stag CMD
-            split_CMD = shlex.split(CMD)
-            stag_CMD = subprocess.Popen(split_CMD, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            # save stderr for the message is necessary
-            all_stderr = ""
-            for line in stag_CMD.stderr:
-                line = line.decode('ascii')
-                all_stderr = all_stderr + line
-            # save stdout with the resutls
-            n_genes = -1
-            for line in stag_CMD.stdout:
-                n_genes = n_genes + 1
-                if n_genes != 0:
-                    # we skip the header
-                    vals = line.decode('ascii').split("\t")
-                    all_classifications[vals[0]] = vals[1].rstrip()
-            # check errors
-            return_code = stag_CMD.wait()
-            if return_code:
-                sys.stderr.write("[E::align] Error. stag classify failed\n\n")
-                sys.stderr.write(all_stderr)
-                sys.exit(1)
-
-    return all_classifications
-
-
 
 # ==============================================================================
 # MERGE TAXONOMY OF SINGLE GENES
@@ -489,22 +445,30 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
 
 
 
+def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
+    all_classifications = dict()
+    for mg, (fna, faa) in MGS.items():
+        if fna:
+            db = os.path.join(database_base_path, mg)
+            if not os.path.isfile(db):
+                sys.stderr.write("Error: file for gene database {} is missing".format(db))
+                sys.exit(1)
+            # faa = faa if faa != "no_protein" else None
+            align_out = os.path.join(dir_ali, mg)
+            _, results = classify(db, fasta_input=fna, protein_fasta_input=faa,
+                                  save_ali_to_file=align_out, internal_call=True)
+            all_classifications.update(dict(results))
+
+    return all_classifications
+
+
+
 # ==============================================================================
 # ANNOTATE concatenation of the MGs
 # ==============================================================================
 # the annotation for the genome is based on the annotation of the
-def annotate_concat_mgs(concat_ali_stag_db,file_ali,output):
-    CMD = "stag classify -d "+concat_ali_stag_db
-    CMD = CMD + " -s "+file_ali
-    CMD = CMD + " -o "+output+"/genome_annotation"
-
-    split_CMD = shlex.split(CMD)
-    stag_CMD = subprocess.Popen(split_CMD)
-
-    return_code = stag_CMD.wait()
-    if return_code:
-        sys.stderr.write("[E::align] Error. stag classify failed\n\n")
-        sys.exit(1)
+def annotate_concat_mgs(stag_db, alignment_file, output_dir):
+    _, results = classify(stag_db, aligned_sequences=alignment_file, output=os.path.join(output_dir, "genome_annotation"))
 
 
 #===============================================================================
