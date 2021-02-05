@@ -104,12 +104,6 @@ def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
         sys.exit(1)
 
 
-
-
-
-
-
-
 #===============================================================================
 #                   FUNCTIONS TO TRAIN THE CLASSIFIERS
 #===============================================================================
@@ -214,8 +208,6 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
             for i in to_add:
                 negative_examples_subsample.append(possible_neg[i])
 
-
-
     return positive_examples_subsample, negative_examples_subsample
 
 # function that train the classifier for one node ==============================
@@ -242,7 +234,6 @@ def train_classifier(positive_examples,negative_examples,all_classifiers,alignme
     clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
     clf.fit(X, y)
     return clf
-
 
 # train node and call the same function on all the children ====================
 def train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v):
@@ -284,14 +275,6 @@ def train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v):
         siblings.remove(node)
         train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v)
     return(all_classifiers)
-
-
-
-
-
-
-
-
 
 #===============================================================================
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
@@ -567,71 +550,54 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
 #===============================================================================
 #                     FUNCTIONS TO SAVE TO A DATABASE
 #===============================================================================
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output, protein_fasta_input):
-    # where to save the file
-    f = h5py.File(output, "w")
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_version, output, hmm_file_path=None, protein_fasta_input=None):
+
     string_dt = h5py.special_dtype(vlen=str)
 
-    # zero: tool version -------------------------------------------------------
-    f.create_dataset('tool_version',data=np.array([str(tool_version)],"S100"),dtype=string_dt)
-    # and type of database
-    f.create_dataset('db_type',data=np.array(["single_gene"],"S100"),dtype=string_dt)
-    # was the alignment done at the protein level?
-    if not(protein_fasta_input is None):
-        f.create_dataset('align_protein',data=np.array([True]),dtype=bool)
-    else:
-        f.create_dataset('align_protein',data=np.array([False]),dtype=bool)
-
-    # first we save the hmm file -----------------------------------------------
-    line = ""
-    o = open(hmm_file_path,"r")
-    for i in o:
-        line = line + i
-    o.close()
-    f.create_dataset('hmm_file',data=np.array([line],"S"+str(len(line)+100)),dtype=string_dt, compression="gzip")
-
-    # second, save the use_cmalign info ----------------------------------------
-    f.create_dataset('use_cmalign',data=np.array([use_cmalign]),dtype=bool)
-
-    # third, we save the taxonomy ---------------------------------------------
-    f.create_group("taxonomy")
-    for i in full_taxonomy.child_nodes:
-        f.create_dataset("taxonomy/"+i, data=np.array(list(full_taxonomy.child_nodes[i]),"S10000"),dtype=string_dt, compression="gzip")
-
-    # fourth, the taxonomy function --------------------------------------------
-    f.create_group("tax_function")
-    for c in tax_function:
-        # we append the intercept at the head (will have position 0)
-        vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
-        f.create_dataset("tax_function/"+str(c), data=vals, dtype=np.float64, compression="gzip")
-
-    # fifth, save the classifiers ----------------------------------------------
-    f.create_group("classifiers")
-    for c in classifiers:
-        if classifiers[c] != "no_negative_examples":
-            vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
-            f.create_dataset("classifiers/"+c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
+    with h5py.File(output, "w") as h5p_out:
+        # zero: tool version -------------------------------------------------------
+        h5p_out.create_dataset('tool_version', data=np.array([str(tool_version)], "S100"), dtype=string_dt)
+        # and type of database
+        h5p_out.create_dataset('db_type', data=np.array(["single_gene"], "S100"), dtype=string_dt)
+        # was the alignment done at the protein level?
+        f.create_dataset('align_protein', data=np.array([bool(protein_fasta_input)]), dtype=bool)
+        # first we save the hmm file -----------------------------------------------
+        if hmm_string:
+            hmm_string = "".join(line for line in open(hmm_file_path))
         else:
-            # in this case, it always predict 1, we save it as an array of
-            # with the string "no_negative_examples"
-            f.create_dataset("classifiers/"+c,data=np.array(["no_negative_examples"],"S40"),dtype=string_dt, compression="gzip")
+            hmm_string = "NA"
+        f.create_dataset('hmm_file', data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)), dtype=string_dt, compression="gzip")
+        # second, save the use_cmalign info ----------------------------------------
+        f.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
+        # third, we save the taxonomy ---------------------------------------------
+        f.create_group("taxonomy")
+        for node in full_taxonomy.child_nodes:
+            f.create_dataset("taxonomy/" + node, data=np.array(list(full_taxonomy.child_nodes[node]), "S10000"), dtype=string_dt, compression="gzip")
+        # fourth, the taxonomy function --------------------------------------------
+        f.create_group("tax_function")
+        for c in tax_function:
+            # we append the intercept at the head (will have position 0)
+            vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
+            f.create_dataset("tax_function/" + str(c), data=vals, dtype=np.float64, compression="gzip")
+        # fifth, save the classifiers ----------------------------------------------
+        f.create_group("classifiers")
+        for c in classifiers:
+            if classifiers[c] != "no_negative_examples":
+                vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
+                f.create_dataset("classifiers/" + c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
+            else:
+                # in this case, it always predict 1, we save it as an array of
+                # with the string "no_negative_examples"
+                f.create_dataset("classifiers/" + c, data=np.array(["no_negative_examples"], "S40"), dtype=string_dt, compression="gzip")
 
-    # close hdm5 file ----------------------------------------------------------
-    f.flush()
-    f.close()
-
-
-
-
-
-
+        f.flush()
 
 
 #===============================================================================
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, tool_version, protein_fasta_input, penalty_v, solver_v):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cross_val_data, tool_version, penalty_v, solver_v, hmm_file_path=None, protein_fasta_input=None):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -668,7 +634,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. save the result
     logging.info('MAIN:Save to file')
-    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, hmm_file_path, tool_version, output, protein_fasta_input)
+    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_version, output, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
     logging.info('TIME:Finish save to file')
 
     logging.info('MAIN:Finished')
