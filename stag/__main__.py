@@ -314,9 +314,10 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
-                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic)
+        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output,
+                            args.use_cm_align, args.intermediate_cross_val, tool_version,
+                            args.penalty_logistic, args.solver_logistic,
+                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -361,8 +362,9 @@ def main(argv=None):
         # SECOND: CREATE_DB ----------------------------------------------------
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
-                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic)
+                            args.intermediate_cross_val, tool_version,
+                            args.penalty_logistic, args.solver_logistic,
+                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
@@ -562,6 +564,10 @@ def main(argv=None):
             pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
         except:
             handle_error("creating the output directory (-o).", None)
+
+        if list_files:
+            from stag.classify_genome import validate_genome_files
+            validate_genome_files(list_files)
 
         # call the function
         classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output,
