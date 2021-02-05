@@ -15,8 +15,7 @@ import tempfile
 import numpy as np
 import re
 
-from stag.helpers import is_tool, linearise_fasta, read_fasta
-#TODO: linearise_fasta may not be necessary
+from stag.helpers import is_tool, read_fasta
 
 #===============================================================================
 #                                 FUNCTIONS
@@ -132,7 +131,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     if use_cmalign:
         cmd = "cmalign --cpu "+str(n_threads)+" "
 
-    if protein_file == None:
+    if not protein_file:
         cmd = cmd + hmm_file +" "+ seq_file
     else:
         cmd = cmd + hmm_file +" "+ protein_file
