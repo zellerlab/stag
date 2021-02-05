@@ -223,6 +223,7 @@ def main(argv=None):
     parser.add_argument('-T', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
     parser.add_argument('-e', action="store", default="l1", dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
     parser.add_argument('-E', action="store", default="liblinear", dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
+    parser.add_argument('-G', action="store", dest="marker_genes", default=None, help="Set of identified marker genes in lieu of a genomic sequence")
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -365,7 +366,6 @@ def main(argv=None):
                             args.intermediate_cross_val, tool_version,
                             args.penalty_logistic, args.solver_logistic,
                             hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
-
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
             # remove it
@@ -520,12 +520,14 @@ def main(argv=None):
         # check input
         if not args.database:
             error = "missing <database> (-d)"
-        elif not args.fasta_input and not args.dir_input:
+        elif not any(args.fasta_input, args.dir_input, args.marker_genes):
             error = "you need to provide at least -i or -D."
-        elif args.fasta_input and args.dir_input:
-            error = "you need to provide -i or -D, not both."
+        elif sum(map(bool, (args.fasta_input, args.dir_input, args.marker_genes))) != 1:
+            error = "options -i, -D, and -G are mutually exclusive"
         elif args.dir_input and not os.path.isdir(args.dir_input):
             error = "-D is not a directory."
+        elif args.marker_genes and not os.path.isfile(args.marker_genes):
+            error = "-G is not a valid file."
         elif not args.output:
             # check that output dir is defined
             error = "missing output directory (-o)"
@@ -534,10 +536,12 @@ def main(argv=None):
             handle_error(error, print_menu_classify_genome)
 
         # find files to classify
-        list_files = list()
+        marker_genes, list_files = list(), None
         if args.fasta_input:
             check_file_exists(args.fasta_input, isfasta = True)
             list_files.append(args.fasta_input)
+        elif args.marker_genes:
+            marker_genes, list_files = json.load(open(args.marker_genes)), None
         else:
             for f in os.listdir(args.dir_input):
                 f = os.path.join(args.dir_input, f)
@@ -570,9 +574,9 @@ def main(argv=None):
             validate_genome_files(list_files)
 
         # call the function
-        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output,
-                                        args.long_out, tool_version, args.keep_all_genes)
-
+        classify_genome.classify_genome(args.database, genome_files=list_files, marker_genes=marker_genes,
+                                        verbose=args.verbose, threads=args.threads,
+                                        output=args.output, long_out=args.long_out, keep_all_genes=args.keep_all_genes)
 
     return None        # success
 
