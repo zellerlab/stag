@@ -27,6 +27,22 @@ try:
 except ImportError:
     DEVNULL = open(os.devnull, 'wb')
 
+def validate_genome_files(files):
+    if any("##" in f for f in files):
+        sys.stderr.write("Error with: "+g+"\n")
+        sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
+        sys.exit(1)
+
+def cleanup_prodigal(files):
+    for genes, proteins in files:
+        try:
+            [os.remove(f) for f in (genes, proteins)]
+        except:
+            pass
+
+
+
+
 # ==============================================================================
 # UNZIP THE DATABASE
 # ==============================================================================
@@ -302,22 +318,13 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
-        f = h5py.File(path_mg, 'r')
-        # first, we save a temporary file with the hmm file
-        hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        os.chmod(hmm_file.name, 0o644)
-        hmm_file.write(f['hmm_file'][0])
-        hmm_file.flush()
-        os.fsync(hmm_file.fileno())
-        hmm_file.close()
-        # second, check if we need to use proteins
-        use_protein_file = False
-        if f['align_protein'][0]:
-            use_protein_file = True
-            mg_info_use_protein[mg] = True
-        else:
-            mg_info_use_protein[mg] = False
-        f.close()
+        with h5py.File(path_mg, 'r') as db_in, tempfile.NamedTemporaryFile(delete=False, mode="w") as hmm_file:
+            os.chmod(hmm_file.name, 0o644)
+            hmm_file.write(db_in['hmm_file'][0])
+            hmm_file.flush()
+            os.fsync(hmm_file.fileno())
+
+            use_protein_file = mg_info_use_protein[mg] = bool(db_in['align_protein'][0])
 
         # run hmmsearch for each genome and find which genes pass the filter
         extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, gene_thresholds[mg], all_genes_raw)
@@ -444,25 +451,6 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     return concat_ali_f.name
 
 
-
-def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
-    all_classifications = dict()
-    for mg, (fna, faa) in MGS.items():
-        if fna:
-            db = os.path.join(database_base_path, mg)
-            if not os.path.isfile(db):
-                sys.stderr.write("Error: file for gene database {} is missing".format(db))
-                sys.exit(1)
-            # faa = faa if faa != "no_protein" else None
-            align_out = os.path.join(dir_ali, mg)
-            _, results = classify(db, fasta_input=fna, protein_fasta_input=faa,
-                                  save_ali_to_file=align_out, internal_call=True)
-            all_classifications.update(dict(results))
-
-    return all_classifications
-
-
-
 # ==============================================================================
 # ANNOTATE concatenation of the MGs
 # ==============================================================================
@@ -514,18 +502,10 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # means that the alignment should be done at the level of the genes and not
     # proteins
 
-    # check if all genes are empty
-    all_empty = True
-    for m in MGS:
-        if not(MGS[m][0] is None):
-            all_empty = False
-    if all_empty:
+    if not any(genes for genes, _ in MGS.values()):
         sys.stderr.write("[W::main] Warning: no marker genes identified\n          Stopping annotation.\n")
         shutil.rmtree(temp_dir)
-        # and the result from prodigal
-        for i in genomes_pred:
-            if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
-            if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
+        cleanup_prodigal(genomes_pred.values())
         sys.exit(1)
 
     # we save in the outdir the file with the MG sequences
@@ -533,14 +513,12 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     for m in MGS:
         try:
             if MGS[m][0] is None:
-                o = open(output+"/MG_sequences/"+m+".fna","w")
-                o.close()
+                open(output+"/MG_sequences/"+m+".fna","w").close()
             else:
                 shutil.move(MGS[m][0],output+"/MG_sequences/"+m+".fna")
                 MGS[m][0] = output+"/MG_sequences/"+m+".fna"
             if MGS[m][1] is None:
-                o = open(output+"/MG_sequences/"+m+".faa","w")
-                o.close()
+                open(output+"/MG_sequences/"+m+".faa","w").close()
             else:
                 shutil.move(MGS[m][1],output+"/MG_sequences/"+m+".faa")
                 MGS[m][1] = output+"/MG_sequences/"+m+".faa"
@@ -592,11 +570,5 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # we remove the temp dir ---------------------------------------------------
     shutil.rmtree(temp_dir)
     # and the result from prodigal
-    for i in genomes_pred:
-        if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
-        if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
-    # and the file with the marker genes
-    # for m in MGS:
-    #    if MGS[m][0] != None:
-    #        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
-    #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
+    if genomes_file_list:
+        cleanup_prodigal(genomes_pred.values())
