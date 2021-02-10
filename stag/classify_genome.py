@@ -264,10 +264,10 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
                 sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
             else:
                 with open(genomes_pred[genome][0]) as fna_in:
-                    n_genes = filter_sequences(fna_in, genes, selected_genes[genome][mg], mg)
+                    n_genes += filter_sequences(fna_in, genes, selected_genes[genome][mg], mg)
                 if use_protein_file:
                     with open(genomes_pred[genome][1]) as faa_in:
-                        n_proteins = filter_sequences(faa_in, proteins, selected_genes[genome][mg], mg)
+                        n_proteins += filter_sequences(faa_in, proteins, selected_genes[genome][mg], mg)
 
     if verbose > 3:
         sys.stderr.write(" Found "+str(n_genes)+" genes\n")
@@ -460,10 +460,10 @@ def cleanup_prodigal(files):
 def classify_genome(database, genome_files=None, marker_genes=None, verbose=None,
                     threads=1, output=None, long_out=False, keep_all_genes=False):
 
-     # FIRST: unzip the database ------------------------------------------------
-     if verbose > 2:
-         sys.stderr.write("Unzip the database\n")
-     database_files, temp_dir, gene_thresholds, gene_order, ali_lengths, concat_ali_stag_db = load_genome_DB(database, tool_version, verbose)
+    # FIRST: unzip the database ------------------------------------------------
+    if verbose > 2:
+        sys.stderr.write("Unzip the database\n")
+    database_files, temp_dir, gene_thresholds, gene_order, ali_lengths, concat_ali_stag_db = load_genome_DB(database, tool_version, verbose)
 
     if marker_genes:
         MGS = marker_genes
