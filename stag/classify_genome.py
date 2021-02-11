@@ -20,12 +20,24 @@ import contextlib
 from stag.helpers import is_tool, read_fasta
 from stag.classify import classify
 
-# ------------------------------------------------------------------------------
-# dev null
 try:
     from subprocess import DEVNULL
 except ImportError:
     DEVNULL = open(os.devnull, 'wb')
+
+def validate_genome_files(files):
+    if any("##" in f for f in files):
+        offender = [f for f in files if "##" in f][0]
+        sys.stderr.write("Error with: {}\n".format(offender))
+        sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
+        sys.exit(1)
+
+def cleanup_prodigal(files):
+    for genes, proteins in files:
+        try:
+            [os.remove(f) for f in (genes, proteins)]
+        except:
+            pass
 
 # ==============================================================================
 # UNZIP THE DATABASE
@@ -441,19 +453,6 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
 def annotate_concat_mgs(stag_db, alignment_file, output_dir):
     _, results = classify(stag_db, aligned_sequences=alignment_file, output=os.path.join(output_dir, "genome_annotation"))
 
-def validate_genome_files(files):
-    if any("##" in f for f in files):
-        sys.stderr.write("Error with: "+g+"\n")
-        sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
-        sys.exit(1)
-
-def cleanup_prodigal(files):
-    for genes, proteins in files:
-        try:
-            [os.remove(f) for f in (genes, proteins)]
-        except:
-            pass
-
 #===============================================================================
 #                                      MAIN
 #===============================================================================
@@ -468,8 +467,6 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
     if marker_genes:
         MGS = marker_genes
     elif genome_files:
-        # ZERO: we need to check that the genome files do not contain "##"
-        #validate_genome_files(genome_files)
         # SECOND: run prodigal on the fasta genome ---------------------------------
         if verbose > 2:
             sys.stderr.write("Run prodigal\n")
