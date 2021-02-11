@@ -20,8 +20,6 @@ import contextlib
 from stag.helpers import is_tool, read_fasta
 from stag.classify import classify
 
-# ------------------------------------------------------------------------------
-# dev null
 try:
     from subprocess import DEVNULL
 except ImportError:
@@ -29,7 +27,8 @@ except ImportError:
 
 def validate_genome_files(files):
     if any("##" in f for f in files):
-        sys.stderr.write("Error with: "+g+"\n")
+        offender = [f for f in files if "##" in f][0]
+        sys.stderr.write("Error with: {}\n".format(offender))
         sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
         sys.exit(1)
 
@@ -39,9 +38,6 @@ def cleanup_prodigal(files):
             [os.remove(f) for f in (genes, proteins)]
         except:
             pass
-
-
-
 
 # ==============================================================================
 # UNZIP THE DATABASE
