@@ -560,37 +560,37 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_ver
         # and type of database
         h5p_out.create_dataset('db_type', data=np.array(["single_gene"], "S100"), dtype=string_dt)
         # was the alignment done at the protein level?
-        f.create_dataset('align_protein', data=np.array([bool(protein_fasta_input)]), dtype=bool)
+        h5p_out.create_dataset('align_protein', data=np.array([bool(protein_fasta_input)]), dtype=bool)
         # first we save the hmm file -----------------------------------------------
-        if hmm_string:
+        if hmm_file_path:
             hmm_string = "".join(line for line in open(hmm_file_path))
         else:
             hmm_string = "NA"
-        f.create_dataset('hmm_file', data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)), dtype=string_dt, compression="gzip")
+        h5p_out.create_dataset('hmm_file', data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)), dtype=string_dt, compression="gzip")
         # second, save the use_cmalign info ----------------------------------------
-        f.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
+        h5p_out.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
         # third, we save the taxonomy ---------------------------------------------
-        f.create_group("taxonomy")
+        h5p_out.create_group("taxonomy")
         for node in full_taxonomy.child_nodes:
-            f.create_dataset("taxonomy/" + node, data=np.array(list(full_taxonomy.child_nodes[node]), "S10000"), dtype=string_dt, compression="gzip")
+            h5p_out.create_dataset("taxonomy/" + node, data=np.array(list(full_taxonomy.child_nodes[node]), "S10000"), dtype=string_dt, compression="gzip")
         # fourth, the taxonomy function --------------------------------------------
-        f.create_group("tax_function")
+        h5p_out.create_group("tax_function")
         for c in tax_function:
             # we append the intercept at the head (will have position 0)
             vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
-            f.create_dataset("tax_function/" + str(c), data=vals, dtype=np.float64, compression="gzip")
+            h5p_out.create_dataset("tax_function/" + str(c), data=vals, dtype=np.float64, compression="gzip")
         # fifth, save the classifiers ----------------------------------------------
-        f.create_group("classifiers")
+        h5p_out.create_group("classifiers")
         for c in classifiers:
             if classifiers[c] != "no_negative_examples":
                 vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
-                f.create_dataset("classifiers/" + c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
+                h5p_out.create_dataset("classifiers/" + c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
             else:
                 # in this case, it always predict 1, we save it as an array of
                 # with the string "no_negative_examples"
-                f.create_dataset("classifiers/" + c, data=np.array(["no_negative_examples"], "S40"), dtype=string_dt, compression="gzip")
+                h5p_out.create_dataset("classifiers/" + c, data=np.array(["no_negative_examples"], "S40"), dtype=string_dt, compression="gzip")
 
-        f.flush()
+        h5p_out.flush()
 
 
 #===============================================================================
