@@ -86,18 +86,19 @@ def load_genome_DB(database, tool_version, verbose):
 # ==============================================================================
 # run prodigal on one genome
 def run_prodigal(genome, verbose):
+    if not is_tool("prodigal"):
+        sys.stderr.write("[E::align] Error: prodigal is not in the path.\n")
+        sys.exit(1)
+
     # we need two files, one for the proteins and one for the genes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
     # prodigal command
-    prodigal_command = "prodigal -i "+genome+" -d "+genes.name
-    prodigal_command = prodigal_command + " -a "+proteins.name
-    # run prodigal
-    if not is_tool("prodigal"):
-        sys.stderr.write("[E::align] Error: prodigal is not in the path.\n")
-        sys.exit(1)
-    CMD2 = shlex.split(prodigal_command)
-    parse_cmd = subprocess.Popen(CMD2, stdout=DEVNULL,stderr=subprocess.PIPE)
+    prodigal_cmd = "prodigal -i {genome} -d {gene_file} -a {protein_file}".format(
+        genome=genome, gene_file=genes.name, protein_file=proteins.name
+    )
+    cmd = shlex.split(prodigal_cmd)
+    parse_cmd = subprocess.Popen(cmd, stdout=DEVNULL,stderr=subprocess.PIPE)
     # we save stderr if necessary
     all_stderr = ""
     for line in parse_cmd.stderr:
@@ -115,6 +116,8 @@ def run_prodigal(genome, verbose):
     def copy_fasta(fasta_in, fasta_out, is_binary=True, head_start=0):
         for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary)):
             print(">{genome}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
+        fasta_out.flush()
+        os.fsync(parsed_genes.fileno())
         return index + 1
 
     parsed_genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -122,12 +125,8 @@ def run_prodigal(genome, verbose):
 
     with parsed_genes, open(genes.name) as genes_in:
         n_genes = copy_fasta(genes_in, parsed_genes, is_binary=False, head_start=1)
-        parsed_genes.flush()
-        os.fsync(parsed_genes.fileno())
     with parsed_proteins, open(proteins.name) as proteins_in:
         n_proteins = copy_fasta(proteins_in, parsed_proteins, is_binary=False, head_start=1)
-        parsed_proteins.flush()
-        os.fsync(parsed_proteins.fileno())
 
     # remove old files
     os.remove(genes.name)
