@@ -55,7 +55,7 @@ def load_alignment_from_file(file_name):
     with open(file_name, "r") as f:
         for pos, line in enumerate(f):
             vals = line.rstrip().split("\t")
-            alignment.iloc[pos] = np.array([x == "1" for x in vals[1:]])
+            alignment.iloc[pos] = np.array([int(x) == "1" for x in vals[1:]])
 
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
 
@@ -108,21 +108,18 @@ def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
 #                   FUNCTIONS TO TRAIN THE CLASSIFIERS
 #===============================================================================
 
-# function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
     positive_examples = full_taxonomy.find_gene_ids(node)
-    negative_examples = list()
-    if len(siblings) > 0:
-        for s in siblings:
-            negative_examples = negative_examples + full_taxonomy.find_gene_ids(s)
-    # "positive_examples" and "negative_examples" are list of gene ids
+    negative_examples = [full_taxonomy.find_gene_ids(s) for s in siblings]
 
-    if len(negative_examples) == 0:
-        # it means that there was only one child, and we cannot do anything
+    if not negative_examples:
+        # current node is singleton, return.
         return positive_examples, negative_examples
 
-    # From here, it means that there is at least one sibiling ==================
+    # From here, it means that there is at least one sibling ==================
     # We make classes more balanced
+    #TODO: Alessio - positive_samples and negative_samples are not used below, except for other TODO
+    # should we use positive/negative_examples instead of *_examples_subsample?
     positive_examples_subsample = list(positive_examples)
     negative_examples_subsample = list(negative_examples)
     # 1. max 500 positive samples ----------------------------------------------
@@ -137,7 +134,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     # 4. we want to have at least 5 times more negative than positive ----------
     missing_neg = 0 # how many negative sequences we need to add
     if len(siblings) == 1:
-        # if there is only one other sibiling, we choose only 3 times more negative
+        # if there is only one other sibling, we choose only 3 times more negative
         if len(negative_examples_subsample) > len(positive_examples_subsample)*3:
             negative_examples_subsample = random.sample(negative_examples_subsample, len(positive_examples_subsample)*3)
     if len(negative_examples_subsample) < len(positive_examples_subsample)*5:
@@ -145,14 +142,14 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     # add negative examples if necessary
     if missing_neg > 0:
         # positive examples
-        X_clade = alignment.loc[positive_examples, : ].to_numpy()
+        X_clade = alignment.loc[positive_examples, : ].to_numpy()  #TODO: Alessio - should this be positive_examples_subsample?
         # always have 5 positive classes
         n_positive_class = len(X_clade)
         for i in range(n_positive_class,5):
             rr = random.choice(range(0,n_positive_class))
             X_clade = np.vstack((X_clade,X_clade[rr,]))
 
-        # find possible genes to add additionaly to negarives
+        # find possible genes to add additionaly to negatives
         possible_neg = set(alignment.index.values).difference(set(positive_examples + negative_examples))
         if len(possible_neg) == 0: # if it is possible to add negatives
                                    # note that at the highest level, it's not possible
@@ -211,52 +208,29 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     return positive_examples_subsample, negative_examples_subsample
 
 # function that train the classifier for one node ==============================
-def train_classifier(positive_examples,negative_examples,all_classifiers,alignment, node, penalty_v, solver_v):
+#def train_classifier(positive_examples,negative_examples,all_classifiers,alignment, node, penalty_v, solver_v):
+def train_classifier(positive_examples, negative_examples, alignment, node, penalty_v, solver_v):
     # check that we have at least 1 example for each class:
-    if len(negative_examples) == 0:
+    if not negative_examples:
         # when the node is the only child, then there are no negative examples
         logging.info('      Warning: no negative examples for "%s', node)
         return "no_negative_examples"
-    if len(positive_examples) == 0:
+    if not positive_examples:
         # There should be positive examples
         logging.info('      Error: no positive examples for "%s', node)
         return "ERROR_no_positive_examples"
 
     # select the genes from the pandas dataframe
     X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
-    train_labels = ["no"]*len(negative_examples)+["yes"]*len(positive_examples)
+    train_labels = ["no"] * len(negative_examples) + ["yes"] * len(positive_examples)
     # NOTE: we put first the negative class (0) because then the classifier will
     #       use this order. And when we will use only the coefficients, it will
     #       give the probability prediction of the secodn class
-
     y = np.asarray(train_labels)
     # train classifier
-    clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
+    clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
     clf.fit(X, y)
     return clf
-
-# train node and call the same function on all the children ====================
-def train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v):
-    # call the function on all the children
-    # but only if they are not the last level
-    if not(full_taxonomy.is_last_node(node)):
-        children_of_node = full_taxonomy.find_children_node(node)
-        for child in children_of_node:
-            siblings_child = list(children_of_node)
-            siblings_child.remove(child)
-            train_node_iteratively(child, siblings_child, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v)
-
-    # find genomes to use and to which class they belong to,
-    # we need positive and negative examples
-    logging.info('   TRAIN:"%s":Find genes', node)
-    positive_examples, negative_examples = find_training_genes(node, siblings, full_taxonomy, alignment)
-    logging.info('      SEL_GENES:"%s": %s positive, %s negative', node,
-                 str(len(positive_examples)),str(len(negative_examples)))
-
-    # train the classifier
-    logging.info('         TRAIN:"%s":Train classifier', node)
-    all_classifiers[node] = train_classifier(positive_examples,negative_examples,
-                                             all_classifiers, alignment, node, penalty_v, solver_v)
 
 
 # function to train all classifiers ============================================
@@ -267,14 +241,30 @@ def train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxo
 # Output:
 #  - a dictionary, where the keys are the node names and the values are a lasso
 #                  classifier object
-def train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v):
+def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v):
     all_classifiers = dict()
-    children_of_root = full_taxonomy.find_children_node(full_taxonomy.get_root())
-    for node in children_of_root:
-        siblings = list(children_of_root)
-        siblings.remove(node)
-        train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v)
-    return(all_classifiers)
+    nodes = set(taxonomy.find_children_node(taxonomy.get_root()))
+    queue = [(n, nodes.difference({n})) for n in nodes]
+    while queue:
+        node, siblings = queue.pop(0)
+        if not taxonomy.is_last_node(node):
+            children = set(taxonomy.find_children_node(node))
+            queue.extend((child, children.difference({child})) for child in children)
+
+        logging.info('   TRAIN:"{}":Find genes'.format(node))
+        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+        logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
+            node, len(positive_examples), len(negative_examples)
+        ))
+        logging.info('         TRAIN:"{}":Train classifier'.format(node))
+        all_classifiers[node] = train_classifier(
+            positive_examples, negative_examples,
+            alignment, node, penalty_v, solver_v
+        )
+
+    return all_classifiers
+
+
 
 #===============================================================================
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
@@ -288,11 +278,7 @@ def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_s
     if len(training_tax.find_children_node(arrived_so_far)) == 1:
         max_perc = 2 # if there are no siblings I put 2, it will be replaced after
         max_perc_taxa = training_tax.find_children_node(arrived_so_far)[0]
-    # if there are no children
-    if len(training_tax.find_children_node(arrived_so_far)) < 1:
-        sys.stderr.write("Error: no child\n")
-    # if there is more than one child
-    if len(training_tax.find_children_node(arrived_so_far)) > 1:
+    elif len(training_tax.find_children_node(arrived_so_far)) > 1:
         for n in training_tax.find_children_node(arrived_so_far):
             clf = classifiers_train[n]
             res = str(clf.predict(test_seq)) # either "yes" or "no"
@@ -305,7 +291,8 @@ def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_s
             if predicted_proba > max_perc:
                 max_perc = predicted_proba
                 max_perc_taxa = n
-
+    else:
+        sys.stderr.write("Error: no child\n")
     tax.append(max_perc_taxa)
     perc.append(max_perc)
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, max_perc_taxa)
@@ -315,7 +302,7 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
     perc = list()
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, training_tax.get_root())
-    # we change the predictions that came from having only one sibiling --------
+    # we change the predictions that came from having only one sibling --------
     if perc[0] == 2:
         perc[0] = 1
     for i in range(len(perc)):
