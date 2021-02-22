@@ -317,7 +317,7 @@ def main(argv=None):
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output,
                             args.use_cm_align, args.intermediate_cross_val, tool_version,
                             args.penalty_logistic, args.solver_logistic,
-                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
+                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -364,7 +364,7 @@ def main(argv=None):
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.intermediate_cross_val, tool_version,
                             args.penalty_logistic, args.solver_logistic,
-                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
+                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
