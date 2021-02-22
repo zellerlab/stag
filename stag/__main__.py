@@ -10,6 +10,7 @@ import glob
 import tempfile
 import errno
 import tarfile
+import json
 
 from . import __version__ as tool_version
 from .helpers import bco, print_error, check_file_exists, check_file_doesnt_exists
@@ -23,8 +24,9 @@ import stag.classify_genome as classify_genome
 import stag.train_genome as train_genome
 import stag.convert_ali as convert_ali
 
-def handle_error(error, help_f):
-    help_f()
+def handle_error(error, help_f=None):
+    if help_f:
+        help_f()
     print_error()
     print(error, file=sys.stderr)
     sys.exit(1)
@@ -520,8 +522,8 @@ def main(argv=None):
         # check input
         if not args.database:
             error = "missing <database> (-d)"
-        elif not any(args.fasta_input, args.dir_input, args.marker_genes):
-            error = "you need to provide at least -i or -D."
+        elif not any((args.fasta_input, args.dir_input, args.marker_genes)):
+            error = "you need to provide at least -i, -D, or -G."
         elif sum(map(bool, (args.fasta_input, args.dir_input, args.marker_genes))) != 1:
             error = "options -i, -D, and -G are mutually exclusive"
         elif args.dir_input and not os.path.isdir(args.dir_input):
