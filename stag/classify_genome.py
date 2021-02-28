@@ -19,6 +19,7 @@ import contextlib
 
 from stag.helpers import is_tool, read_fasta
 from stag.classify import classify
+from stag import __version__ as tool_version
 
 try:
     from subprocess import DEVNULL
