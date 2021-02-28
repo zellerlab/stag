@@ -46,10 +46,12 @@ def convert_alignment(alignment, verbose, as_numpy=False):
         # hidden state of the HMM.
         if not character.islower():
             n_char += 1
-            encoded_block = encoding_dic.get(character, encoding_dic["others"])
-            if not encoded_block[0]:
+            encoded_block = encoding_dic.get(character) #, encoding_dic["others"])
+            if encoded_block: #not encoded_block[0]:
                 # others' high bit = 1
                 n_aligned_characters += 1
+            else:
+                encoded_block = encoding_dic["others"]
             converted_ali.extend(encoded_block)
     #if as_numpy:
     #    converted_ali = np.array(list(map(bool, converted_ali)), dtype=bool)
@@ -59,13 +61,12 @@ def convert_alignment(alignment, verbose, as_numpy=False):
 # if check_length is True, then we check that
 # len(protein) == len(gene)*3 OR len(protein)-3 == len(gene)*3
 def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_length=True):
-
-    # check that the lenght is correct
+    # check that the length is correct
     only_AA_from_ali = re.sub(r'\-', '', protein_alignment)
     if check_length:
         expected_gene_length = len(only_AA_from_ali) * 3
         # check if lengths of gene and protein sequence match, with or without stop codon
-        if len(gene_sequence) != expected_gene_length and len(gene_sequence) != expected_gene_length - 3:
+        if len(gene_sequence) != expected_gene_length and len(gene_sequence) - 3 != expected_gene_length:
             sys.stderr.write("Error, length of genes/alignment is not correct")
             sys.stderr.write(" (protein: "+str(len(only_AA_from_ali)*3)+", gene: "+str(len(gene_sequence))+")\n")
             sys.stderr.write(" ID: "+gene_id+"\n")
@@ -82,7 +83,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
             al_gene.extend(gene_sequence[pos_gene:pos_gene + 3])
             pos_gene += 3
             found = True
-        elif i.islower():
+        elif res.islower():
             found = True
             # since we have to remove the lower case letter, we do not
             # add those to the alignment, but we anyway increase pos_gene
@@ -90,7 +91,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
         if not found:
             sys.stderr.write("Error, character not identified\n")
 
-    return gene_id, al_gene
+    return al_gene
 
 # ------------------------------------------------------------------------------
 # main function as a generator
@@ -150,17 +151,17 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
 
     if protein_file:
         seq_stream = zip(read_fasta(parse_cmd.stdout, head_start=1),
-                         read_fasta(seq_in, is_binary=False, head_start=1))
+                         read_fasta(open(seq_file), is_binary=False, head_start=1))
     else:
         seq_stream = read_fasta(parse_cmd.stdout, head_start=1)
 
     for item in seq_stream:
         if protein_file:
-            pid, pseq, gid, gseq = item
+            (pid, pseq), (gid, gseq) = item
             if pid != gid:
                 sys.stderr.write("[E::align] Error. protein and gene identifiers {} {} don't match.".format(pid, gid))
                 sys.exit(1)
-            gid, gseq = protein2gene_alignment(gid, pseq, gseq, check_length=True)
+            gseq = protein2gene_alignment(gid, pseq, gseq, check_length=True)
         else:
             gid, gseq = item
 
