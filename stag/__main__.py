@@ -11,6 +11,7 @@ import tempfile
 import errno
 import tarfile
 import json
+import pathlib
 
 from . import __version__ as tool_version
 from .helpers import bco, print_error, check_file_exists, check_file_doesnt_exists
@@ -569,7 +570,7 @@ def main(argv=None):
         try:
             pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
         except:
-            handle_error("creating the output directory (-o).", None)
+            handle_error("creating the output directory (-o). {}".format(args.output), None)
 
         if list_files:
             from stag.classify_genome import validate_genome_files
