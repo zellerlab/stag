@@ -272,15 +272,19 @@ def find_raw_names_ncol(file_name):
 # It works also on .gz files
 def load_alignment_from_file(file_name):
     # create empty pandas object of the correct size
-    gene_names,ncol = find_raw_names_ncol(file_name)
-    alignment = pd.DataFrame(False,index = gene_names,columns = range(ncol-1))
+    gene_names, ncol = find_raw_names_ncol(file_name)
+    alignment = pd.DataFrame(False, index=gene_names, columns=range(ncol - 1))
     # add correct values
-    pos = 0
-    with open(file_name, "r") as f:
-        for line in f.readlines():
-            vals = line.rstrip().split("\t")
-            alignment.iloc[pos]= np.array([ False if x == "0" else True for x in vals[1:]])
-            pos = pos + 1
+    with open(file_name) as align_in:
+        for row, line in enumerate(align_in):
+            seqid, *aligned_seq = line.rstrip().split("\t")
+            try:
+                alignment.iloc[row] = np.array([int(x) != 1 for x in aligned_seq])
+            except ValueError:
+                invalid = [(col, x) for col, x in enumerate(aligned_seq, start=1) if x not in ("0", "1")]
+                raise ValueError(f"Encountered {len(invalid)} invalid value(s) during alignment loading.:\n " + \
+                    f"first invalid entry: row={row} ({seqid}) col={invalid[0][0]} value={invalid[0][1]}\n" + \
+                    f"Please check your alignment matrix for non-numeric entries.")
 
     logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
 
