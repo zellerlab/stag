@@ -562,10 +562,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_ver
         # was the alignment done at the protein level?
         h5p_out.create_dataset('align_protein', data=np.array([bool(protein_fasta_input)]), dtype=bool)
         # first we save the hmm file -----------------------------------------------
-        if hmm_file_path:
-            hmm_string = "".join(line for line in open(hmm_file_path))
-        else:
-            hmm_string = "NA"
+        hmm_string = "".join(line for line in open(hmm_file_path)) if hmm_file_path else "NA"
         h5p_out.create_dataset('hmm_file', data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)), dtype=string_dt, compression="gzip")
         # second, save the use_cmalign info ----------------------------------------
         h5p_out.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
