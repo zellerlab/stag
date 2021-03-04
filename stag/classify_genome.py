@@ -40,56 +40,9 @@ def cleanup_prodigal(files):
         except:
             pass
 
-# ==============================================================================
-# UNZIP THE DATABASE
-# ==============================================================================
-def load_genome_DB(database, tool_version, verbose):
-    dirpath = tempfile.mkdtemp()
-    shutil.unpack_archive(database, dirpath,"gztar")
-    list_files = [f for f in os.listdir(dirpath) if os.path.isfile(os.path.join(dirpath, f))]
-    # there must be a file with the name 'threshold_file.tsv'
-    if not "threshold_file.tsv" in list_files:
-        sys.stderr.write("[E::align] Error: threshold_file.tsv is missing.\n")
-        sys.exit(1)
-    if not "hmm_lengths_file.tsv" in list_files:
-        sys.stderr.write("[E::align] Error: hmm_lengths_file.tsv is missing.\n")
-        sys.exit(1)
-    if not "concatenated_genes_STAG_database.HDF5" in list_files:
-        sys.stderr.write("[E::align] Error: concatenated_genes_STAG_database.HDF5 is missing.\n")
-        sys.exit(1)
-    # we load the thresholds and gene order
-    gene_order = list()
-    gene_thresholds = dict()
-    o = open(os.path.join(dirpath, "threshold_file.tsv"))
-    for line in o:
-        vals = line.rstrip().split("\t")
-        gene_thresholds[vals[0]] = vals[1]
-        gene_order.append(vals[0])
-    o.close()
-
-    # we load the gene legths
-    ali_lengths = dict()
-    o = open(os.path.join(dirpath, "hmm_lengths_file.tsv"))
-    for line in o:
-        vals = line.rstrip().split("\t")
-        ali_lengths[vals[0]] = vals[1]
-    o.close()
-
-
-    # we remove the threshold file from the list of genes
-    list_files.remove("threshold_file.tsv")
-    list_files.remove("hmm_lengths_file.tsv")
-    list_files.remove("concatenated_genes_STAG_database.HDF5")
-    return list_files,dirpath,gene_thresholds,gene_order,ali_lengths,os.path.join(dirpath, "concatenated_genes_STAG_database.HDF5")
-
-# ==============================================================================
-# RUN PRODIGAL
-# ==============================================================================
-# run prodigal on one genome
-def run_prodigal(genome, verbose):
+def run_prodigal(genome):
     if not is_tool("prodigal"):
-        sys.stderr.write("[E::align] Error: prodigal is not in the path.\n")
-        sys.exit(1)
+        raise ValueError("[E::align] Error: prodigal is not in the path.\n")
 
     # we need two files, one for the proteins and one for the genes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
@@ -132,12 +85,8 @@ def run_prodigal(genome, verbose):
     return parsed_genes, parsed_proteins
 
 # run prodigal on all the genomes listed in fasta_input
-def run_prodigal_genomes(genomes_file_list, verbose):
-    result = dict()
-    for g in genomes_file_list:
-        result[g] = run_prodigal(g, verbose)
-    return result
-
+def run_prodigal_genomes(genome_files):
+    return {genome: run_prodigal(genome) for genome in genome_files}
 
 # ==============================================================================
 # EXTRACT THE MARKER GENES
@@ -467,7 +416,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
         # SECOND: run prodigal on the fasta genome ---------------------------------
         if verbose > 2:
             sys.stderr.write("Run prodigal\n")
-        genomes_pred = run_prodigal_genomes(genome_files, verbose)
+        genomes_pred = run_prodigal_genomes(genome_files)
         # genomes_pred is a dictionary where the keys are the genome paths and the
         # values are lists. First value of the list is the path to the gene file and
         # second the path to the protein file
