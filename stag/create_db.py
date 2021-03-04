@@ -211,7 +211,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     return positive_examples_subsample, negative_examples_subsample
 
 # function that train the classifier for one node ==============================
-def train_classifier(positive_examples,negative_examples,all_classifiers,alignment, node, penalty_v, solver_v):
+def train_classifier(positive_examples,negative_examples,alignment, node, penalty_v, solver_v):
     # check that we have at least 1 example for each class:
     if len(negative_examples) == 0:
         # when the node is the only child, then there are no negative examples
@@ -235,46 +235,102 @@ def train_classifier(positive_examples,negative_examples,all_classifiers,alignme
     clf.fit(X, y)
     return clf
 
-# train node and call the same function on all the children ====================
-def train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v):
-    # call the function on all the children
-    # but only if they are not the last level
-    if not(full_taxonomy.is_last_node(node)):
-        children_of_node = full_taxonomy.find_children_node(node)
-        for child in children_of_node:
-            siblings_child = list(children_of_node)
-            siblings_child.remove(child)
-            train_node_iteratively(child, siblings_child, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v)
+def prep_train_classifier(positives, negatives, alignment, node):
+    if not negatives:
+        logging.info('      Warning: no negative examples for "%s', node)
+        return "no_negative_examples", None
+    if not positives:
+        logging.info('      Error: no positive examples for "%s', node)
+        return "ERROR_no_positive_examples", None
 
-    # find genomes to use and to which class they belong to,
-    # we need positive and negative examples
-    logging.info('   TRAIN:"%s":Find genes', node)
-    positive_examples, negative_examples = find_training_genes(node, siblings, full_taxonomy, alignment)
-    logging.info('      SEL_GENES:"%s": %s positive, %s negative', node,
-                 str(len(positive_examples)),str(len(negative_examples)))
+    X = alignment.loc[ negatives + positives, : ].to_numpy()
+    y = np.asarray(
+        ["no" for i in range(len(negatives))] + ["yes" for i in range(len(positives))]
+    )
+    return X, y
 
-    # train the classifier
-    logging.info('         TRAIN:"%s":Train classifier', node)
-    all_classifiers[node] = train_classifier(positive_examples,negative_examples,
-                                             all_classifiers, alignment, node, penalty_v, solver_v)
+def get_all_nodes(taxonomy):
+    nodes = set(taxonomy.find_children_node(taxonomy.get_root()))
+    queue = [(n, nodes.difference({n})) for n in nodes]
+    while queue:
+        node, siblings = queue.pop(0)
+        if not taxonomy.is_last_node(node):
+            children = set(taxonomy.find_children_node(node))
+            queue.extend((child, children.difference({child})) for child in children)
+        yield node, siblings
+
+def train_node(node, siblings, alignment, taxonomy, penalty_v, solver_v):
+    logging.info('   TRAIN:"{}":Find genes'.format(node))
+    positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+    logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
+        node, len(positive_examples), len(negative_examples)
+    ))
+    logging.info('         TRAIN:"{}":Train classifier'.format(node))
+    return node, train_classifier(positive_examples, negative_examples, alignment, node, penalty_v, solver_v)
+
+def find_training_genes_gen(node_stream, taxonomy, alignment):
+    for node, siblings in node_stream:
+        logging.info('   TRAIN:"{}":Find genes'.format(node))
+        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+        logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
+            node, len(positive_examples), len(negative_examples)
+        ))
+        yield node, siblings, prep_train_classifier(positive_examples, negative_examples, alignment, node)
+
+def train_classifier_short(X, y, penalty_v, solver_v, node):
+    if y is None:
+        return node, X
+    clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
+    clf.fit(X, y)
+    return node, clf
+
+def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v, procs=2):
+    import multiprocessing as mp
+    pool = mp.Pool(processes=procs)
 
 
-# function to train all classifiers ============================================
-# this function will create a classifier for each node in the taxonomy
-# Input:
-#  - the aligned sequences as a pandas data frame
-#  - the taxonomy (global variable)
-# Output:
-#  - a dictionary, where the keys are the node names and the values are a lasso
-#                  classifier object
-def train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v):
+
+
+
+
+
+
+    results = (
+        pool.apply_async(train_classifier_short, args=(X, y, penalty_v, solver_v, node,))
+        for node, siblings, (X, y) in find_training_genes_gen(get_all_nodes(taxonomy), taxonomy, alignment)
+    )
+
+    #results = [
+    #    pool.apply_async(train_node, args=(node, siblings, alignment, taxonomy, penalty_v, solver_v,))
+    #    for node, siblings in get_all_nodes(taxonomy)
+    #]
+
+    return dict(p.get() for p in results)
+
+
+def train_all_classifiers_without_mp(alignment, taxonomy, penalty_v, solver_v):
     all_classifiers = dict()
-    children_of_root = full_taxonomy.find_children_node(full_taxonomy.get_root())
-    for node in children_of_root:
-        siblings = list(children_of_root)
-        siblings.remove(node)
-        train_node_iteratively(node, siblings, all_classifiers, alignment, full_taxonomy, penalty_v, solver_v)
-    return(all_classifiers)
+    nodes = set(taxonomy.find_children_node(taxonomy.get_root()))
+    queue = [(n, nodes.difference({n})) for n in nodes]
+    while queue:
+        node, siblings = queue.pop(0)
+        if not taxonomy.is_last_node(node):
+            children = set(taxonomy.find_children_node(node))
+            queue.extend((child, children.difference({child})) for child in children)
+
+        logging.info('   TRAIN:"{}":Find genes'.format(node))
+        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+        logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
+            node, len(positive_examples), len(negative_examples)
+        ))
+        logging.info('         TRAIN:"{}":Train classifier'.format(node))
+        all_classifiers[node] = train_classifier(
+            positive_examples, negative_examples,
+            alignment, node, penalty_v, solver_v
+        )
+
+    return all_classifiers
+
 
 #===============================================================================
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
@@ -335,7 +391,7 @@ def predict(test_al, training_tax, classifiers_train):
         res.append(r)
     return(res)
 
-def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v):
+def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
     # 1. Identify which clades we want to remove (test set) and which to keep
     #    (training set)
@@ -362,7 +418,7 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v
     training_tax = full_taxonomy.copy()
     removed_genes = training_tax.remove_clades(list(test_set))
     training_al = alignment.loc[ training_tax.find_gene_ids(training_tax.get_root()) , : ]
-    classifiers_train = train_all_classifiers(training_al, training_tax, penalty_v, solver_v)
+    classifiers_train = train_all_classifiers(training_al, training_tax, penalty_v, solver_v, procs=procs)
 
     # 3. Classify the test set
     test_al = alignment.loc[ removed_genes , : ]
@@ -381,7 +437,7 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v
     #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],2]
     # .....                                                                               ]
 
-def learn_function_genes_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v):
+def learn_function_genes_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
     # 1. Identify which clades we want to remove (test set) and which to keep
     #    (training set)
@@ -406,7 +462,7 @@ def learn_function_genes_level(level_to_learn, alignment, full_taxonomy, penalty
     training_tax = full_taxonomy.copy()
     training_tax.remove_genes(list(test_set))
     training_al = alignment.loc[ training_set , : ]
-    classifiers_train = train_all_classifiers(training_al, training_tax, penalty_v, solver_v)
+    classifiers_train = train_all_classifiers(training_al, training_tax, penalty_v, solver_v, procs=procs)
 
     # 3. Classify the test set
     test_al = alignment.loc[ test_set , : ]
@@ -504,16 +560,16 @@ def estimate_function(all_calc_functions):
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
 # level a new gene should be assigned to.
-def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v):
+def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=2):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
 
     # do the cross validation for each level
     all_calc_functions = list()
     for i in range(n_levels):
-        all_calc_functions = all_calc_functions + learn_function_one_level(i, alignment, full_taxonomy, penalty_v, solver_v)
+        all_calc_functions = all_calc_functions + learn_function_one_level(i, alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
     # do the cross val. for the last level (using the genes)
-    all_calc_functions = all_calc_functions + learn_function_genes_level(n_levels, alignment, full_taxonomy, penalty_v, solver_v)
+    all_calc_functions = all_calc_functions + learn_function_genes_level(n_levels, alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
 
     # save all_calc_functions if necessary -------------------------------------
     if not (save_cross_val_data is None):
@@ -594,7 +650,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_ver
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cross_val_data, tool_version, penalty_v, solver_v, hmm_file_path=None, protein_fasta_input=None):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cross_val_data, tool_version, penalty_v, solver_v, hmm_file_path=None, protein_fasta_input=None, procs=2):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -621,7 +677,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cro
 
     # 4. build a classifier for each node
     logging.info('MAIN:Train all classifiers')
-    classifiers = train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v)
+    classifiers = train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
     logging.info('TIME:Finish train all classifiers')
 
     # 5. learn the function to identify the correct taxonomy level
