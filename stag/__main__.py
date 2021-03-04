@@ -321,7 +321,8 @@ def main(argv=None):
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output,
                             args.use_cm_align, args.intermediate_cross_val, tool_version,
                             args.penalty_logistic, args.solver_logistic,
-                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
+                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input,
+                            procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -368,7 +369,8 @@ def main(argv=None):
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.intermediate_cross_val, tool_version,
                             args.penalty_logistic, args.solver_logistic,
-                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input)
+                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input,
+                            procs=args.threads)
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
             # remove it
@@ -539,12 +541,12 @@ def main(argv=None):
             handle_error(error, print_menu_classify_genome)
 
         # find files to classify
-        marker_genes, list_files = list(), None
+        marker_genes, list_files = list(), list()
         if args.fasta_input:
             check_file_exists(args.fasta_input, isfasta = True)
             list_files.append(args.fasta_input)
         elif args.marker_genes:
-            marker_genes, list_files = json.load(open(args.marker_genes)), None
+            marker_genes, list_files = json.load(open(args.marker_genes)), list()
         else:
             for f in os.listdir(args.dir_input):
                 f = os.path.join(args.dir_input, f)
@@ -564,13 +566,13 @@ def main(argv=None):
             if args.force_rewrite:
                 shutil.rmtree(args.output)
             else:
-                handle_error("output directory (-o) exists already.", None)
+                handle_error("output directory (-o {}) exists already.".format(args.output), None)
 
         # create output dir
         try:
             pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
         except:
-            handle_error("creating the output directory (-o). {}".format(args.output), None)
+            handle_error("creating the output directory (-o {}).".format(args.output), None)
 
         if list_files:
             from stag.classify_genome import validate_genome_files
