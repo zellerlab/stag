@@ -114,26 +114,22 @@ def run_prodigal(genome, verbose):
     # we re-name the header of the fasta files ---------------------------------
     # we expect to have the same number of genes and proteins, and also that the
     #
-    def copy_fasta(fasta_in, fasta_out, is_binary=True, head_start=0):
-        for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary)):
-            print(">{genome}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
-        fasta_out.flush()
-        os.fsync(parsed_genes.fileno())
-        return index + 1
+    def copy_fasta(fasta_file, seqid, is_binary=True, head_start=0):
+        with tempfile.NamedTemporaryFile(delete=False, mode="w") as fasta_out, open(fasta_file) as fasta_in:
+            for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary), start=1):
+                print(">{seqid}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
+            fasta_out.flush()
+            os.fsync(fasta_out.fileno())
+            return fasta_out.name, index
 
-    parsed_genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    parsed_proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
-
-    with parsed_genes, open(genes.name) as genes_in:
-        n_genes = copy_fasta(genes_in, parsed_genes, is_binary=False, head_start=1)
-    with parsed_proteins, open(proteins.name) as proteins_in:
-        n_proteins = copy_fasta(proteins_in, parsed_proteins, is_binary=False, head_start=1)
+    parsed_genes, gene_count = copy_fasta(genes.name, genome, is_binary=False)
+    parsed_proteins, protein_count = copy_fasta(proteins.name, genome, is_binary=False)
 
     # remove old files
     os.remove(genes.name)
     os.remove(proteins.name)
 
-    return parsed_genes.name, parsed_proteins.name
+    return parsed_genes, parsed_proteins
 
 # run prodigal on all the genomes listed in fasta_input
 def run_prodigal_genomes(genomes_file_list, verbose):
@@ -374,6 +370,7 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
                 sys.exit(1)
             # faa = faa if faa != "no_protein" else None
             align_out = os.path.join(dir_ali, mg)
+            print(fna, faa, align_out, db, sep="\n")
             _, results = classify(db, fasta_input=fna, protein_fasta_input=faa,
                                   save_ali_to_file=align_out, internal_call=True)
             all_classifications.update(dict(results))

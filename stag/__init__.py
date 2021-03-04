@@ -1,4 +1,4 @@
-__version__ = "0.7.1"
+__version__ = "0.7.1_bigcleanup"
 __title__ = "stag"
 __author__ = "Alessio Milanese"
 __license__ = 'GPLv3+'

@@ -1,4 +1,4 @@
-name: stag
+name: stag_big_cleanup
 channels:
   - bioconda
   - defaults
