@@ -550,7 +550,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
         sys.stderr.write("Taxonomically annotate genomes\n")
     # First, create a concatenated alignment. The alignments were created in the
     # 4th step
-    file_ali = concat_alis(genomes_files,output+"/MG_ali/",gene_order,ali_lengths)
+    file_ali = concat_alis(genome_files,output+"/MG_ali/",gene_order,ali_lengths)
 
     # Second, classify the alignments
     annotate_concat_mgs(concat_ali_stag_db,file_ali,output)
