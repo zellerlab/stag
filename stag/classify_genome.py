@@ -20,6 +20,7 @@ import contextlib
 from stag.helpers import is_tool, read_fasta
 from stag.classify import classify
 from stag import __version__ as tool_version
+from stag.databases import load_genome_DB
 
 try:
     from subprocess import DEVNULL
