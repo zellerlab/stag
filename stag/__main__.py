@@ -546,7 +546,7 @@ def main(argv=None):
             check_file_exists(args.fasta_input, isfasta = True)
             list_files.append(args.fasta_input)
         elif args.marker_genes:
-            marker_genes, list_files = json.load(open(args.marker_genes)), list()
+            marker_genes = [args.marker_genes]
         else:
             for f in os.listdir(args.dir_input):
                 f = os.path.join(args.dir_input, f)
