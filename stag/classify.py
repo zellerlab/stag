@@ -27,9 +27,8 @@ from stag.load_db import load_db
 def alignment_reader(aligned_sequences):
     with open(aligned_sequences,"r") as align_in:
         for ali_line in align_in:
-            gene_id = ali_line[:ali_line.find("\t")]
-            aligned_seq = [int(col) for col in ali_line.split("\t")[1:].rstrip()]
-            yield gene_id, np.array(aligned_seq, dtype=bool)
+            gene_id, *aligned_seq = ali_line.rstrip().split("\t")
+            yield gene_id, np.array(list(map(int, aligned_seq)), dtype=bool)
 
 #===============================================================================
 #                     TAXONOMICALLY ANNOTATE SEQUENCES
