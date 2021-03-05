@@ -228,3 +228,13 @@ class Taxonomy:
         to_print = to_print + "\nLIST GENES:\n" + str(self.all_gene_ids) + "\n"
         to_print = to_print + "\nN LEVELS: " + str(self.number_of_taxonomic_levels) + "\n"
         return to_print
+
+    def get_all_nodes(self):
+        nodes = set(self.find_children_node(self.get_root()))
+        queue = [(n, nodes.difference({n})) for n in nodes]
+        while queue:
+            node, siblings = queue.pop(0)
+            if not self.is_last_node(node):
+                children = set(self.find_children_node(node))
+                queue.extend((child, children.difference({child})) for child in children)
+            yield node, siblings
