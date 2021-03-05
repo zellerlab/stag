@@ -210,30 +210,6 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
     return positive_examples_subsample, negative_examples_subsample
 
-# function that train the classifier for one node ==============================
-def train_classifier(positive_examples,negative_examples,alignment, node, penalty_v, solver_v):
-    # check that we have at least 1 example for each class:
-    if len(negative_examples) == 0:
-        # when the node is the only child, then there are no negative examples
-        logging.info('      Warning: no negative examples for "%s', node)
-        return "no_negative_examples"
-    if len(positive_examples) == 0:
-        # There should be positive examples
-        logging.info('      Error: no positive examples for "%s', node)
-        return "ERROR_no_positive_examples"
-
-    # select the genes from the pandas dataframe
-    X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
-    train_labels = ["no"]*len(negative_examples)+["yes"]*len(positive_examples)
-    # NOTE: we put first the negative class (0) because then the classifier will
-    #       use this order. And when we will use only the coefficients, it will
-    #       give the probability prediction of the secodn class
-
-    y = np.asarray(train_labels)
-    # train classifier
-    clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
-    clf.fit(X, y)
-    return clf
 
 def prep_train_classifier(positives, negatives, alignment, node):
     if not negatives:
@@ -249,27 +225,8 @@ def prep_train_classifier(positives, negatives, alignment, node):
     )
     return X, y
 
-def get_all_nodes(taxonomy):
-    nodes = set(taxonomy.find_children_node(taxonomy.get_root()))
-    queue = [(n, nodes.difference({n})) for n in nodes]
-    while queue:
-        node, siblings = queue.pop(0)
-        if not taxonomy.is_last_node(node):
-            children = set(taxonomy.find_children_node(node))
-            queue.extend((child, children.difference({child})) for child in children)
-        yield node, siblings
-
-def train_node(node, siblings, alignment, taxonomy, penalty_v, solver_v):
-    logging.info('   TRAIN:"{}":Find genes'.format(node))
-    positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-    logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
-        node, len(positive_examples), len(negative_examples)
-    ))
-    logging.info('         TRAIN:"{}":Train classifier'.format(node))
-    return node, train_classifier(positive_examples, negative_examples, alignment, node, penalty_v, solver_v)
-
-def find_training_genes_gen(node_stream, taxonomy, alignment):
-    for node, siblings in node_stream:
+def get_training_genes(taxonomy, alignment):
+    for node, siblings in taxonomy.get_all_nodes():
         logging.info('   TRAIN:"{}":Find genes'.format(node))
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
         logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
@@ -277,10 +234,10 @@ def find_training_genes_gen(node_stream, taxonomy, alignment):
         ))
         yield node, siblings, prep_train_classifier(positive_examples, negative_examples, alignment, node)
 
-def train_classifier_short(X, y, penalty_v, solver_v, node):
+def train_classifier(X, y, penalty_v, solver_v, node):
     if y is None:
         return node, X
-    clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
+    clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
     clf.fit(X, y)
     return node, clf
 
@@ -289,35 +246,11 @@ def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v, procs=2):
     pool = mp.Pool(processes=procs)
 
     results = (
-        pool.apply_async(train_classifier_short, args=(X, y, penalty_v, solver_v, node,))
-        for node, siblings, (X, y) in find_training_genes_gen(get_all_nodes(taxonomy), taxonomy, alignment)
+        pool.apply_async(train_classifier, args=(X, y, penalty_v, solver_v, node,))
+        for node, siblings, (X, y) in get_training_genes(taxonomy, alignment)
     )
 
     return dict(p.get() for p in results)
-
-
-def train_all_classifiers_without_mp(alignment, taxonomy, penalty_v, solver_v):
-    all_classifiers = dict()
-    nodes = set(taxonomy.find_children_node(taxonomy.get_root()))
-    queue = [(n, nodes.difference({n})) for n in nodes]
-    while queue:
-        node, siblings = queue.pop(0)
-        if not taxonomy.is_last_node(node):
-            children = set(taxonomy.find_children_node(node))
-            queue.extend((child, children.difference({child})) for child in children)
-
-        logging.info('   TRAIN:"{}":Find genes'.format(node))
-        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-        logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
-            node, len(positive_examples), len(negative_examples)
-        ))
-        logging.info('         TRAIN:"{}":Train classifier'.format(node))
-        all_classifiers[node] = train_classifier(
-            positive_examples, negative_examples,
-            alignment, node, penalty_v, solver_v
-        )
-
-    return all_classifiers
 
 
 #===============================================================================
