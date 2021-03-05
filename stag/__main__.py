@@ -98,7 +98,7 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify():
@@ -143,7 +143,7 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
     sys.stderr.write(f"{bco.Cyan}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_correct_seq():
@@ -170,10 +170,11 @@ def print_menu_train_genome():
 def print_menu_classify_genome():
     sys.stderr.write("\n")
     sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} classify_genome {bco.LightBlue}-d{bco.ResetAll} <genome_database> {bco.LightBlue}-o{bco.ResetAll} res_dir\n")
-    sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>] [options]\n\n")
+    sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>/{bco.LightBlue}-G{bco.ResetAll} <markers.json>] [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE   database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   genome fasta file\n")
     sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR    directory containing genome fasta files (only fasta\n             files will be used)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-G{bco.ResetAll}  FILE   json file pointing at a marker gene set (in lieu of a full genome)\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  DIR    output directory {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
