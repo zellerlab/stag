@@ -288,22 +288,10 @@ def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
     pool = mp.Pool(processes=procs)
 
-
-
-
-
-
-
-
     results = (
         pool.apply_async(train_classifier_short, args=(X, y, penalty_v, solver_v, node,))
         for node, siblings, (X, y) in find_training_genes_gen(get_all_nodes(taxonomy), taxonomy, alignment)
     )
-
-    #results = [
-    #    pool.apply_async(train_node, args=(node, siblings, alignment, taxonomy, penalty_v, solver_v,))
-    #    for node, siblings in get_all_nodes(taxonomy)
-    #]
 
     return dict(p.get() for p in results)
 
