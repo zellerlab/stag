@@ -91,7 +91,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
         if not found:
             sys.stderr.write("Error, character not identified\n")
 
-    return al_gene
+    return "".join(al_gene)
 
 # ------------------------------------------------------------------------------
 # main function as a generator
