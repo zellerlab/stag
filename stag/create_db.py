@@ -211,20 +211,6 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     return positive_examples_subsample, negative_examples_subsample
 
 
-def prep_train_classifier(positives, negatives, alignment, node):
-    if not negatives:
-        logging.info('      Warning: no negative examples for "%s', node)
-        return "no_negative_examples", None
-    if not positives:
-        logging.info('      Error: no positive examples for "%s', node)
-        return "ERROR_no_positive_examples", None
-
-    X = alignment.loc[ negatives + positives, : ].to_numpy()
-    y = np.asarray(
-        ["no" for i in range(len(negatives))] + ["yes" for i in range(len(positives))]
-    )
-    return X, y
-
 def get_training_genes(taxonomy, alignment):
     for node, siblings in taxonomy.get_all_nodes():
         logging.info('   TRAIN:"{}":Find genes'.format(node))
@@ -232,7 +218,19 @@ def get_training_genes(taxonomy, alignment):
         logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
             node, len(positive_examples), len(negative_examples)
         ))
-        yield node, siblings, prep_train_classifier(positive_examples, negative_examples, alignment, node)
+
+        if not negative_examples:
+            logging.info('      Warning: no negative examples for "%s', node)
+            X, y = "no_negative_examples", None
+        elif not positive_examples:
+            logging.info('      Error: no positive examples for "%s', node)
+            X, y = "ERROR_no_positive_examples", None
+        else:
+            X = alignment.loc[ negative_examples + positive_examples, : ].to_numpy()
+            y = np.asarray(
+                ["no" for _ in negative_examples] + ["yes" for _ in positive_examples]
+            )
+        yield node, siblings, X, y
 
 def train_classifier(X, y, penalty_v, solver_v, node):
     if y is None:
@@ -247,7 +245,7 @@ def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v, procs=2):
 
     results = (
         pool.apply_async(train_classifier, args=(X, y, penalty_v, solver_v, node,))
-        for node, siblings, (X, y) in get_training_genes(taxonomy, alignment)
+        for node, siblings, X, y in get_training_genes(taxonomy, alignment)
     )
 
     return dict(p.get() for p in results)
