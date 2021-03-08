@@ -368,13 +368,15 @@ def concat_alignments(genome_files, ali_dir, gene_order, ali_lengths, full_genom
     for pos, mg in enumerate(gene_order):
         mg_alignment_file = os.path.join(ali_dir, mg)
         if os.path.exists(mg_alignment_file):
-            for line in align_in:
-                genome, *alignment = line.strip().split("\t")
-                sep = "_" if "_" in genome else "."
-                genome = genome.split("##")[0].split(sep)
-                genome = sep.join(genome[:-1] if len(genome) > 1 else genome)
-                all_genes.setdefault(genome, ["\t".join(["0" for i in range(int(ali_lengths[mg]))]) for mg in gene_order])
-                all_genes.setdefault[genome][pos] = "\t".join(alignment)
+            with open(mg_alignment_file) as align_in:
+                for line in align_in:
+                    genome, *alignment = line.strip().split("\t")
+                    sep = "_" if "_" in genome else "."
+                    genome = genome.split("##")[0].split(sep)
+                    genome = sep.join(genome[:-1] if len(genome) > 1 else genome)
+                    all_genes.setdefault(genome, ["\t".join(["0" for i in range(int(ali_lengths[mg]))]) for mg in gene_order])
+                    all_genes[genome][pos] = "\t".join(alignment)
+
     #all_genes = dict()
     #for genome in genome_files:
     #    if not full_genomes:
@@ -470,6 +472,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
     # we save in the outdir the file with the MG sequences
     copy_function = shutil.move if genome_files else os.link
     os.mkdir(output+"/MG_sequences")
+    print(MGS)
     for m in MGS:
         try:
             if MGS[m][0] is None:
@@ -485,7 +488,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
                 #shutil.move(MGS[m][1],output+"/MG_sequences/"+m+".faa")
                 MGS[m][1] = os.path.abspath(output+"/MG_sequences/"+m+".faa")
         except Exception as e:
-            raise ValueError(f"[E::main] Error: failed to save the marker gene sequences\n{err}")
+            raise ValueError(f"[E::main] Error: failed to save the marker gene sequences\n{e}")
 
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
