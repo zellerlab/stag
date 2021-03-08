@@ -348,52 +348,55 @@ def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose,
         merged_predictions.setdefault(genome, list()).append("\t".join([marker_gene.rstrip(), mg_id, lineage]))
     print(*merged_predictions.items(), sep="\n")
 
-    for genome in genome_files:
-        print(genome, full_genomes)
-        if not full_genomes:
-            genome = os.path.basename(genome).replace(".markers.json", "")
+    for genome, predictions in merged_predictions.items():
         genome_filename = os.path.basename(genome)
-        with open(os.path.join(outdir, genome_filename), "w") as merged_out:
-            print(*merged_predictions.get(genome, list()), sep="\n", file=merged_out, flush=True)
+        with open(os.path.join(outdir, os.path.basename(genome)), "w") as merged_out:
+            print(*predictions, sep="\n", file=merged_out, flush=True)
+    #for genome in genome_files:
+    #    print(genome, full_genomes)
+    #    if not full_genomes:
+    #        genome = os.path.basename(genome).replace(".markers.json", "")
+    #    genome_filename = os.path.basename(genome)
+    #    with open(os.path.join(outdir, genome_filename), "w") as merged_out:
+    #        print(*merged_predictions.get(genome, list()), sep="\n", file=merged_out, flush=True)
 
 # ==============================================================================
 # CONCAT ALIGNEMENTS
 # ==============================================================================
 def concat_alignments(genome_files, ali_dir, gene_order, ali_lengths, full_genomes=True):
-    # we return a (tmp) file containing the concatenated alignment
-    # INPUT:
-    #  - list of genomes
-    #  - base name of the directory containing the alignments
-    #  - order of the genes
-    #  - length of the alignments
-
-    # we create the base
     all_genes = dict()
-    for genome in genome_files:
-        if not full_genomes:
-            genome = os.path.basename(genome).replace(".markers.json", "")
-        for mg in gene_order:
-            all_genes.setdefault(genome, list()).append("\t".join(['0'] * int(ali_lengths[mg])))
-    print(genome_files)
-    print("XXX", *all_genes.keys(), sep="\n")
-    print(gene_order)
-    print(ali_lengths)
-    #for ge in genomes_file_list:
-    #    all_genes[ge] = list()
-    #    for mg in gene_order:
-    #        all_genes[ge].append("\t".join(['0'] * int(ali_lengths[mg])))
-
-    # we add the alignments from the real genes
     for pos, mg in enumerate(gene_order):
         mg_alignment_file = os.path.join(ali_dir, mg)
         if os.path.exists(mg_alignment_file):
-            with open(mg_alignment_file) as align_in:
-                for line in align_in:
-                    genome, *alignment = line.strip().split("\t")
-                    sep = "_" if "_" in genome else "."
-                    genome = genome.split("##")[0].split(sep)
-                    genome = sep.join(genome[:-1] if len(genome) > 1 else genome) 
-                    all_genes[genome][pos] = "\t".join(alignment)
+            for line in align_in:
+                genome, *alignment = line.strip().split("\t")
+                sep = "_" if "_" in genome else "."
+                genome = genome.split("##")[0].split(sep)
+                genome = sep.join(genome[:-1] if len(genome) > 1 else genome)
+                all_genes.setdefault(genome, ["\t".join(["0" for i in range(int(ali_lengths[mg]))]) for mg in gene_order])
+                all_genes.setdefault[genome][pos] = "\t".join(alignment)
+    #all_genes = dict()
+    #for genome in genome_files:
+    #    if not full_genomes:
+    #        genome = os.path.basename(genome).replace(".markers.json", "")
+    #    for mg in gene_order:
+    #        all_genes.setdefault(genome, list()).append("\t".join(['0'] * int(ali_lengths[mg])))
+    #print(genome_files)
+    #print("XXX", *all_genes.keys(), sep="\n")
+    #print(gene_order)
+    #print(ali_lengths)
+
+    ## we add the alignments from the real genes
+    #for pos, mg in enumerate(gene_order):
+    #    mg_alignment_file = os.path.join(ali_dir, mg)
+    #    if os.path.exists(mg_alignment_file):
+    #        with open(mg_alignment_file) as align_in:
+    #            for line in align_in:
+    #                genome, *alignment = line.strip().split("\t")
+    #                sep = "_" if "_" in genome else "."
+    #                genome = genome.split("##")[0].split(sep)
+    #                genome = sep.join(genome[:-1] if len(genome) > 1 else genome) 
+    #                all_genes[genome][pos] = "\t".join(alignment)
     #print("YYY", *all_genes.keys(), sep="\n")
     print("YYY")
     for key, value in all_genes.items():
