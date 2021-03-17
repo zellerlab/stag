@@ -154,7 +154,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
         # find possible genes to add additionaly to negarives
         possible_neg = set(alignment.index.values).difference(set(positive_examples + negative_examples))
-        if len(possible_neg) == 0: # if it is possible to add negatives
+        if len(possible_neg) != 0: # if it is possible to add negatives
                                    # note that at the highest level, it's not possible
             X_poss_na = alignment.loc[possible_neg, : ].to_numpy()
             len_poss_na = len(X_poss_na)
