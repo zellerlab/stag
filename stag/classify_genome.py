@@ -417,8 +417,8 @@ def concat_alignments(genome_files, ali_dir, gene_order, ali_lengths, full_genom
 # ANNOTATE concatenation of the MGs
 # ==============================================================================
 # the annotation for the genome is based on the annotation of the
-def annotate_concat_mgs(stag_db, alignment_file, output_dir):
-    _, results = classify(stag_db, aligned_sequences=alignment_file, output=os.path.join(output_dir, "genome_annotation"))
+def annotate_concat_mgs(stag_db, alignment_file, output_dir, long_out=False):
+    _, results = classify(stag_db, aligned_sequences=alignment_file, output=os.path.join(output_dir, "genome_annotation"), long_out=long_out)
 
 #===============================================================================
 #                                      MAIN
@@ -523,7 +523,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
     file_ali = concat_alignments(input_files, align_dir, gene_order, ali_lengths, full_genomes=bool(genome_files))
 
     # Second, classify the alignments
-    annotate_concat_mgs(concat_ali_stag_db, file_ali, output)
+    annotate_concat_mgs(concat_ali_stag_db, file_ali, output, long_out=long_out)
 
     # we remove the file with the concatenated alignment
     print(file_ali)
