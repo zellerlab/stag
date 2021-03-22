@@ -179,6 +179,7 @@ def print_menu_classify_genome():
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-r{bco.ResetAll}         use all genes above the filter {bco.LightMagenta}[False]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
 # ------------------------------------------------------------------------------
 def print_menu_convert_ali():
     sys.stderr.write("\n")

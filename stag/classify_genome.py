@@ -304,7 +304,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 
     return all_predicted
 
-def annotate_MGs(MGS, database_files, database_path_path, dir_ali, procs=2):
+def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
 
     for mg in MGS:
         db = os.path.join(database_base_path, mg)
@@ -316,15 +316,19 @@ def annotate_MGs(MGS, database_files, database_path_path, dir_ali, procs=2):
     results = (
         pool.apply_async(
             classify,
-            args=(os.path.join(database_path_path,mg),),
+            args=(os.path.join(database_base_path,mg),),
             kwds={"fasta_input": fna, "protein_fasta_input": faa,
                   "save_ali_to_file": os.path.join(dir_ali, mg),
                   "internal_call": True}
         )
         for mg, (fna, faa) in MGS.items() if fna
     )
-
-    return dict(p.get()[1] for p in results)
+    d = dict()
+    for p in results:
+        _, predictions = p.get()
+        d.update(predictions)
+    return d
+    #return dict(p.get()[1] for p in results)
 
 def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes, full_genomes=True):
     outdir = os.path.join(output, "genes_predictions")
@@ -388,11 +392,11 @@ def store_marker_sequences(marker_sequences, outdir, genome_files_available=True
 
     print(marker_sequences)
     pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
-    copy_function = shutil.move if genome_files_available else os.link
+    copy_function = shutil.move if genome_files_available else os.symlink
 
     for marker, (fna, faa) in marker_sequences.items():
-        fna = store_seqs(fna, os.path.join(outdir, f"{marker}.fna", copy_function)
-        faa = store_seqs(faa, os.path.join(outdir, f"{marker}.faa", copy_function)
+        fna = store_seqs(fna, os.path.join(outdir, f"{marker}.fna"), copy_function)
+        faa = store_seqs(faa, os.path.join(outdir, f"{marker}.faa"), copy_function)
         marker_sequences[marker] = [fna, faa]
 
 
@@ -452,7 +456,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
     align_dir = os.path.join(output, "MG_ali")
     pathlib.Path(align_dir).mkdir(exist_ok=True, parents=True)
 
-    all_classifications = annotate_MGs(MGS, database_files, temp_dir, align_dir)
+    all_classifications = annotate_MGs(MGS, database_files, temp_dir, align_dir, procs=threads)
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
     # Example:
