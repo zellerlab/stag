@@ -10,6 +10,7 @@ import glob
 import tempfile
 import errno
 import tarfile
+import pathlib
 
 from . import __version__ as tool_version
 from .helpers import bco, print_error, check_file_exists, check_file_doesnt_exists
@@ -403,7 +404,7 @@ def main(argv=None):
 
         # call the function
         classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads,
-                          args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al, 
+                          args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al,
                           args.min_perc_state)
 
     # --------------------------------------------------------------------------
@@ -474,7 +475,7 @@ def main(argv=None):
         if not args.database:
             error = "missing <database> (-d)"
         elif not args.output:
-            error = "missing <dir_out> (-o)" 
+            error = "missing <dir_out> (-o)"
 
         if error:
             handle_error(error, print_menu_unzip_db)
