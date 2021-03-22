@@ -16,7 +16,7 @@ import h5py
 import tempfile
 import shutil
 
-from stag.load_db import load_db
+from stag.databases import load_db
 
 #===============================================================================
 #                                      MAIN

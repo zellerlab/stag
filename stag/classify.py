@@ -19,7 +19,7 @@ import contextlib
 
 from stag import __version__ as tool_version
 import stag.align as align
-from stag.load_db import load_db
+from stag.databases import load_db
 
 #===============================================================================
 #                    FUNCTION TO LOAD ALIGNED SEQUENCES
