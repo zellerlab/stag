@@ -484,7 +484,7 @@ def main(argv=None):
         if not args.database:
             error = "missing <database> (-d)"
         elif not args.output:
-            error = "missing <dir_out> (-o)" 
+            error = "missing <dir_out> (-o)"
 
         if error:
             handle_error(error, print_menu_unzip_db)
