@@ -48,7 +48,10 @@ def download_file(url, filename):
 # function to download and decompress a tar.gz
 def download_and_checkmd5_and_decompress(url, filename, md5_db, destination):
     # we remove a dir if it exist already
-    shutil.rmtree(filename[0:-7])
+    try:
+        shutil.rmtree(filename[0:-7])
+    except:
+        dummy = "dont need to remove the dir"
     # check if the file is already downloaded
     my_file = Path(filename)
     if my_file.is_file():
