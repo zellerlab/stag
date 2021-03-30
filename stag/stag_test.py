@@ -352,6 +352,7 @@ def main(argv=None):
     o.readline()
     for line in o:
         vals = line.rstrip().split("\t")
+        vals[0] = vals[0].split("/")[-1]
         all_genomes[vals[0]] = True
         if not vals[0] in correct_classification:
             sys.stderr.write(f"{bco.Red}{bco.Bold} Error, too many lines{bco.ResetAll}\n")
