@@ -1,5 +1,6 @@
 import sys
 import csv
+import logging
 
 class Taxonomy:
     TREE_ROOT = "tree_root"
@@ -72,9 +73,9 @@ class Taxonomy:
 
     # find all genes under a given node ----------------------------------------
     # return a list of all genes
-    def find_gene_ids(self, node):
+    def find_gene_ids(self, node=None):
         all_leaves = list()
-        self.find_leaves_recoursive(node, all_leaves)
+        self.find_leaves_recoursive(node if node else self.get_root(), all_leaves)
         return all_leaves
     def find_leaves_recoursive(self, node, all_leaves):
         genes = self.last_level_to_genes.get(node)
@@ -182,7 +183,6 @@ class Taxonomy:
         string.extend(("", f"N LEVELS: {self.number_of_taxonomic_levels}", ""))
         return "\n".join(string)
 
-
     def get_all_nodes(self, mode="dfs"):
         assert mode in ("dfs", "bfs")
         from collections import deque
@@ -198,3 +198,36 @@ class Taxonomy:
                 dq.extend((child, children.difference({child})) for child in children)
             if node != self.get_root():
                 yield node, siblings
+
+    def ensure_geneset_consistency(self, genes):
+        genes_in_tree = set(self.find_gene_ids())
+        logging.info(f"   CHECK: genes in geneset: {len(genes)}")
+        logging.info(f"   CHECK: genes in taxonomy: {len(genes_in_tree)}")
+
+        # check that all genes in the geneset are in the taxonomy
+        missing_genes = set(genes).difference(genes_in_tree)
+        if missing_genes:
+            logging.info(" Error: some genes in the alignment have no taxonomy.")
+            for gene in missing_genes:
+                logging.info(f"    {gene}")
+            raise ValueError("Some genes in the alignment have no taxonomy.\n"
+                             "Use the command 'check_input' to find more information.\n")
+        else:
+            logging.info("   CHECK: check all genes in the alignment have a taxonomy: correct")
+
+        # the taxonomy can have more genes than the geneset, but these need to be removed
+        # since the selection of the genes for training and testing is done at taxonomy level
+        drop_genes = genes_in_tree.difference(genes)
+        if drop_genes:
+            n_drop_genes = len(drop_genes)
+            self.remove_genes(drop_genes)
+        else:
+            n_drop_genes = None
+        logging.info(f"   CHECK: check genes that we need to remove from the taxonomy: {n_drop_genes}")
+
+        # verify number of genes is consistent between set and taxonomy tree
+        genes_in_tree = self.find_gene_ids()
+        if len(genes_in_tree) != len(genes):
+            msg = "Even after correction, the genes in the taxonomy and the alignment do not agree."
+            logging.info(f" Error: {msg.lower()}")
+            raise ValueError(msg)
