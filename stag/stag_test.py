@@ -132,7 +132,6 @@ def main(argv=None):
 
     error_found = False
 
-    """
     # CHECK TOOLS ==============================================================
 
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}1-- Tools and versions:{bco.ResetAll}\n")
@@ -217,7 +216,6 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. h5py is missing{bco.ResetAll}\n\n")
         error_found = True
-    """
 
     # TRY TO RUN STAG ==========================================================
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Run stag:{bco.ResetAll}\n")
@@ -235,10 +233,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     sys.stderr.write("  ■ classify:   ") #--------------------------------------
     sys.stderr.flush()
@@ -250,10 +248,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} {runtime}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} {runtime}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     # remove temp file
     os.remove(temp_file_db.name+".log")
@@ -333,10 +331,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
 
 
@@ -361,10 +359,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     # check result of the classification ---------------------------------------
     sys.stderr.write("  ■ check result:         ")
@@ -432,10 +430,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     sys.stderr.write("  ■ classify:             ") #--------------------------------------
     sys.stderr.flush()
@@ -449,10 +447,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
 
     # check result of the classification ---------------------------------------
