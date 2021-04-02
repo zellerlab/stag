@@ -479,6 +479,9 @@ def main(argv=None):
             if correct_classification[vals[0]] != vals[1]:
                 sys.stderr.write(f"\n{bco.Yellow} Corr: "+correct_classification[vals[0]]+f"{bco.ResetAll}\n")
                 sys.stderr.write(f"{bco.Yellow} Pred: "+vals[1]+f"{bco.ResetAll}\n")
+            else:
+                sys.stderr.write(f"\n{bco.LightGreen} Corr: "+correct_classification[vals[0]]+f"{bco.ResetAll}\n")
+                sys.stderr.write(f"{bco.LightGreen} Pred: "+vals[1]+f"{bco.ResetAll}\n")
     o.close()
     # check that all the genomes were profiled
     for genome in all_genomes:
@@ -488,6 +491,7 @@ def main(argv=None):
             sys.exit(1)
     # if we arrive till here, then it's correct
     sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    # print(*all_genomes.items(), sep="\n")
 
 
 
