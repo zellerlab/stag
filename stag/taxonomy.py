@@ -181,3 +181,20 @@ class Taxonomy:
         string.extend(("", "LIST GENES:", str(self.all_gene_ids)))
         string.extend(("", f"N LEVELS: {self.number_of_taxonomic_levels}", ""))
         return "\n".join(string)
+
+
+    def get_all_nodes(self, mode="dfs"):
+        assert mode in ("dfs", "bfs")
+        from collections import deque
+        dq = deque([(self.get_root(), set())])
+        while dq:
+            if mode == "bfs":
+                node, siblings = dq.popleft()
+                children = set(self.find_children_node(node))
+                dq.extend((child, children.difference({child})) for child in children)
+            else:
+                node, siblings = dq.pop()
+                children = set(self.find_children_node(node))
+                dq.extend((child, children.difference({child})) for child in children)
+            if node != self.get_root():
+                yield node, siblings
