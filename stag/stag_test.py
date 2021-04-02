@@ -7,6 +7,7 @@
 #
 # ============================================================================ #
 
+import time
 import os
 import sys
 import tempfile
@@ -76,7 +77,7 @@ def download_file(url, filename):
 # function to download and decompress a tar.gz
 def download_and_checkmd5_and_decompress(url, filename, md5_db, destination):
     # we remove a dir if it exist already
-    shutil.rmtree(filename[0:-7])
+    shutil.rmtree(filename[0:-7], ignore_errors=True)
     # check if the file is already downloaded
     my_file = Path(filename)
     if my_file.is_file():
@@ -131,6 +132,7 @@ def main(argv=None):
 
     error_found = False
 
+    """
     # CHECK TOOLS ==============================================================
 
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}1-- Tools and versions:{bco.ResetAll}\n")
@@ -215,6 +217,7 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. h5py is missing{bco.ResetAll}\n\n")
         error_found = True
+    """
 
     # TRY TO RUN STAG ==========================================================
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Run stag:{bco.ResetAll}\n")
@@ -226,28 +229,31 @@ def main(argv=None):
     hmm_file = os.path.join(TEST_DATA_PATH, "gene.hmm")
     temp_file_db = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
-
+    t0 = time.time()
     stag_command = "stag train -f -o "+temp_file_db.name+" -i "+seq_file+" -x "+tax_file+" -a "+hmm_file
     process = subprocess.run(stag_command.split())
+    runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
 
     sys.stderr.write("  ■ classify:   ") #--------------------------------------
     sys.stderr.flush()
     temp_file_res = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
+    t0 = time.time()
     stag_command = "stag classify -v 1 -d "+temp_file_db.name+" -i "+seq_file+" -o "+temp_file_res.name
     process = subprocess.run(stag_command.split())
+    runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} {runtime}\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} {runtime}\n")
 
     # remove temp file
     os.remove(temp_file_db.name+".log")
@@ -321,14 +327,16 @@ def main(argv=None):
     thresholds = this_dir + "gene_thresholds"
     result_genome_DB = this_dir + "TEST_DB.stagDB"
 
+    t0 = time.time()
     stag_command = "stag train_genome -v 1 -o "+result_genome_DB+" -i "+gene_files+" -T "+thresholds+" -C "+merged_db
     process = subprocess.run(stag_command.split())
+    runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
 
 
 
@@ -347,14 +355,16 @@ def main(argv=None):
     genome_files = this_dir + "genomes"
     result = this_dir + "RESULT_TEMP"
 
+    t0 = time.time()
     stag_command = "stag classify_genome -v 1 -o "+result+" -d "+result_genome_DB+" -D "+genome_files
     process = subprocess.run(stag_command.split())
+    runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
 
     # check result of the classification ---------------------------------------
     sys.stderr.write("  ■ check result:         ")
@@ -373,6 +383,7 @@ def main(argv=None):
     o.readline()
     for line in o:
         vals = line.rstrip().split("\t")
+        vals[0] = vals[0].split("/")[-1]
         all_genomes[vals[0]] = True
         if not vals[0] in correct_classification:
             sys.stderr.write(f"{bco.Red}{bco.Bold} Error, too many lines{bco.ResetAll}\n")
@@ -415,15 +426,16 @@ def main(argv=None):
     trained_db = this_dir + "TRAINED_TEMP"
     temp_file_db = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
-
+    t0 = time.time()
     stag_command = "stag train -f -o "+trained_db+" -i "+seq_file+" -p "+protein_file+" -x "+tax_file+" -a "+hmm_file
     process = subprocess.run(stag_command.split())
+    runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
 
     sys.stderr.write("  ■ classify:             ") #--------------------------------------
     sys.stderr.flush()
@@ -431,14 +443,16 @@ def main(argv=None):
     seq_file = this_dir + "test.fna"
     protein_file = this_dir + "test.faa"
 
+    t0 = time.time()
     stag_command = "stag classify -v 1 -d "+trained_db+" -i "+seq_file+" -p "+protein_file+" -o "+res_classification
     process = subprocess.run(stag_command.split())
+    runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
 
 
     # check result of the classification ---------------------------------------
