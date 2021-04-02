@@ -132,7 +132,6 @@ def main(argv=None):
 
     error_found = False
 
-    """
     # CHECK TOOLS ==============================================================
 
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}1-- Tools and versions:{bco.ResetAll}\n")
@@ -217,7 +216,6 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. h5py is missing{bco.ResetAll}\n\n")
         error_found = True
-    """
 
     # TRY TO RUN STAG ==========================================================
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Run stag:{bco.ResetAll}\n")
