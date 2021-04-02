@@ -16,6 +16,8 @@ import h5py
 import tempfile
 import shutil
 
+from stag.taxonomy import Taxonomy
+
 # load align routine -----------------------------------------------------------
 path_this = os.path.realpath(__file__)
 path_array = path_this.split("/")
@@ -215,7 +217,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     tax = list()
     perc = list()
     # we arrived at the root, and now we classify from there
-    predict_iter(test_seq, taxonomy, classifiers, tax, perc, taxonomy.TREE_ROOT)
+    predict_iter(test_seq, taxonomy, classifiers, tax, perc, Taxonomy.TREE_ROOT)
 
     # we change the predictions that came from having only one sibiling --------
     if perc[0] == 2:

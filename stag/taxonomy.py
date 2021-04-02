@@ -60,7 +60,7 @@ class Taxonomy:
 
     # find children of a node --------------------------------------------------
     def find_children_node(self, node):
-        return list(self.child_nodes.get(node, list())) or None
+        return list(self.child_nodes.get(node, list()))
 
     # return the last level to genes -------------------------------------------
     def get_last_level_to_genes(self):
