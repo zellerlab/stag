@@ -384,9 +384,9 @@ def find_training_genes(node, sibilings, full_taxonomy, alignment):
             X_clade = np.vstack((X_clade,X_clade[rr,]))
 
         # find possible genes to add additionaly to negarives
-        possible_neg = set(alignment.index.values).difference(set(positive_examples + negative_examples))
-        if len(possible_neg) == 0: # if it is possible to add negatives
-                                   # note that at the highest level, it's not possible
+        possible_neg = list(set(alignment.index.values).difference(set(positive_examples + negative_examples)))
+        if possible_neg: # if it is possible to add negatives
+                         # note that at the highest level, it's not possible
             X_poss_na = alignment.loc[possible_neg, : ].to_numpy()
             len_poss_na = len(X_poss_na)
 
