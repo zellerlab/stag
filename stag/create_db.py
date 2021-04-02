@@ -278,7 +278,7 @@ def train_node_iteratively(node, sibilings, all_classifiers, alignment, full_tax
 # Output:
 #  - a dictionary, where the keys are the node names and the values are a lasso
 #                  classifier object
-def train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v):
+def train_all_classifiers2(alignment, full_taxonomy, penalty_v, solver_v):
     all_classifiers = dict()
     children_of_root = full_taxonomy.find_children_node(full_taxonomy.get_root())
     for node in children_of_root:
@@ -288,8 +288,20 @@ def train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v):
     return(all_classifiers)
 
 
+def train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v):
+    all_classifiers = dict()
+    for node, siblings in full_taxonomy.get_all_nodes(mode="bfs"):
+        # find genomes to use and to which class they belong to,
+        # we need positive and negative examples
+        logging.info(f'   TRAIN:"{node}":Find genes')
+        positive_examples, negative_examples = find_training_genes(node, siblings, full_taxonomy, alignment)
+        logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
 
-
+        # train the classifier
+        logging.info(f'         TRAIN:"{node}":Train classifier')
+        all_classifiers[node] = train_classifier(positive_examples, negative_examples,
+                                                 all_classifiers, alignment, node, penalty_v, solver_v)
+    return all_classifiers
 
 
 
