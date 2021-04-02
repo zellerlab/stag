@@ -215,7 +215,7 @@ def classify_seq(al_seq, taxonomy, tax_function, classifiers, threads, verbose):
     tax = list()
     perc = list()
     # we arrived at the root, and now we classify from there
-    predict_iter(test_seq, taxonomy, classifiers, tax, perc, "tree_root")
+    predict_iter(test_seq, taxonomy, classifiers, tax, perc, taxonomy.TREE_ROOT)
 
     # we change the predictions that came from having only one sibiling --------
     if perc[0] == 2:
