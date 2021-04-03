@@ -28,17 +28,17 @@ from sklearn.datasets import make_classification
 import h5py
 import tempfile
 import shutil
+import csv
 
 from stag.taxonomy import Taxonomy
 
 # Function to identify the rownames and number of columns in an alignment
 def find_raw_names_ncol(file_name):
     gene_names = list()
-    with open(file_name, "r") as f:
-        for line in f.readlines():
-            gene_names.append(line.split("\t")[0])
-        n_col = len(line.split("\t"))
-    return gene_names, n_col
+    with open(file_name) as f:
+        for gene, *align in csv.reader(f, delimiter="\t"):
+            gene_names.append(gene)
+        return gene_names, len(align)
 
 # function to load an alignment produced by the "align" option =================
 # Input:
@@ -49,21 +49,24 @@ def find_raw_names_ncol(file_name):
 # It works also on .gz files
 def load_alignment_from_file(file_name):
     # create empty pandas object of the correct size
-    gene_names,ncol = find_raw_names_ncol(file_name)
-    alignment = pd.DataFrame(False,index = gene_names,columns = range(ncol-1))
+    gene_names, align_length = find_raw_names_ncol(file_name)
+    alignment = pd.DataFrame(False, index=gene_names, columns=range(align_length))
     # add correct values
-    pos = 0
-    with open(file_name, "r") as f:
-        for line in f.readlines():
-            vals = line.rstrip().split("\t")
-            alignment.iloc[pos]= np.array([ False if x == "0" else True for x in vals[1:]])
-            pos = pos + 1
+    with open(file_name) as f:
+        for pos, (gene, *align) in enumerate(csv.reader(f, delimiter="\t")):
+            try:
+                align = [int(c) == 1 for c in align if int(c) in (0, 1)]
+            except:
+                raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
+            if len(align) != align_length:
+               raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{align}") 
+            alignment.iloc[pos] = np.array(align)
 
-    logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
+    logging.info(f'   LOAD_AL: Number of genes: {len(list(alignment.index.values))}')
 
     # we remove duplicates
     alignment = alignment.drop_duplicates()
-    logging.info('   LOAD_AL: Number of genes, after removing duplicates: %s', str(len(list(alignment.index.values))))
+    logging.info(f'   LOAD_AL: Number of genes, after removing duplicates: {len(list(alignment.index.values))}')
     return alignment
 
 #===============================================================================
