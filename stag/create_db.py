@@ -580,7 +580,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
-    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v)
+    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
     logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. save the result
