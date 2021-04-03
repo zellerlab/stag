@@ -266,15 +266,10 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
     return tax, perc
 
 def predict(test_al, training_tax, classifiers_train):
-    res = list()
-    for i in test_al.index.values:
-        r = list()
-        r.append(i)
-        predictions, percentages = predict_one_gene([test_al.loc[ i , : ].to_numpy()], training_tax, classifiers_train)
-        r.append(predictions)
-        r.append(percentages)
-        res.append(r)
-    return(res)
+    return [
+        [gene, *predict_one_gene([test_al.loc[ gene , : ].to_numpy()], training_tax, classifiers_train)]
+        for gene in test_al.index.values
+    ]
 
 def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v):
     logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
