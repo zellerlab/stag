@@ -99,6 +99,7 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify():
@@ -320,11 +321,9 @@ def main(argv=None):
             check_file_doesnt_exists(args.output)
 
         # call the function to create the database
-        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output,
-                            args.use_cm_align, args.intermediate_cross_val, tool_version,
-                            args.penalty_logistic, args.solver_logistic,
-                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input,
-                            procs=args.threads)
+        create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
+                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
+                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -369,10 +368,9 @@ def main(argv=None):
         # SECOND: CREATE_DB ----------------------------------------------------
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
-                            args.intermediate_cross_val, tool_version,
-                            args.penalty_logistic, args.solver_logistic,
-                            hmm_file_path=args.template_al, protein_fasta_input=args.protein_fasta_input,
-                            procs=args.threads)
+                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
+                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
+
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
             # remove it

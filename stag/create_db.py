@@ -25,20 +25,17 @@ from sklearn.linear_model import LogisticRegression
 import h5py
 import tempfile
 import shutil
+import csv
 
 from stag.taxonomy import Taxonomy
 
-#===============================================================================
-#                   FUNCTIONS TO LOAD AND CHECK THE ALIGNMENT
-#===============================================================================
 # Function to identify the rownames and number of columns in an alignment
 def find_raw_names_ncol(file_name):
     gene_names = list()
-    with open(file_name, "r") as f:
-        for line in f:
-            gene_names.append(line.split("\t")[0])
-        n_col = len(line.split("\t"))
-    return gene_names, n_col
+    with open(file_name) as f:
+        for gene, *align in csv.reader(f, delimiter="\t"):
+            gene_names.append(gene)
+        return gene_names, len(align)
 
 # function to load an alignment produced by the "align" option =================
 # Input:
@@ -49,60 +46,25 @@ def find_raw_names_ncol(file_name):
 # It works also on .gz files
 def load_alignment_from_file(file_name):
     # create empty pandas object of the correct size
-    gene_names, ncol = find_raw_names_ncol(file_name)
-    alignment = pd.DataFrame(index = gene_names, columns = range(ncol-1))
+    gene_names, align_length = find_raw_names_ncol(file_name)
+    alignment = pd.DataFrame(False, index=gene_names, columns=range(align_length))
     # add correct values
-    with open(file_name, "r") as f:
-        for pos, line in enumerate(f):
-            vals = line.rstrip().split("\t")
-            alignment.iloc[pos] = np.array([x == "1" for x in vals[1:]])
+    with open(file_name) as f:
+        for pos, (gene, *align) in enumerate(csv.reader(f, delimiter="\t")):
+            try:
+                align = [int(c) == 1 for c in align if int(c) in (0, 1)]
+            except:
+                raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
+            if len(align) != align_length:
+               raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{align}") 
+            alignment.iloc[pos] = np.array(align)
 
-    logging.info('   LOAD_AL: Number of genes: %s', str(len(list(alignment.index.values))))
+    logging.info(f'   LOAD_AL: Number of genes: {len(list(alignment.index.values))}')
 
     # we remove duplicates
     alignment = alignment.drop_duplicates()
-    logging.info('   LOAD_AL: Number of genes, after removing duplicates: %s', str(len(list(alignment.index.values))))
+    logging.info(f'   LOAD_AL: Number of genes, after removing duplicates: {len(list(alignment.index.values))}')
     return alignment
-
-# function to check that taxonomy and alignment are consistent =================
-# 1. all genes in the alignment should be in the taxonomy,
-# 2. the taxonomy can have more genes, than the one that are present in the
-#    alignment, but we need to remove them, since the selection of the genes
-#    for training and testing is done at the level of the taxonomy
-def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
-    genes_in_alignment = list(alignment.index.values)
-    genes_taxonomy = full_taxonomy.find_gene_ids(full_taxonomy.get_root())
-    logging.info('   CHECK: genes in alignment: %s', str(len(genes_in_alignment)))
-    logging.info('   CHECK: genes in taxonomy:  %s', str(len(genes_taxonomy)))
-
-    # check that all genes in the alignment are in the taxonomy ----------------
-    if not(set(genes_in_alignment).issubset(set(genes_taxonomy))):
-        sys.stderr.write("Error: some genes in the alignment have no taxonomy.\n")
-        sys.stderr.write("       Use the command 'check_input' to find more information.\n")
-        logging.info(' Error: some genes in the alignment have no taxonomy.')
-        for g in genes_in_alignment:
-            if g not in genes_taxonomy:
-                logging.info('    %s',g)
-        sys.exit(1)
-    else:
-        logging.info('   CHECK: check all genes in the alignment have a taxonomy: correct')
-
-    # check if we need to remove some genes from the taxonomy ------------------
-    not_needed_gene_tax = set(genes_taxonomy).difference(set(genes_in_alignment))
-    if len(not_needed_gene_tax) == 0:
-        logging.info('   CHECK: check genes that we need to remove from the taxonomy: None')
-    else:
-        logging.info('   CHECK: check genes that we need to remove from the taxonomy: %s', str(len(not_needed_gene_tax)))
-        full_taxonomy.remove_genes(list(not_needed_gene_tax))
-
-    # double check that the number of genes is the same in the alignment and in
-    # the taxonomy
-    genes_taxonomy = full_taxonomy.find_gene_ids(full_taxonomy.get_root())
-    if len(genes_taxonomy) != len(genes_in_alignment):
-        sys.stderr.write("Error: even after correction, the genes in the taxonomy and the alignment do not agree\n")
-        logging.info(' Error: even after correction, the genes in the taxonomy and the alignment do not agree.')
-        sys.exit(1)
-
 
 #===============================================================================
 #                   FUNCTIONS TO TRAIN THE CLASSIFIERS
@@ -110,14 +72,13 @@ def check_taxonomy_alignment_consistency(alignment, full_taxonomy):
 
 # function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
+    # "positive_examples" and "negative_examples" are list of gene ids
     positive_examples = full_taxonomy.find_gene_ids(node)
     negative_examples = list()
-    if len(siblings) > 0:
-        for s in siblings:
-            negative_examples = negative_examples + full_taxonomy.find_gene_ids(s)
-    # "positive_examples" and "negative_examples" are list of gene ids
+    for s in siblings:
+        negative_examples.extend(full_taxonomy.find_gene_ids(s))
 
-    if len(negative_examples) == 0:
+    if not negative_examples:
         # it means that there was only one child, and we cannot do anything
         return positive_examples, negative_examples
 
@@ -132,30 +93,29 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     if len(negative_examples_subsample) > 1000:
         negative_examples_subsample = random.sample(negative_examples_subsample, 1000)
     # 3. max 20 times more negative than positive ------------------------------
-    if len(negative_examples_subsample) > len(positive_examples_subsample)*20:
-        negative_examples_subsample = random.sample(negative_examples_subsample, len(positive_examples_subsample)*20)
+    # but if there is only one other sibiling, we choose only 3 times more negative
+    max_negative_samples = len(positive_examples_subsample) * (20 if len(siblings) > 1 else 3)
+    if len(negative_examples_subsample) > max_negative_samples:
+        negative_examples_subsample = random.sample(negative_examples_subsample, max_negative_samples)
     # 4. we want to have at least 5 times more negative than positive ----------
     missing_neg = 0 # how many negative sequences we need to add
-    if len(siblings) == 1:
-        # if there is only one other sibiling, we choose only 3 times more negative
-        if len(negative_examples_subsample) > len(positive_examples_subsample)*3:
-            negative_examples_subsample = random.sample(negative_examples_subsample, len(positive_examples_subsample)*3)
-    if len(negative_examples_subsample) < len(positive_examples_subsample)*5:
-        missing_neg = len(positive_examples_subsample)*5 - len(negative_examples_subsample)
+    min_negative_samples = len(positive_examples_subsample) * 5
+    if len(negative_examples_subsample) < min_negative_samples:
+        missing_neg = min_negative_samples - len(negative_examples_subsample)
     # add negative examples if necessary
     if missing_neg > 0:
         # positive examples
         X_clade = alignment.loc[positive_examples, : ].to_numpy()
         # always have 5 positive classes
         n_positive_class = len(X_clade)
-        for i in range(n_positive_class,5):
-            rr = random.choice(range(0,n_positive_class))
-            X_clade = np.vstack((X_clade,X_clade[rr,]))
+        for i in range(n_positive_class, 5):
+            rr = random.choice(range(n_positive_class))
+            X_clade = np.vstack((X_clade, X_clade[rr,]))
 
         # find possible genes to add additionaly to negarives
         possible_neg = list(set(alignment.index.values).difference(set(positive_examples + negative_examples)))
-        if len(possible_neg) != 0: # if it is possible to add negatives
-                                   # note that at the highest level, it's not possible
+        if possible_neg: # if it is possible to add negatives
+                         # note that at the highest level, it's not possible
             X_poss_na = alignment.loc[possible_neg, : ].to_numpy()
             len_poss_na = len(X_poss_na)
 
@@ -211,37 +171,57 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     return positive_examples_subsample, negative_examples_subsample
 
 
-def get_training_genes(taxonomy, alignment):
-    for node, siblings in taxonomy.get_all_nodes():
-        logging.info('   TRAIN:"{}":Find genes'.format(node))
+def get_classification_input(taxonomy, alignment):
+    for node, siblings in taxonomy.get_all_nodes(mode="bfs"):
+        logging.info(f'   TRAIN:"{node}":Find genes')
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-        logging.info('      SEL_GENES:"{}": {} positive, {} negative'.format(
-            node, len(positive_examples), len(negative_examples)
-        ))
+        logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
 
+        # check that we have at least 1 example for each class:
         if not negative_examples:
+            # when the node is the only child, then there are no negative examples
             logging.info('      Warning: no negative examples for "%s', node)
-            X, y = "no_negative_examples", None
+            yield node, "no_negative_examples", None
         elif not positive_examples:
+            # There should be positive examples
             logging.info('      Error: no positive examples for "%s', node)
-            X, y = "ERROR_no_positive_examples", None
+            yield node, "ERROR_no_positive_examples", None
         else:
-            X = alignment.loc[ negative_examples + positive_examples, : ].to_numpy()
-            y = np.asarray(
-                ["no" for _ in negative_examples] + ["yes" for _ in positive_examples]
-            )
-        yield node, siblings, X, y
+            X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
+            y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
+            yield node, X, y
 
-def train_classifier(X, y, penalty_v, solver_v, node):
+def train_all_classifiers_nonmp(alignment, full_taxonomy, penalty_v, solver_v, procs=None):
+    all_classifiers = dict()
+    for node, X, y in get_classification_input(full_taxonomy, alignment):
+        if y is not None:
+            clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
+            clf.fit(X, y)
+            all_classifiers[node] = clf
+        else:
+            all_classifiers[node] = X
+    return all_classifiers
+
+def perform_training(X, y, penalty_v, solver_v, node):
     if y is None:
         return node, X
     clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
     clf.fit(X, y)
     return node, clf
 
-def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v, procs=2):
+def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
-    pool = mp.Pool(processes=procs)
+    with mp.Pool(processes=procs) as pool:
+        results = (
+            pool.apply_async(perform_training, args=(X, y, penalty_v, solver_v, node))
+            for node, X, y in get_classification_input(full_taxonomy, alignment)
+        )
+
+        return dict(p.get() for p in results)
+
+def train_all_classifiers(*args, procs=None):
+    train_f = train_all_classifiers_mp if procs else train_all_classifiers_nonmp
+    return train_f(*args, procs=procs)
 
     results = (
         pool.apply_async(train_classifier, args=(X, y, penalty_v, solver_v, node,))
@@ -257,33 +237,26 @@ def train_all_classifiers(alignment, taxonomy, penalty_v, solver_v, procs=2):
 def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_so_far):
     if training_tax.is_last_node(arrived_so_far):
         return
-    max_perc = 0
-    max_perc_taxa = ""
-    # if there is only one child:
-    if len(training_tax.find_children_node(arrived_so_far)) == 1:
-        max_perc = 2 # if there are no siblings I put 2, it will be replaced after
-        max_perc_taxa = training_tax.find_children_node(arrived_so_far)[0]
-    # if there are no children
-    if len(training_tax.find_children_node(arrived_so_far)) < 1:
-        sys.stderr.write("Error: no child\n")
-    # if there is more than one child
-    if len(training_tax.find_children_node(arrived_so_far)) > 1:
-        for n in training_tax.find_children_node(arrived_so_far):
-            clf = classifiers_train[n]
-            res = str(clf.predict(test_seq)) # either "yes" or "no"
-            predictions = clf.predict_proba(test_seq) # two predictions
-            if res == "['no']":
-                predicted_proba = np.amin(predictions) # if it predicts no, then the probability that we select is the smaller one
-            else:
-                predicted_proba = np.amax(predictions)
-            # check if the prediction is higher
+    max_perc, max_perc_taxa  = 0, ""
+    children = training_tax.find_children_node(arrived_so_far)
+    if not children:
+        print("Error: no child", file=sys.stderr)
+    elif len(children) == 1:
+        # if there are no siblings I put 2, it will be replaced after
+        max_perc, max_perc_taxa = 2, children[0]
+    else:
+        for child in children:
+            clf = classifiers_train[child]
+            predictions = clf.predict_proba(test_seq)
+            predicted_proba = np.amin(predictions) if clf.predict(test_seq)[0] == "no" else np.amax(predictions)
             if predicted_proba > max_perc:
-                max_perc = predicted_proba
-                max_perc_taxa = n
+                max_perc, max_perc_taxa = predicted_proba, child
 
     tax.append(max_perc_taxa)
     perc.append(max_perc)
+
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, max_perc_taxa)
+
 
 def predict_one_gene(test_seq, training_tax, classifiers_train):
     tax = list()
@@ -300,17 +273,12 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
     return tax, perc
 
 def predict(test_al, training_tax, classifiers_train):
-    res = list()
-    for i in test_al.index.values:
-        r = list()
-        r.append(i)
-        predictions, percentages = predict_one_gene([test_al.loc[ i , : ].to_numpy()], training_tax, classifiers_train)
-        r.append(predictions)
-        r.append(percentages)
-        res.append(r)
-    return(res)
+    return [
+        [gene, *predict_one_gene([test_al.loc[ gene , : ].to_numpy()], training_tax, classifiers_train)]
+        for gene in test_al.index.values
+    ]
 
-def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=2):
+def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=None):
     logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
     # 1. Identify which clades we want to remove (test set) and which to keep
     #    (training set)
@@ -356,7 +324,7 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v
     #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],2]
     # .....                                                                               ]
 
-def learn_function_genes_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=2):
+def learn_function_genes_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=None):
     logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
     # 1. Identify which clades we want to remove (test set) and which to keep
     #    (training set)
@@ -479,7 +447,7 @@ def estimate_function(all_calc_functions):
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
 # level a new gene should be assigned to.
-def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=2):
+def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=None):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
 
@@ -564,12 +532,11 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_ver
 
         h5p_out.flush()
 
-
 #===============================================================================
 #                                      MAIN
 #===============================================================================
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cross_val_data, tool_version, penalty_v, solver_v, hmm_file_path=None, protein_fasta_input=None, procs=2):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, tool_version, protein_fasta_input, penalty_v, solver_v, procs=None):
     # set log file
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
@@ -591,7 +558,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cro
 
     # 3. check that the taxonomy and the alignment are consistent
     logging.info('MAIN:Check taxonomy and alignment')
-    check_taxonomy_alignment_consistency(alignment, full_taxonomy)
+    full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
     logging.info('TIME:Finish check-up')
 
     # 4. build a classifier for each node
@@ -601,7 +568,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, save_cro
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
-    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v)
+    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
     logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. save the result

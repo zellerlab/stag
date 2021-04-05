@@ -17,9 +17,10 @@ import tempfile
 import shutil
 import contextlib
 
-from stag import __version__ as tool_version
-import stag.align as align
+from stag.taxonomy import Taxonomy
 from stag.databases import load_db
+from . import __version__ as tool_version
+import stag.align as align
 
 #===============================================================================
 #                    FUNCTION TO LOAD ALIGNED SEQUENCES
@@ -120,7 +121,7 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
     # now we evaluate across the taxonomy --------------------------------------
     tax, perc = list(), list()
     # we arrived at the root, and now we classify from there
-    predict_iter(test_seq, taxonomy, classifiers, tax, perc, "tree_root")
+    predict_iter(test_seq, taxonomy, classifiers, tax, perc, Taxonomy.TREE_ROOT)
 
     # we change the predictions that came from having only one sibiling --------
     if perc[0] == 2:

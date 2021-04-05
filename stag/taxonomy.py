@@ -1,92 +1,51 @@
-# Author: Alessio Milanese <milanese.alessio@gmail.com>
-
-# Input:
-#  - one multiple sequence alignment (MSA) per marker gene. The MSA is obtained
-#    from the function stag align, like:
-#       >gene1\t0001010001010000100101000...
-#       >gene2\t0000110001010100100101001...
-#  - a taxonomy file that describes the taxonomy of the genes:
-#       gene1\tBacteria;Firmicutes;...
-#
-# Output:
-#  - a database file (hdf5) that can be used by stag classify
-
 import sys
+import csv
+import logging
 
-#===============================================================================
-#                          CLASS FOR THE TAXONOMY
-#===============================================================================
 class Taxonomy:
-    # create class -------------------------------------------------------------
+    TREE_ROOT = "tree_root"
     def __init__(self, file_name):
         self.file_name = file_name
-        self.child_nodes = dict()
-        self.tree_root = "tree_root"
-        self.child_nodes[self.tree_root] = set()
+        self.child_nodes = {Taxonomy.TREE_ROOT: set()}
+        self.tree_root = Taxonomy.TREE_ROOT
         self.last_level_to_genes = dict()
         self.all_gene_ids = list()
         self.number_of_taxonomic_levels = 0
         self.annotation_per_gene = dict()
 
+    def _add_child(self, parent, child):
+        self.child_nodes.setdefault(parent, set()).add(child)
+
     # load taxonomy from the defined file --------------------------------------
     def load_from_file(self):
-        with open(self.file_name) as tax_in:
-            #first_line = next(tax_in).rstrip().split("\t")
-            #self.number_of_taxonomic_levels = len(first_line[1].split(";"))
-            #tax_in.seek(0)
-
-            for line in tax_in:
-                # expected line: gene1\tBacteria\tFirmicutes\t...
-                gene_id, tax_levels = line.rstrip().replace("/", "-").split("\t")
-                tax_levels = tax_levels.split(";")
-                if self.number_of_taxonomic_levels != len(tax_levels) or not tax_levels:
-                    # check if number of taxonomic levels matches expectations
-                    if self.number_of_taxonomic_levels or not tax_levels:
-                        sys.stderr.write("Error: taxonomy record does not have the expected number of taxonomic levels in:\n")
-                        sys.stderr.write("  "+line+"\n")
-                        sys.exit(1)
-                    # if expected numbers were not set, take them from input
-                    self.number_of_taxonomic_levels = len(tax_levels)
-
-                # we add the annotation_per_gene:
-                self.annotation_per_gene[gene_id] = list(tax_levels)
-
-                # we enter the first level, to the root:
-                self.child_nodes[self.tree_root].add(tax_levels[0])
-                self.child_nodes.setdefault(tax_levels[0], set())
-
-                # we enter all remaining levels
-                for i in range(1, len(tax_levels) - 1):
-                    # first we enter that this is a child
-                    self.child_nodes[tax_levels[i - 1]].add(tax_levels[i])
-                    # and second, we create a node if there is not already
-                    self.child_nodes.setdefault(tax_levels[i], set())
-
-                # We add the last level
-                self.child_nodes[tax_levels[-2]].add(tax_levels[-1])
-                # Finally we add from the last level to the genes ids
-                self.last_level_to_genes.setdefault(tax_levels[-1], set()).add(gene_id)
-                # and we add it to the list of gene ids
-                self.all_gene_ids.append(gene_id)
-
+        with open(self.file_name,"r") as tax_in:
+            for line_i, row in enumerate(csv.reader(tax_in, delimiter="\t")):
+                # what is the purpose of this? removing file path from genes?
+                # vals = line.rstrip().replace("/","-").split("\t")
+                try:
+                    gene, lineage = row
+                except:
+                    raise ValueError(f"line {line_i} is not properly formatted, expecting gene\tlineage.. :\n{row}")
+                lineage = lineage.split(";")
+                if line_i == 0:
+                    self.number_of_taxonomic_levels = len(lineage)
+                elif self.number_of_taxonomic_levels != len(lineage):
+                    raise ValueError(f"line {line_i}'s lineage=depth {len(lineage)} does not match previous lineage-depth ({self.number_of_taxonomic_levels})\n{lineage}")
+ 
+                self.annotation_per_gene[gene] = list(lineage)
+                self._add_child(self.tree_root, lineage[0])
+                for tax_i, child in enumerate(lineage):
+                    parent = self.tree_root if tax_i == 0 else lineage[tax_i - 1]
+                    self._add_child(parent, child)
+                self.last_level_to_genes.setdefault(lineage[-1], set()).add(gene)
+                self.all_gene_ids.append(gene)
+    
             self.all_gene_ids.sort() # we sort the list, so that search should be faster
-
 
     # make a copy of this taxonomy ---------------------------------------------
     def copy(self):
-        temp = Taxonomy(self.file_name)
-        temp.child_nodes = dict()
-        temp.tree_root = "tree_root"
-        for i in self.child_nodes:
-            temp.child_nodes[i] = set(self.child_nodes[i])
-        temp.last_level_to_genes = dict()
-        for i in self.last_level_to_genes:
-            temp.last_level_to_genes[i] = set(self.last_level_to_genes[i])
-        temp.all_gene_ids = list(self.all_gene_ids)
-        temp.number_of_taxonomic_levels = self.number_of_taxonomic_levels
-        for i in self.annotation_per_gene:
-            temp.annotation_per_gene[i] = list(self.annotation_per_gene[i])
-        return temp
+        from copy import deepcopy
+        return deepcopy(self)
 
     # return the classification of one gene
     def extract_full_tax_from_gene(self, gene_id):
@@ -102,29 +61,26 @@ class Taxonomy:
 
     # find children of a node --------------------------------------------------
     def find_children_node(self, node):
-        if node in self.child_nodes:
-            return list(self.child_nodes[node])
-        else:
-            return None
+        return list(self.child_nodes.get(node, list()))
+
     # return the last level to genes -------------------------------------------
     def get_last_level_to_genes(self):
-        last_level_to_genes_temp = dict()
-        for i in self.last_level_to_genes:
-            last_level_to_genes_temp[i] = set(self.last_level_to_genes[i])
-        return last_level_to_genes_temp
+        return {node: set(genes) for node, genes in self.last_level_to_genes.items()}
 
     # check if it is the last node before the genes ----------------------------
     def is_last_node(self, node):
-        return node in self.last_level_to_genes
+        return self.last_level_to_genes.get(node) is not None 
+
     # find all genes under a given node ----------------------------------------
     # return a list of all genes
-    def find_gene_ids(self, node):
+    def find_gene_ids(self, node=None):
         all_leaves = list()
-        self.find_leaves_recoursive(node, all_leaves)
+        self.find_leaves_recoursive(node if node else self.get_root(), all_leaves)
         return all_leaves
     def find_leaves_recoursive(self, node, all_leaves):
-        if node in self.last_level_to_genes:
-            all_leaves.extend(self.last_level_to_genes[node])
+        genes = self.last_level_to_genes.get(node)
+        if genes:
+            all_leaves.extend(genes)
         else:
             for c in self.child_nodes[node]:
                 self.find_leaves_recoursive(c, all_leaves)
@@ -219,22 +175,59 @@ class Taxonomy:
 
     # print the values in the taxonomy class -----------------------------------
     def __str__(self):
-        to_print = "NODES:\n"
-        for i in self.child_nodes:
-            to_print = to_print + "   (N):" + i + ": " + str(self.child_nodes[i]) + "\n"
-        to_print = to_print + "\nGENES:\n"
-        for i in self.last_level_to_genes:
-            to_print = to_print + "   (G):" + i + ": " + str(self.last_level_to_genes[i]) + "\n"
-        to_print = to_print + "\nLIST GENES:\n" + str(self.all_gene_ids) + "\n"
-        to_print = to_print + "\nN LEVELS: " + str(self.number_of_taxonomic_levels) + "\n"
-        return to_print
+        string = ["NODES:"]
+        string.extend(f"   (N):{node}: {children}" for node, children in self.child_nodes.items())
+        string.extend(("", "GENES:"))
+        string.extend(f"   (G):{node}: {genes}" for node, genes in self.last_level_to_genes.items()) 
+        string.extend(("", "LIST GENES:", str(self.all_gene_ids)))
+        string.extend(("", f"N LEVELS: {self.number_of_taxonomic_levels}", ""))
+        return "\n".join(string)
 
-    def get_all_nodes(self):
-        nodes = set(self.find_children_node(self.get_root()))
-        queue = [(n, nodes.difference({n})) for n in nodes]
-        while queue:
-            node, siblings = queue.pop(0)
-            if not self.is_last_node(node):
+    def get_all_nodes(self, mode="dfs"):
+        assert mode in ("dfs", "bfs")
+        from collections import deque
+        dq = deque([(self.get_root(), set())])
+        while dq:
+            if mode == "bfs":
+                node, siblings = dq.popleft()
                 children = set(self.find_children_node(node))
-                queue.extend((child, children.difference({child})) for child in children)
-            yield node, siblings
+                dq.extend((child, children.difference({child})) for child in children)
+            else:
+                node, siblings = dq.pop()
+                children = set(self.find_children_node(node))
+                dq.extend((child, children.difference({child})) for child in children)
+            if node != self.get_root():
+                yield node, siblings
+
+    def ensure_geneset_consistency(self, genes):
+        genes_in_tree = set(self.find_gene_ids())
+        logging.info(f"   CHECK: genes in geneset: {len(genes)}")
+        logging.info(f"   CHECK: genes in taxonomy: {len(genes_in_tree)}")
+
+        # check that all genes in the geneset are in the taxonomy
+        missing_genes = set(genes).difference(genes_in_tree)
+        if missing_genes:
+            logging.info(" Error: some genes in the alignment have no taxonomy.")
+            for gene in missing_genes:
+                logging.info(f"    {gene}")
+            raise ValueError("Some genes in the alignment have no taxonomy.\n"
+                             "Use the command 'check_input' to find more information.\n")
+        else:
+            logging.info("   CHECK: check all genes in the alignment have a taxonomy: correct")
+
+        # the taxonomy can have more genes than the geneset, but these need to be removed
+        # since the selection of the genes for training and testing is done at taxonomy level
+        drop_genes = genes_in_tree.difference(genes)
+        if drop_genes:
+            n_drop_genes = len(drop_genes)
+            self.remove_genes(drop_genes)
+        else:
+            n_drop_genes = None
+        logging.info(f"   CHECK: check genes that we need to remove from the taxonomy: {n_drop_genes}")
+
+        # verify number of genes is consistent between set and taxonomy tree
+        genes_in_tree = self.find_gene_ids()
+        if len(genes_in_tree) != len(genes):
+            msg = "Even after correction, the genes in the taxonomy and the alignment do not agree."
+            logging.info(f" Error: {msg.lower()}")
+            raise ValueError(msg)
