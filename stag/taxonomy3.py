@@ -1,21 +1,6 @@
 import csv
 import logging
 
-"""
-RS_GCF_000953035.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_002766295.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_002810665.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_900636785.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_003121825.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_003859005.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_001749225.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_001419945.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_001615235.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_005382365.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_002485795.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-RS_GCF_003292975.1      d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia flexneri
-"""
-
 class Taxon:
     def __init__(self, parent=None, label=None):
         self.label = label if label else Taxonomy.TREE_ROOT
@@ -29,14 +14,12 @@ class Taxon:
     def is_leaf(self):
         return not self.children
 
-
 class Taxonomy(dict):
     TREE_ROOT = "tree_root"
     def __init__(self, fn=None):
         self[self.TREE_ROOT] = Taxon()
         self.n_taxlevels = 0
         self.gene_lineages = dict()
-        self.child_nodes = dict()
         self.fn = fn
 
     def load_from_file(self):
@@ -54,7 +37,6 @@ class Taxonomy(dict):
             parent = self[self.TREE_ROOT]
             lineage = self._check_lineage_depth(lineage, line_no)
             for i, taxon in enumerate(lineage):
-                self.child_nodes.setdefault(parent.label, list()).append(taxon)
                 if i > 0:
                     parent = node
                 node = self.setdefault(taxon, Taxon(parent=parent, label=taxon))
