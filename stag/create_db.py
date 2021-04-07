@@ -51,10 +51,12 @@ def load_alignment_from_file(file_name):
     # add correct values
     with open(file_name) as f:
         for pos, line in enumerate(f):
-            align = [int(c) for c in line.split("\t")[1:]]
-            if len(align) != align_length or any((c != 0 and c != 1) for c in align):
-                raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
-            alignment.iloc[pos] = np.array([c == 1 for c in align])
+            #align = [int(c) == 1 for c in line.split("\t")[1:]]
+            #if len(align) != align_length or any((c != 0 and c != 1) for c in align):
+            #    raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
+            #alignment.iloc[pos] = np.array([c == 1 for c in align])
+            alignment.iloc[pos] = np.array([int(c) == 1 for c in line.split("\t")[1:]])
+            #alignment.iloc[pos] = np.array([c == 1 for c in align])
 
     logging.info(f'   LOAD_AL: Number of genes: {len(list(alignment.index.values))}')
 
@@ -195,15 +197,41 @@ def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, 
 
     return perform_training(X, y, penalty_v, solver_v, node)
 
+def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v):
+    for node, sibling in nodes:
+        logging.info(f'   TRAIN:"{node}":Find genes')
+        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+        logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
+
+        # check that we have at least 1 example for each class:
+        if not negative_examples:
+            # when the node is the only child, then there are no negative examples
+            logging.info('      Warning: no negative examples for "%s', node)
+            X, y = "no_negative_examples", None
+        elif not positive_examples:
+            # There should be positive examples
+            logging.info('      Error: no positive examples for "%s', node)
+            X, y = "ERROR_no_positive_examples", None
+        else:
+            X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
+            y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
+        yield perform_training(X, y, penalty_v, solver_v, node)
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
     print(f"train_all_classifiers_mp with {procs} processes.")
     with mp.Pool(processes=procs) as pool:
+        nodes = full_taxonomy.get_all_nodes(get_root=True)
+        step = len(nodes) // procs
         results = [
-            pool.apply_async(get_classification_input_mp, args=(node, siblings, full_taxonomy, alignment, penalty_v, solver_v))
-            for node, siblings in full_taxonomy.get_all_nodes(get_root=True)
+            pool.apply_async(get_classification_input_mp2, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
+            for i in range(0, len(nodes), step)
         ]
+
+        #results = [
+        #    pool.apply_async(get_classification_input_mp, args=(node, siblings, full_taxonomy, alignment, penalty_v, solver_v))
+        #    for node, siblings in full_taxonomy.get_all_nodes(get_root=True)
+        #]
 
         #results = [
         #    pool.apply_async(perform_training, args=(X, y, penalty_v, solver_v, node))
