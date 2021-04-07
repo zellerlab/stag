@@ -1,41 +1,25 @@
-"""
-Scripts that find the taxonomy of an aligned sequence
-"""
-
-# Author: Alessio Milanese <milanese.alessio@gmail.com>
-
-# Requirements:
-# - numpy
-# - h5py
-
-import numpy as np
 import sys
 import time
 import os
-import h5py
 import tempfile
 import shutil
 import contextlib
 
+import numpy as np
+import h5py
+
+from . import __version__ as tool_version
 from stag.taxonomy3 import Taxonomy
 from stag.databases import load_db
-from . import __version__ as tool_version
 import stag.align as align
 
-#===============================================================================
-#                    FUNCTION TO LOAD ALIGNED SEQUENCES
-#===============================================================================
 def alignment_reader(aligned_sequences):
     with open(aligned_sequences,"r") as align_in:
         for ali_line in align_in:
             gene_id, *aligned_seq = ali_line.rstrip().split("\t")
             yield gene_id, np.array(list(map(int, aligned_seq)), dtype=bool)
 
-#===============================================================================
-#                     TAXONOMICALLY ANNOTATE SEQUENCES
-#===============================================================================
 def run_logistic_prediction(seq, coeff_raw):
-    # print("SEQ", seq, "COEFF", coeff_raw)
     # the first value of the coeff is the intercept
     intercept, *coeff = coeff_raw
     sm = coeff * seq
@@ -45,10 +29,8 @@ def run_logistic_prediction(seq, coeff_raw):
 # given many taxa (all siblings) and a sequence, it finds taxa with the highest
 # score. Returns the taxa name and the score
 def find_best_score(test_seq, siblings, classifiers):
-    # print(*((sib, classifiers[sib], siblings) for sib in siblings if isinstance(classifiers[sib], str)), sep='\n')
     best_score, best_taxa = -1, ""
     if not siblings:
-        # print("Error. no siblings", file=sys.stderr)
         pass
     elif len(siblings) == 1:
         # if there are no siblings I put 2, it will be replaced after
@@ -62,8 +44,6 @@ def find_best_score(test_seq, siblings, classifiers):
 
 def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
     # last iterative step
-    #print("ASF", arrived_so_far, taxonomy.get(arrived_so_far), sep=":")
-    #print(tax, perc)
     if taxonomy.get(arrived_so_far) is not None:
         t, p = find_best_score(test_seq, taxonomy[arrived_so_far], classifiers)
         if t:
@@ -152,7 +132,6 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
              long_out=False, current_tool_version=tool_version,
              aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, internal_call=False):
     t0 = time.time()
-    # load the database
     db = load_db(database, protein_fasta_input=protein_fasta_input, aligned_sequences=aligned_sequences)
     hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = db
     if verbose > 2:
