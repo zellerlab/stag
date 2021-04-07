@@ -1,9 +1,3 @@
-"""
-Scripts that creates the database of classifiers
-"""
-
-# Author: Alessio Milanese <milanese.alessio@gmail.com>
-
 # Input:
 #  - one multiple sequence alignment (MSA) per marker gene. The MSA is obtained
 #    from the function stag align, like:
@@ -15,59 +9,22 @@ Scripts that creates the database of classifiers
 # Output:
 #  - a database file (hdf5) that can be used by stag classify
 
-import numpy as np
 import sys
 import random
-import pandas as pd
 import logging
 import os
-from sklearn.linear_model import LogisticRegression
-import h5py
 import tempfile
 import shutil
-import csv
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+import h5py
 
 from stag.taxonomy3 import Taxonomy
+from stag.databases import save_to_file
+from stag.alignment import load_alignment_from_file
 
-# Function to identify the rownames and number of columns in an alignment
-def find_raw_names_ncol(file_name):
-    gene_names = list()
-    with open(file_name) as f:
-        for line in f:
-            gene_names.append(line[:line.find("\t")])
-        return gene_names, line.count("\t")
-
-# function to load an alignment produced by the "align" option =================
-# Input:
-#  - a file created by "align"
-# Output:
-#  - a panda object
-# as a note, numpy.loadtxt is way slower than pandas read.csv
-# It works also on .gz files
-def load_alignment_from_file(file_name):
-    # create empty pandas object of the correct size
-    gene_names, align_length = find_raw_names_ncol(file_name)
-    alignment = pd.DataFrame(False, index=gene_names, columns=range(align_length))
-    # add correct values
-    with open(file_name) as f:
-        for pos, line in enumerate(f):
-            #align = [int(c) == 1 for c in line.split("\t")[1:]]
-            #if len(align) != align_length or any((c != 0 and c != 1) for c in align):
-            #    raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
-            #alignment.iloc[pos] = np.array([c == 1 for c in align])
-            alignment.iloc[pos] = np.array([int(c) == 1 for c in line.split("\t")[1:]])
-            #alignment.iloc[pos] = np.array([c == 1 for c in align])
-
-    logging.info(f'   LOAD_AL: Number of genes: {len(list(alignment.index.values))}')
-
-    # we remove duplicates
-    alignment = alignment.drop_duplicates()
-    logging.info(f'   LOAD_AL: Number of genes, after removing duplicates: {len(list(alignment.index.values))}')
-    return alignment
-
-#===============================================================================
-#                   FUNCTIONS TO TRAIN THE CLASSIFIERS
-#===============================================================================
 
 # function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
@@ -81,7 +38,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
         # it means that there was only one child, and we cannot do anything
         return positive_examples, negative_examples
 
-    # From here, it means that there is at least one sibiling ==================
+    # From here, it means that there is at least one sibling ==================
     # We make classes more balanced
     positive_examples_subsample = list(positive_examples)
     negative_examples_subsample = list(negative_examples)
@@ -92,7 +49,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     if len(negative_examples_subsample) > 1000:
         negative_examples_subsample = random.sample(negative_examples_subsample, 1000)
     # 3. max 20 times more negative than positive ------------------------------
-    # but if there is only one other sibiling, we choose only 3 times more negative
+    # but if there is only one other sibling, we choose only 3 times more negative
     max_negative_samples = len(positive_examples_subsample) * (20 if len(siblings) > 1 else 3)
     if len(negative_examples_subsample) > max_negative_samples:
         negative_examples_subsample = random.sample(negative_examples_subsample, max_negative_samples)
@@ -284,7 +241,7 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
     perc = list()
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, training_tax.get_root())
-    # we change the predictions that came from having only one sibiling --------
+    # we change the predictions that came from having only one sibling --------
     if perc[0] == 2:
         perc[0] = 1
     for i in range(len(perc)):
@@ -459,7 +416,7 @@ def estimate_function(all_calc_functions):
         X = np.array([np.array(xi) for xi in correct_order_lines])
         y = np.asarray(correct_order_labels)
         # train classifier
-        clf = LogisticRegression(random_state=0, penalty = "none", solver='saga',max_iter = 5000)
+        clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
         clf.fit(X, y)
         all_classifiers[str(l)] = clf
 
@@ -505,64 +462,10 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
             sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
             sys.exit(1)
 
-    # estimate the function ----------------------------------------------------
-    f = estimate_function(all_calc_functions)
-    return f
+    return estimate_function(all_calc_functions)
 
 
-
-#===============================================================================
-#                     FUNCTIONS TO SAVE TO A DATABASE
-#===============================================================================
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_version, output, hmm_file_path=None, protein_fasta_input=None):
-
-    string_dt = h5py.special_dtype(vlen=str)
-
-    with h5py.File(output, "w") as h5p_out:
-        # zero: tool version -------------------------------------------------------
-        h5p_out.create_dataset('tool_version', data=np.array([str(tool_version)], "S100"), dtype=string_dt)
-        # and type of database
-        h5p_out.create_dataset('db_type', data=np.array(["single_gene"], "S100"), dtype=string_dt)
-        # was the alignment done at the protein level?
-        h5p_out.create_dataset('align_protein', data=np.array([bool(protein_fasta_input)]), dtype=bool)
-        # first we save the hmm file -----------------------------------------------
-        hmm_string = "".join(line for line in open(hmm_file_path)) if hmm_file_path else "NA"
-        h5p_out.create_dataset('hmm_file', data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)), dtype=string_dt, compression="gzip")
-        # second, save the use_cmalign info ----------------------------------------
-        h5p_out.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
-        # third, we save the taxonomy ---------------------------------------------
-        h5p_out.create_group("taxonomy")
-        #print(full_taxonomy)
-        #print(list(full_taxonomy.get_all_nodes(get_root=True)))
-        for node, _ in full_taxonomy.get_all_nodes(get_root=True):
-            h5p_out.create_dataset(f"taxonomy/{node}", data=np.array(list(full_taxonomy[node].children.keys()), "S10000"), dtype=string_dt, compression="gzip")
-        #for node in full_taxonomy.child_nodes:
-        #    h5p_out.create_dataset("taxonomy/" + node, data=np.array(list(full_taxonomy.child_nodes[node]), "S10000"), dtype=string_dt, compression="gzip")
-        # fourth, the taxonomy function --------------------------------------------
-        h5p_out.create_group("tax_function")
-        for c in tax_function:
-            # we append the intercept at the head (will have position 0)
-            vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
-            h5p_out.create_dataset("tax_function/" + str(c), data=vals, dtype=np.float64, compression="gzip")
-        # fifth, save the classifiers ----------------------------------------------
-        h5p_out.create_group("classifiers")
-        for c in classifiers:
-            if classifiers[c] != "no_negative_examples":
-                vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
-                h5p_out.create_dataset("classifiers/" + c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
-            else:
-                # in this case, it always predict 1, we save it as an array of
-                # with the string "no_negative_examples"
-                h5p_out.create_dataset("classifiers/" + c, data=np.array(["no_negative_examples"], "S40"), dtype=string_dt, compression="gzip")
-
-        h5p_out.flush()
-
-#===============================================================================
-#                                      MAIN
-#===============================================================================
-
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, tool_version, protein_fasta_input, penalty_v, solver_v, procs=None):
-    # set log file
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, procs=None):
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
                         filemode='w',
@@ -598,7 +501,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. save the result
     logging.info('MAIN:Save to file')
-    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_version, output, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
+    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
     logging.info('TIME:Finish save to file')
 
     logging.info('MAIN:Finished')
