@@ -17,7 +17,7 @@ import tempfile
 import shutil
 import contextlib
 
-from stag.taxonomy import Taxonomy
+from stag.taxonomy3 import Taxonomy
 from stag.databases import load_db
 from . import __version__ as tool_version
 import stag.align as align
@@ -35,41 +35,40 @@ def alignment_reader(aligned_sequences):
 #                     TAXONOMICALLY ANNOTATE SEQUENCES
 #===============================================================================
 def run_logistic_prediction(seq, coeff_raw):
+    # print("SEQ", seq, "COEFF", coeff_raw)
     # the first value of the coeff is the intercept
-    coeff = coeff_raw[1:]
-    intercept = coeff_raw[0]
-    # calculate
+    intercept, *coeff = coeff_raw
     sm = coeff * seq
     np_sum = (sm).sum() + intercept
-    score = 1 / (1 + np.exp(-np_sum))
-    return score
+    return 1 / (1 + np.exp(-np_sum))
 
 # given many taxa (all siblings) and a sequence, it finds taxa with the highest
 # score. Returns the taxa name and the score
 def find_best_score(test_seq, siblings, classifiers):
-    best_score = -1
-    best_taxa = ""
-    # check that siblings is not empty:
-    if len(siblings) < 1:
-        sys.stderr.write("Error. no siblings")
-    # if there is only one sibiling:
-    if len(siblings) == 1:
-        best_score = 2 # if there are no siblings I put 2, it will be replaced after
-        best_taxa = siblings[0]
-    if len(siblings) > 1:
-        for s in siblings:
-            this_score = run_logistic_prediction(test_seq, classifiers[s])
+    # print(*((sib, classifiers[sib], siblings) for sib in siblings if isinstance(classifiers[sib], str)), sep='\n')
+    best_score, best_taxa = -1, ""
+    if not siblings:
+        # print("Error. no siblings", file=sys.stderr)
+        pass
+    elif len(siblings) == 1:
+        # if there are no siblings I put 2, it will be replaced after
+        best_score, best_taxa = 2, siblings[0]
+    else:
+        for sibling in siblings:
+            this_score = run_logistic_prediction(test_seq, classifiers[sibling])
             if this_score > best_score:
-                best_score = this_score
-                best_taxa = s
+                best_score, best_taxa = this_score, sibling
     return best_taxa, best_score
 
 def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
     # last iterative step
+    #print("ASF", arrived_so_far, taxonomy.get(arrived_so_far), sep=":")
+    #print(tax, perc)
     if taxonomy.get(arrived_so_far) is not None:
         t, p = find_best_score(test_seq, taxonomy[arrived_so_far], classifiers)
-        tax.append(t)
-        perc.append(p)
+        if t:
+            tax.append(t)
+            perc.append(p)
         predict_iter(test_seq, taxonomy, classifiers, tax, perc, t)
 
 
@@ -114,7 +113,7 @@ def find_n_aligned_characters(test_seq):
 
 def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # test_seq is a boolean numpy array corresponding to the encoded aligned sequence
-
+    #print("TAX", taxonomy)
     # number of characters that map to the internal states of the HMM
     n_aligned_characters = find_n_aligned_characters(test_seq)
 
