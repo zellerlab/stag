@@ -109,67 +109,35 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
             rr = random.choice(range(n_positive_class))
             X_clade = np.vstack((X_clade, X_clade[rr,]))
 
-        # find possible genes to add additionaly to negarives
+        # find possible genes to add additionaly to negatives
         possible_neg = list(set(alignment.index.values).difference(set(positive_examples + negative_examples)))
         if possible_neg: # if it is possible to add negatives
                          # note that at the highest level, it's not possible
             X_poss_na = alignment.loc[possible_neg, : ].to_numpy()
-            len_poss_na = len(X_poss_na)
 
             # choose 5 random positive clades
-            X_check_sim = X_clade[random.sample(range(len(X_clade)),5),]
+            X_check_sim = X_clade[random.sample(range(len(X_clade)), 5), ]
 
-            m_for_diff_0 = np.tile(X_check_sim[0,],(len_poss_na,1))
-            m_for_diff_1 = np.tile(X_check_sim[1,],(len_poss_na,1))
-            m_for_diff_2 = np.tile(X_check_sim[2,],(len_poss_na,1))
-            m_for_diff_3 = np.tile(X_check_sim[3,],(len_poss_na,1))
-            m_for_diff_4 = np.tile(X_check_sim[4,],(len_poss_na,1))
-
-            differences_0 = np.sum(np.bitwise_xor(m_for_diff_0, X_poss_na), axis=1)
-            differences_1 = np.sum(np.bitwise_xor(m_for_diff_1, X_poss_na), axis=1)
-            differences_2 = np.sum(np.bitwise_xor(m_for_diff_2, X_poss_na), axis=1)
-            differences_3 = np.sum(np.bitwise_xor(m_for_diff_3, X_poss_na), axis=1)
-            differences_4 = np.sum(np.bitwise_xor(m_for_diff_4, X_poss_na), axis=1)
-
-            non_zero_0 = np.sum(differences_0 != 0)
-            differences_0 = np.where(differences_0 == 0,  np.nan, differences_0)
-            corr_ord_0 = np.argsort(differences_0)[0:non_zero_0+1]
-
-            non_zero_1 = np.sum(differences_1 != 0)
-            differences_1 = np.where(differences_1 == 0,  np.nan, differences_1)
-            corr_ord_1 = np.argsort(differences_1)[0:non_zero_1+1]
-
-            non_zero_2 = np.sum(differences_2 != 0)
-            differences_2 = np.where(differences_2 == 0,  np.nan, differences_2)
-            corr_ord_2 = np.argsort(differences_2)[0:non_zero_2+1]
-
-            non_zero_3 = np.sum(differences_3 != 0)
-            differences_3 = np.where(differences_3 == 0,  np.nan, differences_3)
-            corr_ord_3 = np.argsort(differences_3)[0:non_zero_3+1]
-
-            non_zero_4 = np.sum(differences_4 != 0)
-            differences_4 = np.where(differences_4 == 0,  np.nan, differences_4)
-            corr_ord_4 = np.argsort(differences_4)[0:non_zero_4+1]
-
-            to_add = list()
-            for (a,b,c,d,e) in zip(list(corr_ord_0),list(corr_ord_1),list(corr_ord_2),list(corr_ord_3),list(corr_ord_4)):
-                if not(a in to_add): to_add.append(a)
-                if not(b in to_add): to_add.append(b)
-                if not(c in to_add): to_add.append(c)
-                if not(d in to_add): to_add.append(d)
-                if not(e in to_add): to_add.append(e)
-                if len(to_add) > missing_neg:
-                    break # stop if we have enough similar genes
-
-            # add list_genomes_to_add to the X_na
-            for i in to_add:
-                negative_examples_subsample.append(possible_neg[i])
+            random_clades = list()
+            for clade_i in range(5):
+                m_for_diff = np.tile(X_check_sim[clade_i,], (len(X_poss_na), 1))
+                differences = np.sum(np.bitwise_xor(m_for_diff, X_poss_na), axis=1)
+                non_zero = np.sum(differences != 0)
+                differences = np.where(differences == 0, np.nan, differences)
+                corr_ord = np.argsort(differences)[:non_zero + 1]
+                random_clades.append(list(corr_ord))
+            clade_indices = set()
+            for indices in zip(*random_clades):
+                clade_indices.update(indices)
+                if len(clade_indices) > missing_neg:
+                    break
+            negative_examples_subsample.extend(possible_neg[i] for i in clade_indices)
 
     return positive_examples_subsample, negative_examples_subsample
 
 
 def get_classification_input(taxonomy, alignment):
-    for node, siblings in taxonomy.get_all_nodes(mode="bfs", get_root=True):
+    for node, siblings in taxonomy.get_all_nodes(get_root=True):
         logging.info(f'   TRAIN:"{node}":Find genes')
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
         logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
@@ -178,15 +146,15 @@ def get_classification_input(taxonomy, alignment):
         if not negative_examples:
             # when the node is the only child, then there are no negative examples
             logging.info('      Warning: no negative examples for "%s', node)
-            yield node, "no_negative_examples", None
+            X, y = "no_negative_examples", None
         elif not positive_examples:
             # There should be positive examples
             logging.info('      Error: no positive examples for "%s', node)
-            yield node, "ERROR_no_positive_examples", None
+            X, y = "ERROR_no_positive_examples", None
         else:
             X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
             y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
-            yield node, X, y
+        yield node, X, y
 
 def train_all_classifiers_nonmp(alignment, full_taxonomy, penalty_v, solver_v, procs=None):
     print("train_all_classifiers_nonmp - single-proc")
