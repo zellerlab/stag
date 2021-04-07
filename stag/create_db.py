@@ -198,7 +198,8 @@ def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, 
     return perform_training(X, y, penalty_v, solver_v, node)
 
 def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v):
-    for node, sibling in nodes:
+    results = list()
+    for node, siblings in nodes:
         logging.info(f'   TRAIN:"{node}":Find genes')
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
         logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
@@ -215,18 +216,24 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
         else:
             X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
             y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
-        yield perform_training(X, y, penalty_v, solver_v, node)
+        results.append(perform_training(X, y, penalty_v, solver_v, node))
+    return results
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
     print(f"train_all_classifiers_mp with {procs} processes.")
     with mp.Pool(processes=procs) as pool:
-        nodes = full_taxonomy.get_all_nodes(get_root=True)
+        nodes = list(full_taxonomy.get_all_nodes(get_root=True))
         step = len(nodes) // procs
         results = [
             pool.apply_async(get_classification_input_mp2, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
             for i in range(0, len(nodes), step)
         ]
+
+        res_d = dict()
+        for res in results:
+            res_d.update(res.get())
+        return res_d
 
         #results = [
         #    pool.apply_async(get_classification_input_mp, args=(node, siblings, full_taxonomy, alignment, penalty_v, solver_v))
@@ -238,7 +245,7 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
         #    for node, X, y in list(get_classification_input(full_taxonomy, alignment))
         #]
 
-        return dict(p.get() for p in results)
+        # return dict(p.get() for p in results)
 
 def train_all_classifiers(*args, procs=None):
     train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
