@@ -175,27 +175,46 @@ def perform_training(X, y, penalty_v, solver_v, node):
     clf.fit(X, y)
     return node, clf
 
+def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, solver_v):
+    logging.info(f'   TRAIN:"{node}":Find genes')
+    positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+    logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
+
+    # check that we have at least 1 example for each class:
+    if not negative_examples:
+        # when the node is the only child, then there are no negative examples
+        logging.info('      Warning: no negative examples for "%s', node)
+        X, y = "no_negative_examples", None
+    elif not positive_examples:
+        # There should be positive examples
+        logging.info('      Error: no positive examples for "%s', node)
+        X, y = "ERROR_no_positive_examples", None
+    else:
+        X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
+        y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
+
+    return perform_training(X, y, penalty_v, solver_v, node)
+
+
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
     print(f"train_all_classifiers_mp with {procs} processes.")
     with mp.Pool(processes=procs) as pool:
         results = [
-            pool.apply_async(perform_training, args=(X, y, penalty_v, solver_v, node))
-            for node, X, y in list(get_classification_input(full_taxonomy, alignment))
+            pool.apply_async(get_classification_input_mp, args=(node, siblings, full_taxonomy, alignment, penalty_v, solver_v))
+            for node, siblings in full_taxonomy.get_all_nodes(get_root=True)
         ]
+
+        #results = [
+        #    pool.apply_async(perform_training, args=(X, y, penalty_v, solver_v, node))
+        #    for node, X, y in list(get_classification_input(full_taxonomy, alignment))
+        #]
 
         return dict(p.get() for p in results)
 
 def train_all_classifiers(*args, procs=None):
     train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
     return train_f(*args, procs=procs)
-
-    results = (
-        pool.apply_async(train_classifier, args=(X, y, penalty_v, solver_v, node,))
-        for node, siblings, X, y in get_training_genes(taxonomy, alignment)
-    )
-
-    return dict(p.get() for p in results)
 
 
 #===============================================================================
