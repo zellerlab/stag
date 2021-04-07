@@ -27,7 +27,7 @@ import tempfile
 import shutil
 import csv
 
-from stag.taxonomy import Taxonomy
+from stag.taxonomy3 import Taxonomy
 
 # Function to identify the rownames and number of columns in an alignment
 def find_raw_names_ncol(file_name):
@@ -172,7 +172,8 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
 
 def get_classification_input(taxonomy, alignment):
-    for node, siblings in taxonomy.get_all_nodes(mode="bfs"):
+    for node, siblings in taxonomy.get_all_nodes(mode="bfs", get_root=True):
+        # print(node, siblings)
         logging.info(f'   TRAIN:"{node}":Find genes')
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
         logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
@@ -511,8 +512,12 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, tool_ver
         h5p_out.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
         # third, we save the taxonomy ---------------------------------------------
         h5p_out.create_group("taxonomy")
-        for node in full_taxonomy.child_nodes:
-            h5p_out.create_dataset("taxonomy/" + node, data=np.array(list(full_taxonomy.child_nodes[node]), "S10000"), dtype=string_dt, compression="gzip")
+        #print(full_taxonomy)
+        #print(list(full_taxonomy.get_all_nodes(get_root=True)))
+        for node, _ in full_taxonomy.get_all_nodes(get_root=True):
+            h5p_out.create_dataset(f"taxonomy/{node}", data=np.array(list(full_taxonomy[node].children.keys()), "S10000"), dtype=string_dt, compression="gzip")
+        #for node in full_taxonomy.child_nodes:
+        #    h5p_out.create_dataset("taxonomy/" + node, data=np.array(list(full_taxonomy.child_nodes[node]), "S10000"), dtype=string_dt, compression="gzip")
         # fourth, the taxonomy function --------------------------------------------
         h5p_out.create_group("tax_function")
         for c in tax_function:
