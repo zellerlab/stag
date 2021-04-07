@@ -33,9 +33,9 @@ from stag.taxonomy3 import Taxonomy
 def find_raw_names_ncol(file_name):
     gene_names = list()
     with open(file_name) as f:
-        for gene, *align in csv.reader(f, delimiter="\t"):
-            gene_names.append(gene)
-        return gene_names, len(align)
+        for line in f:
+            gene_names.append(line[:line.find("\t")])
+        return gene_names, line.count("\t")
 
 # function to load an alignment produced by the "align" option =================
 # Input:
@@ -50,14 +50,11 @@ def load_alignment_from_file(file_name):
     alignment = pd.DataFrame(False, index=gene_names, columns=range(align_length))
     # add correct values
     with open(file_name) as f:
-        for pos, (gene, *align) in enumerate(csv.reader(f, delimiter="\t")):
-            try:
-                align = [int(c) == 1 for c in align if int(c) in (0, 1)]
-            except:
+        for pos, line in enumerate(f):
+            align = [int(c) for c in line.split("\t")[1:]]
+            if len(align) != align_length or any((c != 0 and c != 1) for c in align):
                 raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
-            if len(align) != align_length:
-               raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{align}") 
-            alignment.iloc[pos] = np.array(align)
+            alignment.iloc[pos] = np.array([c == 1 for c in align])
 
     logging.info(f'   LOAD_AL: Number of genes: {len(list(alignment.index.values))}')
 
@@ -173,7 +170,6 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
 def get_classification_input(taxonomy, alignment):
     for node, siblings in taxonomy.get_all_nodes(mode="bfs", get_root=True):
-        # print(node, siblings)
         logging.info(f'   TRAIN:"{node}":Find genes')
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
         logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
@@ -193,6 +189,7 @@ def get_classification_input(taxonomy, alignment):
             yield node, X, y
 
 def train_all_classifiers_nonmp(alignment, full_taxonomy, penalty_v, solver_v, procs=None):
+    print("train_all_classifiers_nonmp - single-proc")
     all_classifiers = dict()
     for node, X, y in get_classification_input(full_taxonomy, alignment):
         if y is not None:
@@ -212,16 +209,17 @@ def perform_training(X, y, penalty_v, solver_v, node):
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
+    print(f"train_all_classifiers_mp with {procs} processes.")
     with mp.Pool(processes=procs) as pool:
-        results = (
+        results = [
             pool.apply_async(perform_training, args=(X, y, penalty_v, solver_v, node))
-            for node, X, y in get_classification_input(full_taxonomy, alignment)
-        )
+            for node, X, y in list(get_classification_input(full_taxonomy, alignment))
+        ]
 
         return dict(p.get() for p in results)
 
 def train_all_classifiers(*args, procs=None):
-    train_f = train_all_classifiers_mp if procs else train_all_classifiers_nonmp
+    train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
     return train_f(*args, procs=procs)
 
     results = (
