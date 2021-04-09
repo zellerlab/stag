@@ -432,36 +432,30 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
 
     # do the cross validation for each level
     all_calc_functions = list()
-    for i in range(n_levels):
-        all_calc_functions = all_calc_functions + learn_function_one_level(i, alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+    for level in range(n_levels):
+        all_calc_functions.extend(learn_function_one_level(level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs))
     # do the cross val. for the last level (using the genes)
-    all_calc_functions = all_calc_functions + learn_function_genes_level(n_levels, alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+    all_calc_functions.extend(learn_function_genes_level(n_levels, alignment, full_taxonomy, penalty_v, solver_v, procs=procs))
 
     # save all_calc_functions if necessary -------------------------------------
-    if not (save_cross_val_data is None):
+    if save_cross_val_data:
         outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        outfile.write("gene\tpredicted\tprob\tground_truth\tremoved_level\n")
-        os.chmod(outfile.name, 0o644)
-        for vals in all_calc_functions:
-            to_print = vals[0] + "\t" + "/".join(vals[1]) + "\t" # "geneB",["D","E","F","species8"]
-            to_print = to_print + "/".join(str(x) for x in vals[2]) + "\t" # [0.99,0.96,0.95,0.07]
-            to_print = to_print + "/".join(vals[3]) + "\t" # ["G","H","I","species9"]
-            to_print = to_print + str(vals[4]) # removed level
-            outfile.write(to_print+"\n")
-        # save
+        with outfile:
+            os.chmod(outfile.name, 0o644)
+            print("gene", "predicted", "prob", "ground_truth", "removed_level", sep="\t", file=outfile)
+            for gene, predicted, prob, ground_truth, removed_level in all_calc_functions:
+                predicted, prob, ground_truth = ("/".join(s) for s in (predicted, prob, ground_truth))
+                print(gene, predicted, prob, ground_truth, removed_level, sep="\t", file=outfile)
+            try:
+                outfile.flush()
+                os.fsync(outfile.fileno())
+            except:
+                print("[E::main] Error: failed to save the cross validation results", file=sys.stderr)
         try:
-            outfile.flush()
-            os.fsync(outfile.fileno())
-            outfile.close()
+            shutil.move(outfile.name, save_cross_val_data)
         except:
-            sys.stderr.write("[E::main] Error: failed to save the cross validation results\n")
-        try:
-            #os.rename(outfile.name,output) # atomic operation
-            shutil.move(outfile.name,save_cross_val_data) #It is not atomic if the files are on different filsystems.
-        except:
-            sys.stderr.write("[E::main] Error: failed to save the cross validation results\n")
-            sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
-            sys.exit(1)
+            print("[E::main] Error: failed to save the cross validation results\n" + \
+                  f"[E::main] you can find the file here: \n{outfile.name}\n", file=sys.stderr)
 
     return estimate_function(all_calc_functions)
 
