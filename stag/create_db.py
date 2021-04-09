@@ -15,6 +15,7 @@ import logging
 import os
 import tempfile
 import shutil
+from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -355,73 +356,42 @@ def estimate_function(all_calc_functions):
     # refers to the fact that we removed the genes
 
     # we remove duplicates with the same predicted probability -----------------
-    all_uniq = dict()
-    for line in all_calc_functions:
-        v = ""
-        for j in line[2]:
-            v = v+str(j)
-        all_uniq[v] = line
-    logging.info('   LEARN_FUNCTION:Number of lines: %s (before removing duplicates: %s)',
-                      str(len(all_uniq)),str(len(all_calc_functions)))
-    # change all_calc_functions
-    all_calc_functions = list()
-    for j in all_uniq:
-        all_calc_functions.append(all_uniq[j])
+    all_uniq = {tuple(round(v, 2) for v in item[2]): item for item in all_calc_functions}
+    logging.info(f'   LEARN_FUNCTION:Number of lines: {len(all_uniq)}/{len(all_calc_functions)}')
 
-    # we find what is the correct value for the prediction level ---------------
     correct_level = list()
-    for line in all_calc_functions:
+    for _, predicted, _, ground_truth, _ in all_uniq.values():
         corr_level_this = -1
-        cont = 0
-        for p,c in zip(line[1],line[3]):
-            cont = cont + 1
+        for cont, (p, c) in enumerate(zip(predicted, ground_truth)):
             if p == c:
-                corr_level_this = cont-1 # we select to what level to predict
+                corr_level_this = cont # we select to what level to predict
         correct_level.append(corr_level_this)
+
     # now in correct_level there is to which level to predict to. Example:
     # "A","B","C","species2"
     # with corr_level_this = 0, we should assign "A"
     # with corr_level_this = 2, we should assign "A","B","C"
     # with corr_level_this = -1, we should assign "" (no taxonomy)
+                                                                             
+    level_counter = Counter(correct_level)
+    for level, count in sorted(level_counter.items()):
+        logging.info(f'   LEARN_FUNCTION:Number of lines: level {level}: {count}')
 
-    # check how many lines there are per correct level -------------------------
-    for l in set(correct_level):
-        cont = 0
-        for j in correct_level:
-            if j == l:
-                cont = cont + 1
-        logging.info('   LEARN_FUNCTION:Number of lines: level %s: %s',
-                          str(l),str(cont))
-
-
-    # we train the classifiers -------------------------------------------------
     all_classifiers = dict()
-    for l in set(correct_level):
-        # we create the feature matrix
+    for uniq_level in sorted(level_counter):
         # NOTE: we always need the negative class to be first
-        correct_order_lines = list()
-        correct_order_labels = list()
-        cont = 0
-        for i in range(len(all_calc_functions)):
-            if correct_level[i] != l:
-                correct_order_lines.append(all_calc_functions[i][2])
-                correct_order_labels.append(0)
-            cont = cont + 1
-        cont = 0
-        for i in range(len(all_calc_functions)):
-            if correct_level[i] == l:
-                correct_order_lines.append(all_calc_functions[i][2])
-                correct_order_labels.append(1)
-            cont = cont + 1
+        correct_order = [[], []]
+        for level, (_, _, prob, *_) in zip(correct_level, all_uniq.values()):
+            correct_order[int(uniq_level == level)].append(prob)
 
-        X = np.array([np.array(xi) for xi in correct_order_lines])
-        y = np.asarray(correct_order_labels)
-        # train classifier
+        X = np.array([np.array(xi) for xi in correct_order[0] + correct_order[1]])
+        y = np.asarray([0] * len(correct_order[0]) + [1] * len(correct_order[1]))
         clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
         clf.fit(X, y)
-        all_classifiers[str(l)] = clf
+        all_classifiers[str(uniq_level)] = clf
 
     return all_classifiers
+
 
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
