@@ -130,12 +130,13 @@ def train_all_classifiers_nonmp(alignment, full_taxonomy, penalty_v, solver_v, p
 def perform_training(X, y, penalty_v, solver_v, node):
     if y is None:
         return node, X
+    logging.info('         TRAIN:"%s":Train classifier', node)
     clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
     clf.fit(X, y)
     return node, clf
 
 def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, solver_v):
-    logging.info(f'   TRAIN:"{node}":Find genes')
+    logging.info(f'   TRAIN:"{node}":Find genes (proc={os.getpid})')
     positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
     logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
 
