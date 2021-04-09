@@ -258,28 +258,23 @@ def predict(test_al, training_tax, classifiers_train):
         for gene in test_al.index.values
     ]
 
-def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, procs=None):
-    logging.info('  TEST:"%s" taxonomic level', str(level_to_learn))
+def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, perc_test_set=0.33, procs=None):
+    # perc_test_set <= 0.5 !
+    logging.info(f'  TEST:"{level_to_learn}" taxonomic level')
     # 1. Identify which clades we want to remove (test set) and which to keep
     #    (training set)
     this_level_clades = full_taxonomy.find_node_level(level_to_learn)
-    # we use 33% of the clades for testing
-    perc_test_set = 0.33 # this cannot be higher than 0.5.
-    test_set = set()
-    training_set = set()
+    test_set, training_set = set(), set()
     for c in this_level_clades:
         # find how many to use for the test set:
         aval_clades = set(this_level_clades[c])
-        n_test = round(len(aval_clades) * perc_test_set)
-        if len(aval_clades) == 2:
-            n_test = 0
-        # add to test set
+        n_test = 0 if len(aval_clades) == 2 else round(len(aval_clades) * perc_test_set)
         for i in range(n_test):
             test_set.add(aval_clades.pop())
         # the remaining clades in aval_clades go to the trainig set
         training_set.update(aval_clades)
-    logging.info('  TEST:"%s" level:test_set (%s):%s', str(level_to_learn),str(len(test_set)),str(test_set))
-    logging.info('  TEST:"%s" level:trai_set (%s):%s', str(level_to_learn),str(len(training_set)),str(training_set))
+    logging.info(f'  TEST:"{level_to_learn}" level:test_set ({len(test_set)}):{test_set}')
+    logging.info(f'  TEST:"{level_to_learn}" level:trai_set ({len(training_set)}):{training_set}')
 
     # 2. Create new taxonomy and alignment file & train the classifiers
     training_tax = full_taxonomy.copy()
@@ -294,8 +289,7 @@ def learn_function_one_level(level_to_learn, alignment, full_taxonomy, penalty_v
         # g is:
         # ["geneB",["A","B","D","species8"],[0.99,0.96,0.96,0.07]]
         correct_tax = full_taxonomy.extract_full_tax_from_gene(g[0])
-        g.append(correct_tax)
-        g.append(level_to_learn)
+        g.extend([correct_tax, level_to_learn])
 
     return pr
     # return:
