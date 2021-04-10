@@ -118,36 +118,27 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     n_pass, n_not_pass = 0, 0
     # check that the tools are available
     if use_cmalign and not is_tool("cmalign"):
-        sys.stderr.write("[E::align] Error: cmalign is not in the path. Please install Infernal.\n")
-        sys.exit(1)
+        raise ValueError("[E::align] Error: cmalign is not in the path. Please install Infernal.")
     elif not is_tool("hmmalign"):
-        sys.stderr.write("[E::align] Error: hmmalign is not in the path. Please install HMMER3.\n")
-        sys.exit(1)
+        raise ValueError("[E::align] Error: hmmalign is not in the path. Please install HMMER3.")
     if not is_tool("esl-reformat"):
-        sys.stderr.write("[E::align] Error: esl-reformat is not in the path. Please install Easel.\n")
-        sys.exit(1)
+        raise ValueError("[E::align] Error: esl-reformat is not in the path. Please install Easel.")
 
-    # prepare the command to run
-    cmd = "hmmalign "
-    if use_cmalign:
-        cmd = "cmalign --cpu "+str(n_threads)+" "
-
-    if not protein_file:
-        cmd = cmd + hmm_file +" "+ seq_file
-    else:
-        cmd = cmd + hmm_file +" "+ protein_file
+    aligner = f"cmalign --cpu {n_threads}" if use_cmalign else "hmmalign"
+    seq_input = protein_file if protein_file else seq_file
+    align_cmd = f"{aligner} {hmm_file} {seq_input}"
 
     if verbose > 4:
-        sys.stderr.write("Command used to align the sequences: "+cmd+"\n")
+        print(f"Command used to align the sequences: {align_cmd}", file=sys.stderr)
 
     # run the command
-    CMD = shlex.split(cmd)
-    align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
+    CMD = shlex.split(align_cmd)
+    align_cmd = subprocess.Popen(CMD, stdout=subprocess.PIPE,)
 
     # command to parse the alignment from STOCKHOLM to fasta format
     cmd2 = "esl-reformat a2m -"
     CMD2 = shlex.split(cmd2)
-    parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
+    parse_cmd = subprocess.Popen(CMD2, stdin=align_cmd.stdout, stdout=subprocess.PIPE,)
 
     if protein_file:
         seq_stream = zip(read_fasta(parse_cmd.stdout, head_start=1),
@@ -176,19 +167,17 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
     align_cmd.stdout.close()
     return_code = align_cmd.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. hmmalign/cmalign failed\n")
-        sys.exit(1)
+        raise ValueError("[E::align] Error. hmmalign/cmalign failed.")
     # check that converting the file worked correctly
     parse_cmd.stdout.close()
     return_code = parse_cmd.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. esl-reformat failed\n")
-        sys.exit(1)
+        raise ValueError("[E::align] Error. esl-reformat failed.")
 
     # print the number of sequences that were filtered
     if verbose > 3:
-        sys.stderr.write(" Number of sequences that pass the filter: "+str(n_pass)+"\n")
-        sys.stderr.write(" Number of sequences that do not pass the filter: "+str(n_not_pass)+"\n")
+        print(f" Number of sequences that pass the filter: {n_pass}", file=sys.stderr)
+        print(f" Number of sequences that do not pass the filter: {n_not_pass}", file=sys.stderr)
 
 # ------------------------------------------------------------------------------
 # main function
@@ -210,7 +199,6 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
      It will save the aligned sequences to the specified file.
     """
 
-    # open the temporary file where to save the result
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
     with temp_file:
@@ -218,18 +206,13 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
                                         n_threads, verbose, False, min_perc_state):
             print(gid, *map(int, ali), sep="\t", file=temp_file)
 
-        # if we save the result to a file, then we close it now
         try:
             temp_file.flush()
             os.fsync(temp_file.fileno())
         except:
-            if verbose>4: sys.stderr.write("[E::align] Error when saving the resulting file\n")
-            sys.exit(1)
+            raise ValueError("[E::align] Error when saving the resulting file.")
 
-    # move temp file to the final destination
     try:
-        #os.rename(bam_temp_file.name,args.profile_bam_file) # atomic operation
-        shutil.move(temp_file.name,res_file) #It is not atomic if the files are on different filsystems.
+        shutil.move(temp_file.name, res_file)
     except:
-        sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
-        sys.exit(1)
+        raise ValueError(f"[E::align] The resulting file couldn't be saved. You can find the file here:\n{temp_file.name}.")
