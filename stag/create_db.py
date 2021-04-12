@@ -182,7 +182,7 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
         results.append(perform_training(X, y, penalty_v, solver_v, node))
         t_train = time.time() - t0
 
-        logging.info(f'   "{node}": {len(positive_examples)} positive, {len(negative_examples)} negative\tselection: {t_select:.3f}s, training: {t_train:.3f}s')
+        logging.info(f'   "{node}": {len(positive_examples)} positive, {len(negative_examples)} negative\tselection: {t_select:.3f}s, training: {t_train:.3f}s\tpid={os.getpid()}')
     return results
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
