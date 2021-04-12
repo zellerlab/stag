@@ -99,7 +99,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
             negative_examples_subsample.extend(possible_neg[i] for i in clade_indices)
 
     t_total = time.time() - t00
-    logging(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos}\t{t_neg}\t{t_total}\t{os.getpid()}")
+    logging.info(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos}\t{t_neg}\t{t_total}\t{os.getpid()}")
 
     return positive_examples_subsample, negative_examples_subsample
 
