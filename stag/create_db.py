@@ -30,11 +30,15 @@ from stag.alignment import load_alignment_from_file
 
 # function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
+    t00 = time.time()    
     # "positive_examples" and "negative_examples" are list of gene ids
     positive_examples = full_taxonomy.find_gene_ids(node)
+    t_pos = time.time() - t00
+    t0 = time.time()
     negative_examples = list()
     for s in siblings:
         negative_examples.extend(full_taxonomy.find_gene_ids(s))
+    t_neg = time.time() - t0
 
     if not negative_examples:
         # it means that there was only one child, and we cannot do anything
@@ -93,6 +97,9 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
                 if len(clade_indices) > missing_neg:
                     break
             negative_examples_subsample.extend(possible_neg[i] for i in clade_indices)
+
+    t_total = time.time() - t00
+    logging(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos}\t{t_neg}\t{t_total}\t{os.getpid()}")
 
     return positive_examples_subsample, negative_examples_subsample
 
