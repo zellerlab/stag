@@ -13,6 +13,7 @@ import sys
 import random
 import logging
 import os
+import time
 import tempfile
 import shutil
 from collections import Counter
@@ -159,9 +160,11 @@ def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, 
 def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v):
     results = list()
     for node, siblings in nodes:
-        logging.info(f'   TRAIN:"{node}":Find genes')
+        #logging.info(f'   TRAIN:"{node}":Find genes')
+        t0 = time.time()
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-        logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
+        t_select = time.time() - t0
+        #logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
 
         # check that we have at least 1 example for each class:
         if not negative_examples:
@@ -175,7 +178,11 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
         else:
             X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
             y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
+        t0 = time.time()
         results.append(perform_training(X, y, penalty_v, solver_v, node))
+        t_train = time.time() - t0
+
+        logging.info(f'   "{node}": {len(positive_examples)} positive, {len(negative_examples)} negative\tselection: {t_select:.3f}s, training: {t_train:.3f}s')
     return results
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
