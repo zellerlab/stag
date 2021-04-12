@@ -106,11 +106,11 @@ def get_classification_input(taxonomy, alignment):
         # check that we have at least 1 example for each class:
         if not negative_examples:
             # when the node is the only child, then there are no negative examples
-            logging.info('      Warning: no negative examples for "%s', node)
+            logging.info('      Warning: no negative examples for "%s"', node)
             X, y = "no_negative_examples", None
         elif not positive_examples:
             # There should be positive examples
-            logging.info('      Error: no positive examples for "%s', node)
+            logging.info('      Error: no positive examples for "%s"', node)
             X, y = "ERROR_no_positive_examples", None
         else:
             X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
@@ -161,9 +161,9 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
     results = list()
     for node, siblings in nodes:
         #logging.info(f'   TRAIN:"{node}":Find genes')
-        t0 = time.time()
+        t00 = time.time()
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-        t_select = time.time() - t0
+        t_select = time.time() - t00
         #logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
 
         # check that we have at least 1 example for each class:
@@ -180,16 +180,17 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
             y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
         t0 = time.time()
         results.append(perform_training(X, y, penalty_v, solver_v, node))
-        t_train = time.time() - t0
+        t1 = time.time()
+        t_train, t_total = t1 - t0, t1 - t00
 
         # logging.info(f'   "{node}": {len(positive_examples)} positive, {len(negative_examples)} negative\tselection: {t_select:.3f}s, training: {t_train:.3f}s\tpid={os.getpid()}')
-        logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", os.getpid()])))
+        logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", f"{t_total:.3f}s", os.getpid()])))
     return results
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
     print(f"train_all_classifiers_mp with {procs} processes.")
-    logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "pid"]))
+    logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
         nodes = list(full_taxonomy.get_all_nodes(get_root=True))
         step = len(nodes) // procs
