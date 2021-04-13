@@ -99,7 +99,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
             negative_examples_subsample.extend(possible_neg[i] for i in clade_indices)
 
     t_total = time.time() - t00
-    logging.info(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos}\t{t_neg}\t{t_total}\t{os.getpid()}")
+    logging.info(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos:.3f}\t{t_neg:.3f}\t{t_total:.3f}\t{os.getpid()}")
 
     return positive_examples_subsample, negative_examples_subsample
 
@@ -199,7 +199,7 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
     print(f"train_all_classifiers_mp with {procs} processes.")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
-        nodes = list(full_taxonomy.get_all_nodes(get_root=True))
+        nodes = list(full_taxonomy.get_all_nodes(get_root=False))
         step = len(nodes) // procs
         results = [
             pool.apply_async(get_classification_input_mp2, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
