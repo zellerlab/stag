@@ -25,7 +25,6 @@ from sklearn.linear_model import LogisticRegression
 import h5py
 import tempfile
 import shutil
-import csv
 
 from stag.taxonomy import Taxonomy
 
@@ -33,9 +32,9 @@ from stag.taxonomy import Taxonomy
 def find_raw_names_ncol(file_name):
     gene_names = list()
     with open(file_name) as f:
-        for gene, *align in csv.reader(f, delimiter="\t"):
-            gene_names.append(gene)
-        return gene_names, len(align)
+        for line in f:
+            gene_names.append(line[:line.find("\t")].replace("/", "-"))
+        return gene_names, line.count("\t")
 
 # function to load an alignment produced by the "align" option =================
 # Input:
@@ -45,19 +44,11 @@ def find_raw_names_ncol(file_name):
 # as a note, numpy.loadtxt is way slower than pandas read.csv
 # It works also on .gz files
 def load_alignment_from_file(file_name):
-    # create empty pandas object of the correct size
     gene_names, align_length = find_raw_names_ncol(file_name)
     alignment = pd.DataFrame(False, index=gene_names, columns=range(align_length))
-    # add correct values
     with open(file_name) as f:
-        for pos, (gene, *align) in enumerate(csv.reader(f, delimiter="\t")):
-            try:
-                align = [int(c) == 1 for c in align if int(c) in (0, 1)]
-            except:
-                raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{''.join(align)}")
-            if len(align) != align_length:
-               raise ValueError(f"Malformatted alignment in line {pos}:\n{gene}\t{align}") 
-            alignment.iloc[pos] = np.array(align)
+        for pos, line in enumerate(f):
+            alignment.iloc[pos] = np.array([c == "1" for c in line.split("\t")[1:]])
 
     logging.info(f'   LOAD_AL: Number of genes: {len(list(alignment.index.values))}')
 
