@@ -322,7 +322,7 @@ def main(argv=None):
 
         # call the function to create the database
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
-                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
+                            args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
                             args.penalty_logistic, args.solver_logistic, procs=args.threads)
 
     # --------------------------------------------------------------------------
@@ -368,7 +368,7 @@ def main(argv=None):
         # SECOND: CREATE_DB ----------------------------------------------------
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
-                            args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
+                            args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
                             args.penalty_logistic, args.solver_logistic, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------

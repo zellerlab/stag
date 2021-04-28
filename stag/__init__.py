@@ -1,4 +1,4 @@
-__version__ = "0.8.1"
+__version__ = "0.8.2_tax3"
 __title__ = "stag"
 __author__ = "Alessio Milanese"
 __license__ = 'GPLv3+'
