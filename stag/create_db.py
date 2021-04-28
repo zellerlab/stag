@@ -34,6 +34,9 @@ def find_raw_names_ncol(file_name):
     gene_names = list()
     with open(file_name) as f:
         for gene, *align in csv.reader(f, delimiter="\t"):
+            # solve issue #10
+            gene.replace("/","-")
+            # add to list
             gene_names.append(gene)
         return gene_names, len(align)
 
