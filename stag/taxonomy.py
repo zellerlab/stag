@@ -24,6 +24,8 @@ class Taxonomy:
                 # vals = line.rstrip().replace("/","-").split("\t")
                 try:
                     gene, lineage = row
+                    # we solve #10
+                    lineage = lineage.replace("/","-")
                 except:
                     raise ValueError(f"line {line_i} is not properly formatted, expecting gene\tlineage.. :\n{row}")
                 lineage = lineage.split(";")
