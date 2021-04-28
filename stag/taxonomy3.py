@@ -26,7 +26,7 @@ class Taxonomy(dict):
         self._read_taxonomy(self.fn)
 
     def _check_lineage_depth(self, lineage, line_no):
-        lineage = lineage.split(";")
+        lineage = lineage.replace("/", "-").split(";") # issue10
         if len(lineage) < self.n_taxlevels:
             raise ValueError(f"Line {line_no}: Taxonomy record does not have the expected number of taxonomic levels\n{lineage}")
         self.n_taxlevels = len(lineage)
@@ -41,7 +41,7 @@ class Taxonomy(dict):
                     parent = node
                 node = self.setdefault(taxon, Taxon(parent=parent, label=taxon))
                 parent.add_child(node)
-            node.add_gene(gene.replace("/", "-"))
+            node.add_gene(gene)
             self.gene_lineages[gene] = lineage
 
     def copy(self):
