@@ -391,7 +391,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
             os.chmod(outfile.name, 0o644)
             print("gene", "predicted", "prob", "ground_truth", "removed_level", sep="\t", file=outfile)
             for gene, predicted, prob, ground_truth, removed_level in all_calc_functions:
-                predicted, prob, ground_truth = ("/".join(s) for s in (predicted, prob, ground_truth))
+                predicted, prob, ground_truth = ("/".join(s) for s in (predicted, ["{:.2f}".format(pr) for pr in prob], ground_truth))
                 print(gene, predicted, prob, ground_truth, removed_level, sep="\t", file=outfile)
             try:
                 outfile.flush()
