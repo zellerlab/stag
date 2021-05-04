@@ -309,7 +309,7 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
     found_marker_genes = {
         mg: (fna, faa) 
         for mg, (fna, faa) in MGS.items()
-        if os.path.exists(fna) and pathlib(fna).stat().st_size
+        if pathlib.Path(fna).is_file() and pathlib.Path(fna).stat().st_size
     }
 
     if not found_marker_genes:
