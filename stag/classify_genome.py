@@ -306,7 +306,16 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 
 def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
 
-    for mg in MGS:
+    found_marker_genes = {
+        mg: (fna, faa) 
+        for mg, (fna, faa) in MGS.items()
+        if os.path.exists(fna) and pathlib(fna).stat().st_size
+    }
+
+    if not found_marker_genes:
+        raise ValueError("No marker genes found!")
+
+    for mg in found_marker_genes:
         db = os.path.join(database_base_path, mg)
         if not os.path.isfile(db):
             raise ValueError(f"Error: file for gene database {db} is missing")
@@ -321,8 +330,9 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
                   "save_ali_to_file": os.path.join(dir_ali, mg),
                   "internal_call": True}
         )
-        for mg, (fna, faa) in MGS.items() if fna
+        for mg, (fna, faa) in found_marker_genes.items()
     )
+
     d = dict()
     for p in results:
         _, predictions = p.get()
