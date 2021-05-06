@@ -10,6 +10,7 @@ import glob
 import tempfile
 import errno
 import tarfile
+import json
 import pathlib
 
 from . import __version__ as tool_version
@@ -24,8 +25,9 @@ import stag.classify_genome as classify_genome
 import stag.train_genome as train_genome
 import stag.convert_ali as convert_ali
 
-def handle_error(error, help_f):
-    help_f()
+def handle_error(error, help_f=None):
+    if help_f:
+        help_f()
     print_error()
     print(error, file=sys.stderr)
     sys.exit(1)
@@ -96,7 +98,8 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify():
@@ -141,7 +144,7 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regrssion {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
     sys.stderr.write(f"{bco.Cyan}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_correct_seq():
@@ -168,14 +171,16 @@ def print_menu_train_genome():
 def print_menu_classify_genome():
     sys.stderr.write("\n")
     sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} classify_genome {bco.LightBlue}-d{bco.ResetAll} <genome_database> {bco.LightBlue}-o{bco.ResetAll} res_dir\n")
-    sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>] [options]\n\n")
+    sys.stderr.write(f"                            [{bco.LightBlue}-i{bco.ResetAll} <fasta_seq>/{bco.LightBlue}-D{bco.ResetAll} <directory>/{bco.LightBlue}-G{bco.ResetAll} <markers.json>] [options]\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE   database created with train_genome {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-i{bco.ResetAll}  FILE   genome fasta file\n")
     sys.stderr.write(f"  {bco.LightBlue}-D{bco.ResetAll}  DIR    directory containing genome fasta files (only fasta\n             files will be used)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-G{bco.ResetAll}  FILE   json file pointing at a marker gene set (in lieu of a full genome)\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  DIR    output directory {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}         long output (with more information about the classification) {bco.LightMagenta}[False]\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT    verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-r{bco.ResetAll}         use all genes above the filter {bco.LightMagenta}[False]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
 # ------------------------------------------------------------------------------
 def print_menu_convert_ali():
     sys.stderr.write("\n")
@@ -224,6 +229,7 @@ def main(argv=None):
     parser.add_argument('-T', action="store", dest='file_thresholds', default=None, help='file with the thresholds for the genes in the genome classifier') # basically the minimum score required
     parser.add_argument('-e', action="store", default="l1", dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
     parser.add_argument('-E', action="store", default="liblinear", dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
+    parser.add_argument('-G', action="store", dest="marker_genes", default=None, help="Set of identified marker genes in lieu of a genomic sequence")
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -317,7 +323,7 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic)
+                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -363,7 +369,7 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, tool_version, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic)
+                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
@@ -403,9 +409,10 @@ def main(argv=None):
 
 
         # call the function
-        classify.classify(args.database, args.fasta_input, args.protein_fasta_input, args.verbose, args.threads,
-                          args.output, args.long_out, tool_version, args.aligned_sequences, args.intermediate_al,
-                          args.min_perc_state)
+        classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input, 
+                          verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out, 
+                          current_tool_version=tool_version, aligned_sequences=args.aligned_sequences,
+                          save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine
@@ -518,12 +525,14 @@ def main(argv=None):
         # check input
         if not args.database:
             error = "missing <database> (-d)"
-        elif not args.fasta_input and not args.dir_input:
-            error = "you need to provide at least -i or -D."
-        elif args.fasta_input and args.dir_input:
-            error = "you need to provide -i or -D, not both."
+        elif not any((args.fasta_input, args.dir_input, args.marker_genes)):
+            error = "you need to provide at least -i, -D, or -G."
+        elif sum(map(bool, (args.fasta_input, args.dir_input, args.marker_genes))) != 1:
+            error = "options -i, -D, and -G are mutually exclusive"
         elif args.dir_input and not os.path.isdir(args.dir_input):
             error = "-D is not a directory."
+        elif args.marker_genes and not os.path.isfile(args.marker_genes):
+            error = "-G is not a valid file."
         elif not args.output:
             # check that output dir is defined
             error = "missing output directory (-o)"
@@ -532,10 +541,12 @@ def main(argv=None):
             handle_error(error, print_menu_classify_genome)
 
         # find files to classify
-        list_files = list()
+        marker_genes, list_files = list(), list()
         if args.fasta_input:
             check_file_exists(args.fasta_input, isfasta = True)
             list_files.append(args.fasta_input)
+        elif args.marker_genes:
+            marker_genes = [args.marker_genes]
         else:
             for f in os.listdir(args.dir_input):
                 f = os.path.join(args.dir_input, f)
@@ -555,18 +566,22 @@ def main(argv=None):
             if args.force_rewrite:
                 shutil.rmtree(args.output)
             else:
-                handle_error("output directory (-o) exists already.", None)
+                handle_error("output directory (-o {}) exists already.".format(args.output), None)
 
         # create output dir
         try:
             pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
         except:
-            handle_error("creating the output directory (-o).", None)
+            handle_error("creating the output directory (-o {}).".format(args.output), None)
+
+        if list_files:
+            from stag.classify_genome import validate_genome_files
+            validate_genome_files(list_files)
 
         # call the function
-        classify_genome.classify_genome(args.database, list_files, args.verbose, args.threads, args.output,
-                                        args.long_out, tool_version, args.keep_all_genes)
-
+        classify_genome.classify_genome(args.database, genome_files=list_files, marker_genes=marker_genes,
+                                        verbose=args.verbose, threads=args.threads,
+                                        output=args.output, long_out=args.long_out, keep_all_genes=args.keep_all_genes)
 
     return None        # success
 

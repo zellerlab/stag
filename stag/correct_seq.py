@@ -14,20 +14,11 @@ import sys
 import tempfile
 import re
 
+from stag.helpers import is_tool, linearise_fasta
+
 #===============================================================================
 #                                 FUNCTIONS
 #===============================================================================
-
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
 
 # ------------------------------------------------------------------------------
 # function that creates a file with reverse complement
@@ -54,32 +45,6 @@ def rev_complement(seq_file, verbose):
         sys.exit(1)
     if verbose > 2: sys.stderr.write("done\n")
     return rev_file.name
-
-
-# ------------------------------------------------------------------------------
-# function to convert a fasta file with multiple lines into a one line separated
-# by a "\t"
-# Example:
-# >test_fasta_header
-# ATTGCGATTTCT
-# CGGTATCGGTAT
-# CGGTTA
-### TO:
-# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-def merge_fasta(filein):
-    # filein is a stream of data (from hmmalign)
-    seq = ""
-    for line_b in filein:
-        line = line_b.decode("utf-8").rstrip()
-        if line.startswith(">"):
-            if seq != "":
-                yield seq
-            seq = line+"\t"
-        else:
-            seq = seq + line
-    # give back the last sequence
-    if seq != "":
-        yield seq
 
 # function that calculate the number of internal states per sequence -----------
 def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
@@ -118,12 +83,12 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
     parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
 
     all_lines = dict()
-    for line in merge_fasta(parse_cmd.stdout):
+    for line in linearise_fasta(parse_cmd.stdout, head_start=0):
         id = line.split("\t")[0]
         # calculate the number of internal state covered
         mat_i_s = 0 # internal states that match (even mismatch is counted I guess), they are upper case letters
         deletions = 0 # number of deletions (they are "-")
-        insetions = 0 # insertions are lower case letters
+        insertions = 0 # insertions are lower case letters
         for i in line.split("\t")[1]:
             if i == "-":
                 deletions = deletions + 1
@@ -131,7 +96,7 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
                 if i.isupper():
                     mat_i_s = mat_i_s + 1
                 if i.islower():
-                    insetions = insetions + 1
+                    insertions = insertions + 1
 
         all_lines[id] = ( mat_i_s/(mat_i_s+deletions) ) * 100
 
@@ -139,7 +104,7 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
     align_cmd.stdout.close()
     return_code = align_cmd.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. hmmalig/cmalign failed\n")
+        sys.stderr.write("[E::align] Error. hmmalign/cmalign failed\n")
         sys.exit(1)
     # check that converting the file worked correctly
     parse_cmd.stdout.close()
@@ -149,9 +114,6 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
         sys.exit(1)
 
     return all_lines
-
-
-
 
 # ------------------------------------------------------------------------------
 # find the one that align the best and save the result
@@ -201,10 +163,11 @@ def save_best_seq(seq_al, rev_al, seq_file, rev_file, min_perc_state, output, ve
     o.close()
 
     # write info
-    if verbose > 2: sys.stderr.write("done\n")
-    if verbose > 2: sys.stderr.write("Sequences in correct orientation: "+str(original_seq_count)+"\n")
-    if verbose > 2: sys.stderr.write("Reverse-complemented sequences: "+str(rotated_seq_count)+"\n")
-    if verbose > 2: sys.stderr.write("Dropped sequences (below threshold): "+str(removed_seq_count)+"\n")
+    if verbose > 2:
+        sys.stderr.write("done\n")
+        sys.stderr.write("Sequences in correct orientation: "+str(original_seq_count)+"\n")
+        sys.stderr.write("Reverse-complemented sequences: "+str(rotated_seq_count)+"\n")
+        sys.stderr.write("Dropped sequences (below threshold): "+str(removed_seq_count)+"\n")
 
     # close file with result
     if not(output is None):

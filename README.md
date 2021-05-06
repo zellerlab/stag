@@ -11,7 +11,7 @@ Dependencies
 --------------
 
 The stag classifier requires:
-* Python 3.6 (or higher)
+* Python 3.7 (or higher)
 * HMMER3 (or Infernal)
 * Easel ([link](https://github.com/EddyRivasLab/easel))
 * [seqtk](https://github.com/lh3/seqtk)

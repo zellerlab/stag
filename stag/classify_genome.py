@@ -14,84 +14,56 @@ import shlex
 import errno
 import h5py
 import re
+import json
+import pathlib
 
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
+import contextlib
+import multiprocessing as mp
 
-# ------------------------------------------------------------------------------
-# dev null
+from stag.helpers import is_tool, read_fasta
+from stag.classify import classify
+from stag import __version__ as tool_version
+from stag.databases import load_genome_DB
+
 try:
     from subprocess import DEVNULL
 except ImportError:
     DEVNULL = open(os.devnull, 'wb')
 
-# ==============================================================================
-# UNZIP THE DATABASE
-# ==============================================================================
-def load_genome_DB(database, tool_version, verbose):
-    dirpath = tempfile.mkdtemp()
-    shutil.unpack_archive(database, dirpath,"gztar")
-    list_files = [f for f in os.listdir(dirpath) if os.path.isfile(os.path.join(dirpath, f))]
-    # there must be a file with the name 'threshold_file.tsv'
-    if not "threshold_file.tsv" in list_files:
-        sys.stderr.write("[E::align] Error: threshold_file.tsv is missing.\n")
-        sys.exit(1)
-    if not "hmm_lengths_file.tsv" in list_files:
-        sys.stderr.write("[E::align] Error: hmm_lengths_file.tsv is missing.\n")
-        sys.exit(1)
-    if not "concatenated_genes_STAG_database.HDF5" in list_files:
-        sys.stderr.write("[E::align] Error: concatenated_genes_STAG_database.HDF5 is missing.\n")
-        sys.exit(1)
-    # we load the thresholds and gene order
-    gene_order = list()
-    gene_thresholds = dict()
-    o = open(os.path.join(dirpath, "threshold_file.tsv"))
-    for line in o:
-        vals = line.rstrip().split("\t")
-        gene_thresholds[vals[0]] = vals[1]
-        gene_order.append(vals[0])
-    o.close()
+def validate_genome_files(files):
+    if any("##" in f for f in files):
+        offender = [f for f in files if "##" in f][0]
+        err = "Error with: {}\n".format(offender)
+        raise ValueError(f"{err}[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
 
-    # we load the gene legths
-    ali_lengths = dict()
-    o = open(os.path.join(dirpath, "hmm_lengths_file.tsv"))
-    for line in o:
-        vals = line.rstrip().split("\t")
-        ali_lengths[vals[0]] = vals[1]
-    o.close()
+def cleanup_prodigal(files):
+    for genes, proteins in files:
+        try:
+            [os.remove(f) for f in (genes, proteins)]
+        except:
+            pass
 
 
-    # we remove the threshold file from the list of genes
-    list_files.remove("threshold_file.tsv")
-    list_files.remove("hmm_lengths_file.tsv")
-    list_files.remove("concatenated_genes_STAG_database.HDF5")
-    return list_files,dirpath,gene_thresholds,gene_order,ali_lengths,os.path.join(dirpath, "concatenated_genes_STAG_database.HDF5")
+def cleanup_prodigal(files):
+    for genes, proteins in files:
+        try:
+            [os.remove(f) for f in (genes, proteins)]
+        except:
+            pass
 
-# ==============================================================================
-# RUN PRODIGAL
-# ==============================================================================
-# run prodigal on one genome
-def run_prodigal(genome, verbose):
+def run_prodigal(genome):
+    if not is_tool("prodigal"):
+        raise ValueError("[E::align] Error: prodigal is not in the path.\n")
+
     # we need two files, one for the proteins and one for the genes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
     # prodigal command
-    prodigal_command = "prodigal -i "+genome+" -d "+genes.name
-    prodigal_command = prodigal_command + " -a "+proteins.name
-    # run prodigal
-    if not is_tool("prodigal"):
-        sys.stderr.write("[E::align] Error: prodigal is not in the path.\n")
-        sys.exit(1)
-    CMD2 = shlex.split(prodigal_command)
-    parse_cmd = subprocess.Popen(CMD2, stdout=DEVNULL,stderr=subprocess.PIPE)
+    prodigal_cmd = "prodigal -i {genome} -d {gene_file} -a {protein_file}".format(
+        genome=genome, gene_file=genes.name, protein_file=proteins.name
+    )
+    cmd = shlex.split(prodigal_cmd)
+    parse_cmd = subprocess.Popen(cmd, stdout=DEVNULL,stderr=subprocess.PIPE)
     # we save stderr if necessary
     all_stderr = ""
     for line in parse_cmd.stderr:
@@ -99,57 +71,29 @@ def run_prodigal(genome, verbose):
         all_stderr = all_stderr + line
     return_code = parse_cmd.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. prodigal failed\n\n")
-        sys.stderr.write(all_stderr)
-        sys.exit(1)
+        raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
 
     # we re-name the header of the fasta files ---------------------------------
     # we expect to have the same number of genes and proteins, and also that the
-    #
-    parsed_genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    parsed_proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
+    def copy_fasta(fasta_file, seqid, is_binary=True, head_start=0):
+        with tempfile.NamedTemporaryFile(delete=False, mode="w") as fasta_out, open(fasta_file) as fasta_in:
+            for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary), start=1):
+                print(">{seqid}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
+            fasta_out.flush()
+            os.fsync(fasta_out.fileno())
+            return fasta_out.name, index
 
-    o = open(genes.name,"r")
-    count = 0
-    for i in o:
-        if i.startswith(">"):
-            parsed_genes.write(">"+genome+"_"+str(count)+"\n")
-            count = count + 1
-        else:
-            parsed_genes.write(i)
-    o.close()
+    parsed_genes, gene_count = copy_fasta(genes.name, genome, is_binary=False)
+    parsed_proteins, protein_count = copy_fasta(proteins.name, genome, is_binary=False)
 
-    o = open(proteins.name,"r")
-    count = 0
-    for i in o:
-        if i.startswith(">"):
-            parsed_proteins.write(">"+genome+"_"+str(count)+"\n")
-            count = count + 1
-        else:
-            parsed_proteins.write(i)
-    o.close()
-
-    # remove old files
     os.remove(genes.name)
     os.remove(proteins.name)
 
-    # close new files
-    parsed_proteins.flush()
-    os.fsync(parsed_proteins.fileno())
-    parsed_proteins.close()
-    parsed_genes.flush()
-    os.fsync(parsed_genes.fileno())
-    parsed_genes.close()
-
-    return [parsed_genes.name, parsed_proteins.name]
+    return parsed_genes, parsed_proteins
 
 # run prodigal on all the genomes listed in fasta_input
-def run_prodigal_genomes(genomes_file_list, verbose):
-    result = dict()
-    for g in genomes_file_list:
-        result[g] = run_prodigal(g, verbose)
-    return result
-
+def run_prodigal_genomes(genome_files):
+    return {genome: run_prodigal(genome) for genome in genome_files}
 
 # ==============================================================================
 # EXTRACT THE MARKER GENES
@@ -170,11 +114,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name
         all_stderr = all_stderr + line
     return_code = hmm_CMD.wait()
     if return_code:
-        sys.stderr.write("[E::align] Error. hmmsearch failed\n\n")
-        sys.stderr.write("MG: "+mg_name+"\n")
-        sys.stderr.write("CALL: "+hmm_cmd+"\n\n")
-        sys.stderr.write(all_stderr)
-        sys.exit(1)
+        raise ValueError(f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}")
 
     # in temp_hmm.name there is the result from hmm ----------------------------
     # we select which genes/proteins we need to extract from the fasta files
@@ -194,7 +134,6 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name
     # remove file with the result from the hmm
     if os.path.isfile(temp_hmm.name): os.remove(temp_hmm.name)
 
-    # return
     return sel_genes
 
 
@@ -263,49 +202,31 @@ def select_genes(all_genes_raw, keep_all_genes):
 # function that extract the genes and proteins based on the IDs from
 # "selected_genes", only for one marker gene
 def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_protein_file):
+    n_genes, n_proteins = 0, 0
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    n_genes = 0
     if use_protein_file:
         proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        n_proteins = 0
+    else:
+        proteins = contextlib.nullcontext()
 
-    for genome in selected_genes:
-        if not(mg in selected_genes[genome]):
-            sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
-        else:
-            # for genes
-            o = open(genomes_pred[genome][0])
-            print_this = False
-            for i in o:
-                if i.startswith(">"):
-                    if i[1:].rstrip() in selected_genes[genome][mg]:
-                        print_this = True
-                        n_genes = n_genes + 1
-                        # we print a different header
-                        genes.write(i.rstrip()+"##"+mg+"\n")
-                    else:
-                        print_this = False
-                else:
-                    if print_this:
-                        genes.write(i)
-            o.close()
-            # for proteins
-            if use_protein_file:
-                o = open(genomes_pred[genome][1])
-                print_this = False
-                for i in o:
-                    if i.startswith(">"):
-                        if i[1:].rstrip() in selected_genes[genome][mg]:
-                            print_this = True
-                            n_proteins = n_proteins + 1
-                            # we print a different header
-                            proteins.write(i.rstrip()+"##"+mg+"\n")
-                        else:
-                            print_this = False
-                    else:
-                        if print_this:
-                            proteins.write(i)
-                o.close()
+    def filter_sequences(fasta_in, fasta_out, whitelist, mg):
+        n_written = 0
+        for sid, seq in read_fasta(fasta_in, head_start=1, is_binary=False):
+            if sid in whitelist:
+                n_written += 1
+                print(">{sid}##{mg}".format(sid=sid, mg=mg), seq, sep="\n", file=fasta_out)
+        return n_written
+
+    with genes, proteins:
+        for genome in selected_genes:
+            if not mg in selected_genes[genome]:
+                sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
+            else:
+                with open(genomes_pred[genome][0]) as fna_in:
+                    n_genes += filter_sequences(fna_in, genes, selected_genes[genome][mg], mg)
+                if use_protein_file:
+                    with open(genomes_pred[genome][1]) as faa_in:
+                        n_proteins += filter_sequences(faa_in, proteins, selected_genes[genome][mg], mg)
 
     if verbose > 3:
         sys.stderr.write(" Found "+str(n_genes)+" genes\n")
@@ -326,7 +247,7 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
         if use_protein_file:
             protein_file_name = proteins.name
         else:
-            protein_file_name = "no_protein"
+            protein_file_name = None #"no_protein"
 
     return gene_file_name, protein_file_name
 
@@ -339,22 +260,14 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
-        f = h5py.File(path_mg, 'r')
-        # first, we save a temporary file with the hmm file
-        hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        os.chmod(hmm_file.name, 0o644)
-        hmm_file.write(f['hmm_file'][0])
-        hmm_file.flush()
-        os.fsync(hmm_file.fileno())
-        hmm_file.close()
-        # second, check if we need to use proteins
-        use_protein_file = False
-        if f['align_protein'][0]:
-            use_protein_file = True
-            mg_info_use_protein[mg] = True
-        else:
-            mg_info_use_protein[mg] = False
-        f.close()
+
+        with h5py.File(path_mg, 'r') as db_in, tempfile.NamedTemporaryFile(delete=False, mode="w") as hmm_file:
+            os.chmod(hmm_file.name, 0o644)
+            hmm_file.write(db_in['hmm_file'][0])
+            hmm_file.flush()
+            os.fsync(hmm_file.fileno())
+
+            use_protein_file = mg_info_use_protein[mg] = bool(db_in['align_protein'][0])
 
         # run hmmsearch for each genome and find which genes pass the filter
         extract_genes(mg, hmm_file.name, use_protein_file, genomes_pred, gene_thresholds[mg], all_genes_raw)
@@ -391,228 +304,169 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 
     return all_predicted
 
+def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
 
+    found_marker_genes = {
+        mg: (fna, faa) 
+        for mg, (fna, faa) in MGS.items()
+        if pathlib.Path(fna).is_file() and pathlib.Path(fna).stat().st_size
+    }
 
+    if not found_marker_genes:
+        raise ValueError("No marker genes found!")
 
-# ==============================================================================
-# TAXONOMICALLY ANNOTATE MARKER GENES
-# ==============================================================================
+    for mg in found_marker_genes:
+        db = os.path.join(database_base_path, mg)
+        if not os.path.isfile(db):
+            raise ValueError(f"Error: file for gene database {db} is missing")
 
-# we run stag classify, for each marker gene
-def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
-    all_classifications = dict()
-    for mg in MGS:
-        if MGS[mg][0] != None:
-            # it means that there are some genes to classify
-            CMD = "stag classify -d "+database_base_path+"/"+mg
-            # check that the database is correct
-            if not os.path.isfile(database_base_path+"/"+mg):
-                sys.stderr.write("Error: file for gene database is missing")
-            CMD = CMD + " -i "+MGS[mg][0]
-            if MGS[mg][1] != "no_protein":
-                # it means that we align proteins
-                CMD = CMD + " -p "+MGS[mg][1]
-            # save intermediate alignment
-            CMD = CMD + " -S " + dir_ali + mg
-            # we run stag CMD
-            split_CMD = shlex.split(CMD)
-            stag_CMD = subprocess.Popen(split_CMD, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            # save stderr for the message is necessary
-            all_stderr = ""
-            for line in stag_CMD.stderr:
-                line = line.decode('ascii')
-                all_stderr = all_stderr + line
-            # save stdout with the resutls
-            n_genes = -1
-            for line in stag_CMD.stdout:
-                n_genes = n_genes + 1
-                if n_genes != 0:
-                    # we skip the header
-                    vals = line.decode('ascii').split("\t")
-                    all_classifications[vals[0]] = vals[1].rstrip()
-            # check errors
-            return_code = stag_CMD.wait()
-            if return_code:
-                sys.stderr.write("[E::align] Error. stag classify failed\n\n")
-                sys.stderr.write(all_stderr)
-                sys.exit(1)
+    pool = mp.Pool(processes=procs)
 
-    return all_classifications
+    results = (
+        pool.apply_async(
+            classify,
+            args=(os.path.join(database_base_path,mg),),
+            kwds={"fasta_input": fna, "protein_fasta_input": faa,
+                  "save_ali_to_file": os.path.join(dir_ali, mg),
+                  "internal_call": True}
+        )
+        for mg, (fna, faa) in found_marker_genes.items()
+    )
 
+    d = dict()
+    for p in results:
+        _, predictions = p.get()
+        d.update(predictions)
+    return d
+    #return dict(p.get()[1] for p in results)
 
+def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes, full_genomes=True):
+    outdir = os.path.join(output, "genes_predictions")
+    pathlib.Path(outdir).mkdir(exist_ok=True, parents=True)
 
-# ==============================================================================
-# MERGE TAXONOMY OF SINGLE GENES
-# ==============================================================================
-def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes):
+    print(*all_classifications.items(), sep="\n")
+    print("**********")
     # we parse "all_classifications"
-    to_print = dict()
-    for i in all_classifications:
-        vals = i.rstrip().split("##")
-        genome = "_".join(vals[0].split("_")[0:-1])
-        mg_id = vals[1]
-        if not genome in to_print:
-            to_print[genome] = ""
-        to_print[genome] = to_print[genome] + i.rstrip() + "\t" + mg_id + "\t" + all_classifications[i] + "\n"
+    merged_predictions = dict()
+    for marker_gene, lineage in all_classifications.items():
+        genome, mg_id = marker_gene.rstrip().split("##")
+        sep = "_" if "_" in genome else "."
+        genome = genome.split(sep)
+        genome = sep.join(genome[:-1] if len(genome) > 1 else genome)
+        merged_predictions.setdefault(genome, list()).append("\t".join([marker_gene.rstrip(), mg_id, lineage]))
+    print(*merged_predictions.items(), sep="\n")
 
-    # we go throught the genomes and analyse them
-    for g in genomes_file_list:
-        if not g in to_print:
-            to_print[g] = ""
-        genome_file_name = g.split("/")[-1]
-        o = open(output+"/genes_predictions/"+genome_file_name,"w")
-        o.write(to_print[g])
-        o.close()
+    for genome, predictions in merged_predictions.items():
+        genome_filename = os.path.basename(genome)
+        with open(os.path.join(outdir, os.path.basename(genome)), "w") as merged_out:
+            print(*predictions, sep="\n", file=merged_out, flush=True)
 
-
-
-# ==============================================================================
-# CONCAT ALIGNEMENTS
-# ==============================================================================
-def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
-    # we return a (tmp) file containing the concatenated alignment
-    # INPUT:
-    #  - list of genomes
-    #  - base name of the directory containing the alignments
-    #  - order of the genes
-    #  - length of the alignments
-
-    # we create the base
+def concat_alignments(genome_files, ali_dir, gene_order, ali_lengths, full_genomes=True):
     all_genes = dict()
-    for ge in genomes_file_list:
-        all_genes[ge] = list()
-        for mg in gene_order:
-            all_genes[ge].append("\t".join(['0'] * int(ali_lengths[mg])))
+    for pos, mg in enumerate(gene_order):
+        mg_alignment_file = os.path.join(ali_dir, mg)
+        if os.path.exists(mg_alignment_file):
+            with open(mg_alignment_file) as align_in:
+                for line in align_in:
+                    genome, *alignment = line.strip().split("\t")
+                    sep = "_" if "_" in genome else "."
+                    genome = genome.split("##")[0].split(sep)
+                    genome = sep.join(genome[:-1] if len(genome) > 1 else genome)
+                    all_genes.setdefault(genome, ["\t".join(["0" for i in range(int(ali_lengths[mg]))]) for mg in gene_order])
+                    all_genes[genome][pos] = "\t".join(alignment)
 
-    # we add the alignments from the real genes
-    pos = -1
-    for mg in gene_order:
-        pos = pos + 1
-        if os.path.isfile(ali_dir+mg):
-            o = open(ali_dir+mg,"r")
-            for line in o:
-                genome = "_".join(line.split("##")[0].split("_")[0:-1])
-                all_genes[genome][pos] = "\t".join(line.split("\t")[1:]).rstrip()
-            o.close()
+    print("YYY")
+    for key, value in all_genes.items():
+        print(key, len(value))
 
     # we create a temp file and save the sequences
-    concat_ali_f = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    os.chmod(concat_ali_f.name, 0o644)
-    for g in genomes_file_list:
-        str_g = g.split("/")[-1] + "\t"
-        str_g = str_g + "\t".join(all_genes[g])
-        concat_ali_f.write(str_g + "\n")
-        concat_ali_f.flush()
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as concat_ali_f:
+        os.chmod(concat_ali_f.name, 0o644)
+        for genome, alignment in all_genes.items():
+            print(genome, *alignment, sep="\t", file=concat_ali_f, flush=True)
 
     return concat_ali_f.name
 
 
+def store_marker_sequences(marker_sequences, outdir, genome_files_available=True):
 
-# ==============================================================================
-# ANNOTATE concatenation of the MGs
-# ==============================================================================
-# the annotation for the genome is based on the annotation of the
-def annotate_concat_mgs(concat_ali_stag_db,file_ali,output):
-    CMD = "stag classify -d "+concat_ali_stag_db
-    CMD = CMD + " -s "+file_ali
-    CMD = CMD + " -o "+output+"/genome_annotation"
+    def store_seqs(source, target, copy_function):
+        try:
+            if not source:
+                open(target, "w").close()
+            else:
+                copy_function(os.path.abspath(source), target)
+        except Exception as e:
+            raise ValueError(f"[E::main] Error: failed to save the marker gene sequences\n{e}")
+        return target
 
-    split_CMD = shlex.split(CMD)
-    stag_CMD = subprocess.Popen(split_CMD)
+    print(marker_sequences)
+    pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
+    copy_function = shutil.move if genome_files_available else os.symlink
 
-    return_code = stag_CMD.wait()
-    if return_code:
-        sys.stderr.write("[E::align] Error. stag classify failed\n\n")
-        sys.exit(1)
+    for marker, (fna, faa) in marker_sequences.items():
+        fna = store_seqs(fna, os.path.join(outdir, f"{marker}.fna"), copy_function)
+        faa = store_seqs(faa, os.path.join(outdir, f"{marker}.faa"), copy_function)
+        marker_sequences[marker] = [fna, faa]
 
 
-#===============================================================================
-#                                      MAIN
-#===============================================================================
-def classify_genome(database, genomes_file_list, verbose, threads, output, long_out, tool_version, keep_all_genes):
-    # ZERO: we need to check that the genome files do not contain "##"
-    for g in genomes_file_list:
-        if len(g.split("##")) > 1:
-            sys.stderr.write("Error with: "+g+"\n")
-            sys.stderr.write("[E::main] Error: file cannot have in the name '##'. Please, choose anothe name.\n")
-            sys.exit(1)
+def classify_genome(database, genome_files=None, marker_genes=None, verbose=None,
+                    threads=1, output=None, long_out=False, keep_all_genes=False):
 
     # FIRST: unzip the database ------------------------------------------------
     if verbose > 2:
         sys.stderr.write("Unzip the database\n")
     database_files, temp_dir, gene_thresholds, gene_order, ali_lengths, concat_ali_stag_db = load_genome_DB(database, tool_version, verbose)
+    genomes_pred = dict()
+    print(*ali_lengths.items(), sep="\n")
 
-    # SECOND: run prodigal on the fasta genome ---------------------------------
-    if verbose > 2:
-        sys.stderr.write("Run prodigal\n")
-    genomes_pred = run_prodigal_genomes(genomes_file_list, verbose)
-    # genomes_pred is a dictionary where the keys are the genome paths and the
-    # values are lists. First value of the list is the path to the gene file and
-    # second the path to the protein file
+    if marker_genes:
+        MGS = json.load(open(marker_genes[0]))
+    elif genome_files:
+        # SECOND: run prodigal on the fasta genome ---------------------------------
+        if verbose > 2:
+            sys.stderr.write("Run prodigal\n")
+        genomes_pred = run_prodigal_genomes(genome_files)
+        # genomes_pred is a dictionary where the keys are the genome paths and the
+        # values are lists. First value of the list is the path to the gene file and
+        # second the path to the protein file
 
-    # THIRD: find the marker genes from the predicted genes --------------------
-    if verbose > 2:
-        sys.stderr.write("Extract the marker genes\n")
-    MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds, verbose)
-    # MGS = {'COG12':['path/to/genes','path/to/proteins'],
-    #        'COG18':['path/to/genes','path/to/proteins'],
-    #        ...}
-    # not that the header of the sequences is:
-    # genome_path + "_" + a_number + "##" + marker_gene_path
-    # Example:
-    # "User/Desktop/test_genome.fna_342##COG0012"
+        # THIRD: find the marker genes from the predicted genes --------------------
+        if verbose > 2:
+            sys.stderr.write("Extract the marker genes\n")
+        MGS = fetch_MGs(database_files, temp_dir, genomes_pred, keep_all_genes, gene_thresholds, verbose)
+        # MGS = {'COG12':['path/to/genes','path/to/proteins'],
+        #        'COG18':['path/to/genes','path/to/proteins'],
+        #        ...}
+        # not that the header of the sequences is:
+        # genome_path + "_" + a_number + "##" + marker_gene_path
+        # Example:
+        # "User/Desktop/test_genome.fna_342##COG0012"
 
-    # note: MGS = {'COG12':[None,None]
-    # means that there are no genes detected to classify
+        # note: MGS = {'COG12':[None,None]
+        # means that there are no genes detected to classify
 
-    # note: MGS = {'COG12':["path/to/genes","no_protein"]
-    # means that the alignment should be done at the level of the genes and not
-    # proteins
+        # note: MGS = {'COG12':["path/to/genes","no_protein"]
+        # means that the alignment should be done at the level of the genes and not
+        # proteins
 
-    # check if all genes are empty
-    all_empty = True
-    for m in MGS:
-        if not(MGS[m][0] is None):
-            all_empty = False
-    if all_empty:
-        sys.stderr.write("[W::main] Warning: no marker genes identified\n          Stopping annotation.\n")
-        shutil.rmtree(temp_dir)
-        # and the result from prodigal
-        for i in genomes_pred:
-            if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
-            if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
-        sys.exit(1)
+        # check if all genes are empty
+        if not any(genes for genes, _ in MGS.values()):
+            shutil.rmtree(temp_dir)
+            cleanup_prodigal(genomes_pred.values())
+            raise ValueError("[W::main] Warning: no marker genes identified\n          Stopping annotation.\n")
 
-    # we save in the outdir the file with the MG sequences
-    os.mkdir(output+"/MG_sequences")
-    for m in MGS:
-        try:
-            if MGS[m][0] is None:
-                o = open(output+"/MG_sequences/"+m+".fna","w")
-                o.close()
-            else:
-                shutil.move(MGS[m][0],output+"/MG_sequences/"+m+".fna")
-                MGS[m][0] = output+"/MG_sequences/"+m+".fna"
-            if MGS[m][1] is None:
-                o = open(output+"/MG_sequences/"+m+".faa","w")
-                o.close()
-            else:
-                shutil.move(MGS[m][1],output+"/MG_sequences/"+m+".faa")
-                MGS[m][1] = output+"/MG_sequences/"+m+".faa"
-        except Exception as e:
-            sys.stderr.write("[E::main] Error: failed to save the marker gene sequences\n")
-            sys.stderr.write(str(e)+"\n")
-            sys.exit(1)
-
+    store_marker_sequences(MGS, os.path.join(output, "MG_sequences"), genome_files_available=bool(genome_files))
 
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
         sys.stderr.write("Taxonomically annotate single marker genes\n")
 
     # when doing the classification, we also create the alignment files
-    os.mkdir(output+"/MG_ali")
+    align_dir = os.path.join(output, "MG_ali")
+    pathlib.Path(align_dir).mkdir(exist_ok=True, parents=True)
 
-    all_classifications = annotate_MGs(MGS, database_files, temp_dir, output+"/MG_ali/")
+    all_classifications = annotate_MGs(MGS, database_files, temp_dir, align_dir, procs=threads)
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
     # Example:
@@ -622,13 +476,11 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
     # '/Users/alex/Dropbox/genomeBB_1853##COG0012': "Bacteria;Bacteroidetes;Bacteroidia;Bacteroidales"
     # '/Users/alex/Dropbox/genomeBB_862##COG0172': "Bacteria;Bacteroidetes;Bacteroidia"
 
-
     # join prediction ----------------------------------------------------------
-    os.mkdir(output+"/genes_predictions")
-    merge_genes_predictions(genomes_file_list, list(database_files), all_classifications, verbose, threads, output, long_out, keep_all_genes)
-
-
-
+    input_files = genome_files if genome_files else marker_genes
+    merge_gene_predictions(input_files, list(database_files), all_classifications,
+                           verbose, threads, output, long_out, keep_all_genes,
+                           full_genomes=bool(genome_files))
 
     # FIFTH: classify the concatenation of the MGs, which represents the -------
     #         annotation for the genome ----------------------------------------
@@ -636,22 +488,17 @@ def classify_genome(database, genomes_file_list, verbose, threads, output, long_
         sys.stderr.write("Taxonomically annotate genomes\n")
     # First, create a concatenated alignment. The alignments were created in the
     # 4th step
-    file_ali = concat_alis(genomes_file_list,output+"/MG_ali/",gene_order,ali_lengths)
+    file_ali = concat_alignments(input_files, align_dir, gene_order, ali_lengths, full_genomes=bool(genome_files))
 
     # Second, classify the alignments
-    annotate_concat_mgs(concat_ali_stag_db,file_ali,output)
+    classify(concat_ali_stag_db, aligned_sequences=file_ali, output=os.path.join(output, "genome_annotation"), long_out=long_out)
 
     # we remove the file with the concatenated alignment
-    os.remove(file_ali)
+    print(file_ali)
+    #os.remove(file_ali)
 
     # we remove the temp dir ---------------------------------------------------
     shutil.rmtree(temp_dir)
-    # and the result from prodigal
-    for i in genomes_pred:
-        if os.path.isfile(genomes_pred[i][0]): os.remove(genomes_pred[i][0])
-        if os.path.isfile(genomes_pred[i][1]): os.remove(genomes_pred[i][1])
-    # and the file with the marker genes
-    # for m in MGS:
-    #    if MGS[m][0] != None:
-    #        if os.path.isfile(MGS[m][0]): os.remove(MGS[m][0])
-    #        if os.path.isfile(MGS[m][1]): os.remove(MGS[m][1])
+
+    if genome_files:
+        cleanup_prodigal(genomes_pred.values())

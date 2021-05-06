@@ -20,37 +20,9 @@ import hashlib
 from pathlib import Path
 import shutil
 
-from .helpers import bco
+from .helpers import bco, is_tool, is_tool_and_return0
 
 TEST_DATA_PATH = pkg_resources.resource_filename("stag", "test")
-
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
-# ------------------------------------------------------------------------------
-def is_tool_and_return0(name):
-    try:
-        devnull = open(os.devnull)
-        popenCMD = shlex.split(name)
-        child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
-        streamdata = child.communicate()
-        rc = child.wait()
-        if rc == 0:
-            return True
-        else:
-            return False
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
-
-def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
-    return True
 
 
 # check md5
@@ -132,7 +104,6 @@ def main(argv=None):
 
     error_found = False
 
-    """
     # CHECK TOOLS ==============================================================
 
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}1-- Tools and versions:{bco.ResetAll}\n")
@@ -217,7 +188,6 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. h5py is missing{bco.ResetAll}\n\n")
         error_found = True
-    """
 
     # TRY TO RUN STAG ==========================================================
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Run stag:{bco.ResetAll}\n")
@@ -235,10 +205,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     sys.stderr.write("  ■ classify:   ") #--------------------------------------
     sys.stderr.flush()
@@ -250,10 +220,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} {runtime}\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} {runtime}\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     # remove temp file
     os.remove(temp_file_db.name+".log")
@@ -289,6 +259,10 @@ def main(argv=None):
     # let's check the values
     if not set(pred_tax.keys()) == set(correct_tax.keys()):
         sys.stderr.write(f"{bco.Red}{bco.Bold} Error: different number of predicted genes{bco.ResetAll}\n")
+        print(len(pred_tax), len(correct_tax), file=sys.stderr)
+        print(*pred_tax.keys(), sep="\n")
+        print("****")
+        print(*correct_tax.keys(), sep="\n")
         sys.exit(1)
     # if we arrive here, we have the same set of predicted genes
     # let's check the predicted taxonomies
@@ -333,10 +307,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
 
 
@@ -361,10 +335,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     # check result of the classification ---------------------------------------
     sys.stderr.write("  ■ check result:         ")
@@ -432,10 +406,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
     sys.stderr.write("  ■ classify:             ") #--------------------------------------
     sys.stderr.flush()
@@ -449,10 +423,10 @@ def main(argv=None):
     runtime = time.time() - t0
 
     if process.returncode:
-        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Red}{bco.Bold} Error{bco.ResetAll} ({runtime:.3f}s)\n")
         sys.exit(1)
     else:
-        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime})\n")
+        sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
 
     # check result of the classification ---------------------------------------
@@ -481,6 +455,9 @@ def main(argv=None):
             if correct_classification[vals[0]] != vals[1]:
                 sys.stderr.write(f"\n{bco.Yellow} Corr: "+correct_classification[vals[0]]+f"{bco.ResetAll}\n")
                 sys.stderr.write(f"{bco.Yellow} Pred: "+vals[1]+f"{bco.ResetAll}\n")
+            else:
+                sys.stderr.write(f"\n{bco.LightGreen} Corr: "+correct_classification[vals[0]]+f"{bco.ResetAll}\n")
+                sys.stderr.write(f"{bco.LightGreen} Pred: "+vals[1]+f"{bco.ResetAll}\n")
     o.close()
     # check that all the genomes were profiled
     for genome in all_genomes:
@@ -490,6 +467,7 @@ def main(argv=None):
             sys.exit(1)
     # if we arrive till here, then it's correct
     sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
+    # print(*all_genomes.items(), sep="\n")
 
 
 
