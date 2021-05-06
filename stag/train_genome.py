@@ -1,121 +1,72 @@
-"""
-Scripts that trains the database for the genome
-"""
-
-# Author: Alessio Milanese <milanese.alessio@gmail.com>
-
-import sys
-import time
 import os
 import tempfile
 import shutil
-import subprocess
-import shlex
-import errno
-import h5py
-import re
 import tarfile
 
 from stag.helpers import check_file_exists
 from stag.classify import classify
 
+# cschu 2021-04-10: we need to change the alignment format!! -> this is too hacky.
 # find the length of the alignments --------------------------------------------
 def find_length_ali(gene_db, fasta_input, protein_fasta_input):
     return classify(gene_db, fasta_input=fasta_input,
                     protein_fasta_input=protein_fasta_input, internal_call=True)[0]
 
-#===============================================================================
-#                                      MAIN
-#===============================================================================
-def train_genome(output, list_genes, gene_thresholds, threads, verbose, concat_stag_db):
-    # temp file where to save the result ---------------------------------------
+def get_dummy_fastas():
+    fasta_files = list()
+    for seq in ("AAA", "A"):
+        with tempfile.NamedTemporaryFile(delete=False, mode="w") as tmp_fasta:
+            os.chmod(tmp_fasta.name, 0o644)
+            print(">test", seq, sep="\n", file=tmp_fasta, flush=True)
+            fasta_files.append(tmp_fasta.name)
+    return fasta_files
+
+def get_alignment_lengths(list_genes):
+    fna, faa = get_dummy_fastas()
+    with tempfile.NamedTemporaryFile(delete=False, mode="w") as length_file:
+        os.chmod(length_file.name, 0o644)
+        for gene_db in list_genes:
+            print(os.path.basename(gene_db), find_length_ali(gene_db, fna, faa), sep="\t", flush=True, file=length_file)
+        [os.remove(f) for f in (fna, faa)]
+        return length_file.name
+
+
+def train_genome(output, list_genes, gene_threshold_file, threads, verbose, concat_stag_db):
+    check_file_exists(gene_threshold_file, isfasta=False)
+    with open(gene_threshold_file) as f:
+        gene_thresholds = set(line.strip().split("\t")[0] for line in f if line)
+
+    list_genes = list_genes.split(",")
+    missing_thresholds = set(os.path.basename(fn) for fn in list_genes).difference(gene_thresholds)
+    if missing_thresholds:
+        raise ValueError(f"[E::main] Error: gene {list(missing_thresholds)[0]} is missing from the threshold file (-T)")
+
     outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(outfile.name, 0o644)
+    core_db_files = ("threshold_file.tsv", "hmm_lengths_file.tsv", "concatenated_genes_STAG_database.HDF5")
+    with tarfile.open(outfile.name, "w:gz", dereference=True) as genome_tar:
+        for fn in list_genes:
+            check_file_exists(fn)
+            base_fn = os.path.basename(fn)
+            if base_fn in core_db_files:
+                raise ValueError(f"[E::main] Error: gene databases cannot be named '{base_fn}'. Please choose another name.")
+            if "##" in base_fn:
+                raise ValueError(f"Error with: {base_fn}\n[E::main] Error: gene database file names cannot contain '##'. Please choose another name.")
+            try:
+                genome_tar.add(fn, base_fn)
+            except:
+                raise ValueError(f"[E::main] Error: when adding {fn} to the database")
+        for source, target in zip((gene_threshold_file, get_alignment_lengths(list_genes), concat_stag_db), core_db_files):
+            genome_tar.add(source, target)
 
-    # we need a file with the thresholds ---------------------------------------
-    check_file_exists(gene_thresholds,isfasta = False)
-    genes_threhold_file = list()
-    o = open(gene_thresholds)
-    for i in o:
-        vals = i.rstrip().split("\t")
-        genes_threhold_file.append(vals[0])
-    o.close()
-    for name in list_genes.split(","):
-        if not name.split("/")[-1] in genes_threhold_file:
-            sys.stderr.write("[E::main] Error: ")
-            sys.stderr.write("gene "+name.split("/")[-1]+" is missing from the threshold file (-T)\n")
-            sys.exit(1)
-
-
-    # we create a tar.gz with all the genes ------------------------------------
-    tar = tarfile.open(outfile.name, "w:gz")
-    for name in list_genes.split(","):
-        check_file_exists(name,isfasta = False)
-        try:
-            name_file = os.path.basename(name)
-            if name_file == "threshold_file.tsv":
-                sys.stderr.write("[E::main] Error: gene databases cannot have name 'threshold_file.tsv'. Please, choose another name.\n")
-                sys.exit(1)
-            if name_file == "hmm_lengths_file.tsv":
-                sys.stderr.write("[E::main] Error: gene databases cannot have name 'hmm_lengths_file.tsv'. Please, choose another name.\n")
-                sys.exit(1)
-            if name_file == "concatenated_genes_STAG_database.HDF5":
-                sys.stderr.write("[E::main] Error: gene databases cannot have name 'concatenated_genes_STAG_database.HDF5'. Please, choose another name.\n")
-                sys.exit(1)
-            if len(name_file.split("##")) > 1:
-                sys.stderr.write("Error with: "+name_file+"\n")
-                sys.stderr.write("[E::main] Error: gene databases cannot have in the name '##'. Please, choose another name.\n")
-                sys.exit(1)
-            tar.add(name, name_file)
-        except:
-            sys.stderr.write("[E::main] Error: when adding "+name+" to the database\n")
-            sys.exit(1)
-
-    # we add the file with the thresholds to the tar.gz
-    tar.add(gene_thresholds, "threshold_file.tsv")
-
-
-    # we need to find the length of the alignments -----------------------------
-    len_f = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    os.chmod(len_f.name, 0o644)
-    # temp fasta file
-    temp_fasta = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    os.chmod(temp_fasta.name, 0o644)
-    temp_fasta.write(">test\nAAA\n")
-    temp_fasta.flush()
-    # protein
-    temp_fasta2 = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    os.chmod(temp_fasta2.name, 0o644)
-    temp_fasta2.write(">test\nA\n")
-    temp_fasta2.flush()
-    for gene_db in list_genes.split(","):
-        len_this = find_length_ali(gene_db,temp_fasta.name,temp_fasta2.name)
-        len_f.write(os.path.basename(gene_db) + "\t" + str(len_this) + "\n")
-        len_f.flush()
-
-    os.remove(temp_fasta.name)
-    # we add the file with the lengths to the tar.gz
-    tar.add(len_f.name, "hmm_lengths_file.tsv")
-
-
-    # add file with stag DB of the concatenated alis ---------------------------
-    tar.add(concat_stag_db, "concatenated_genes_STAG_database.HDF5")
-
-
-    # close tar file -----------------------------------------------------------
-    tar.close()
-    # close
     try:
         outfile.flush()
         os.fsync(outfile.fileno())
         outfile.close()
     except:
-        sys.stderr.write("[E::main] Error: failed to save the result\n")
-        sys.exit(1)
+        raise ValueError("[E::main] Error: failed to save the result.")
     try:
-        #os.rename(outfile.name,output) # atomic operation
-        shutil.move(outfile.name,output) #It is not atomic if the files are on different filsystems.
+        shutil.move(outfile.name, output)
     except:
-        sys.stderr.write("[E::main] Error: failed to save the resulting database\n")
-        sys.stderr.write("[E::main] you can find the file here:\n"+outfile.name+"\n")
-        sys.exit(1)
+        raise ValueError("[E::main] Error: failed to save the resulting database\n" + \
+                         f"[E::main] you can find the file here:\n{outfile.name}")
