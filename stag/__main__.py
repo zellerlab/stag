@@ -230,6 +230,7 @@ def main(argv=None):
     parser.add_argument('-e', action="store", default="l1", dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
     parser.add_argument('-E', action="store", default="liblinear", dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
     parser.add_argument('-G', action="store", dest="marker_genes", default=None, help="Set of identified marker genes in lieu of a genomic sequence")
+    parser.add_argument('-L', action='store', type=int, default=4, dest='NN_start_level', help='from which level we start to learn the NN classifiers')
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -323,7 +324,7 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -369,7 +370,7 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
@@ -409,8 +410,8 @@ def main(argv=None):
 
 
         # call the function
-        classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input, 
-                          verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out, 
+        classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input,
+                          verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out,
                           current_tool_version=tool_version, aligned_sequences=args.aligned_sequences,
                           save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state)
 

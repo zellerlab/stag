@@ -26,11 +26,12 @@ import h5py
 from stag.taxonomy3 import Taxonomy
 from stag.databases import save_to_file
 from stag.alignment import load_alignment_from_file
+from stag.train_NN import train_NN_classifiers
 
 
 # function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
-    t00 = time.time()    
+    t00 = time.time()
     # "positive_examples" and "negative_examples" are list of gene ids
     positive_examples = full_taxonomy.find_gene_ids(node)
     t_pos = time.time() - t00
@@ -125,7 +126,7 @@ def get_classification_input(taxonomy, alignment):
         yield node, X, y
 
 def train_all_classifiers_nonmp(alignment, full_taxonomy, penalty_v, solver_v, procs=None):
-    print("train_all_classifiers_nonmp - single-proc")
+    #print("train_all_classifiers_nonmp - single-proc")
     all_classifiers = dict()
     for node, X, y in get_classification_input(full_taxonomy, alignment):
         if y is not None:
@@ -348,7 +349,7 @@ def estimate_function(all_calc_functions):
     # with corr_level_this = 0, we should assign "A"
     # with corr_level_this = 2, we should assign "A","B","C"
     # with corr_level_this = -1, we should assign "" (no taxonomy)
-                                                                             
+
     level_counter = Counter(correct_level)
     for level, count in sorted(level_counter.items()):
         logging.info(f'   LEARN_FUNCTION:Number of lines: level {level}: {count}')
@@ -408,7 +409,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
     return estimate_function(all_calc_functions)
 
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, procs=None):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level, procs=None):
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
                         filemode='w',
@@ -442,7 +443,12 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
     logging.info('TIME:Finish learn taxonomy selection function')
 
-    # 6. save the result
+    # 6. train classifiers for the nearest neighbour
+    logging.info('MAIN:Train classifiers for nearest neighbour')
+    NN_classifiers = train_NN_classifiers(alignment, full_taxonomy, NN_start_level)
+    logging.info('TIME:Finish train classifiers for nearest neighbour')
+
+    # 7. save the result
     logging.info('MAIN:Save to file')
     save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
     logging.info('TIME:Finish save to file')

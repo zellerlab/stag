@@ -200,7 +200,7 @@ def main(argv=None):
     temp_file_db = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
     t0 = time.time()
-    stag_command = "stag train -f -o "+temp_file_db.name+" -i "+seq_file+" -x "+tax_file+" -a "+hmm_file
+    stag_command = "stag train -f -o "+temp_file_db.name+" -i "+seq_file+" -x "+tax_file+" -a "+hmm_file+ " -L 2"
     process = subprocess.run(stag_command.split())
     runtime = time.time() - t0
 
@@ -278,7 +278,6 @@ def main(argv=None):
 
     if error_found or error_flag:
         sys.exit(1)
-
 
 
     ############################################################################
