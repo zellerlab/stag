@@ -29,6 +29,15 @@ from stag.alignment import load_alignment_from_file
 from stag.train_NN import train_NN_classifiers
 
 
+# function to check the NN level -----------------------------------------------
+def check_level_NN_start_level(full_taxonomy, NN_start_level):
+    n_level_tax = full_taxonomy.get_n_levels()
+    # NN_start_level = 0 kingdom
+    if NN_start_level >= n_level_tax-1:
+        logging.info('Error the selected level for the NN classification is too high')
+        print("Error: -L should be smaller than "+str(n_level_tax-1))
+        sys.exit(1)
+
 # function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
     t00 = time.time()
@@ -431,6 +440,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     # 3. check that the taxonomy and the alignment are consistent
     logging.info('MAIN:Check taxonomy and alignment')
     full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
+    check_level_NN_start_level(full_taxonomy, NN_start_level)
     logging.info('TIME:Finish check-up')
 
     # 4. build a classifier for each node
@@ -445,7 +455,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. train classifiers for the nearest neighbour
     logging.info('MAIN:Train classifiers for nearest neighbour')
-    NN_classifiers = train_NN_classifiers(alignment, full_taxonomy, NN_start_level)
+    NN_classifiers = train_NN_classifiers(alignment, tax_file, NN_start_level)
     logging.info('TIME:Finish train classifiers for nearest neighbour')
 
     # 7. save the result
