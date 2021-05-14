@@ -98,12 +98,12 @@ def estimate_weights(ALI, tax, sel_level):
 # Calculate perc identity between two sequences
 #  - ALI is the pandas DF
 #  - pos1 and pos2 are part of the rownames of ALI
-def perc_id_vectors(ALI,pos1,pos2):
+def dist_vectors(ALI,pos1,pos2):
     seq1 = ALI.loc[pos1,].to_numpy()
     seq2 = ALI.loc[pos2,].to_numpy()
     # euclidean distance
     dist = np.linalg.norm(seq1-seq2)
-    return dist   ##### now we return a distance!!!!!!!!!!
+    return dist
 
 
 
@@ -138,11 +138,11 @@ def find_centroids(ALI,tax):
                 id_i = all_species[species][i]
                 id_j = all_species[species][j]
                 # find vector and distance
-                perc_id = perc_id_vectors(ALI,id_i,id_j)
+                dist_this = dist_vectors(ALI,id_i,id_j)
                 # add distance
-                all_id_dist[id_i] = all_id_dist[id_i] + perc_id
-                all_id_dist[id_j] = all_id_dist[id_j] + perc_id
-        # now we need to identify the minimum distance (i.e. centroid)
+                all_id_dist[id_i] = all_id_dist[id_i] + dist_this
+                all_id_dist[id_j] = all_id_dist[id_j] + dist_this
+        # now we need to identify the gene with the minimum distance (i.e. centroid)
         sel_min = ""
         val_min = float('inf')
         for i in all_id_dist:
@@ -164,7 +164,7 @@ def find_thresholds(all_transformed, tax):
     for clade in all_transformed:
         # find centroids per species
         centroids_this = find_centroids(all_transformed[clade],tax)
-        
+
     return "dummy1", "dummy2"
 
 #===============================================================================
