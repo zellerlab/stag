@@ -5,6 +5,7 @@ Functions to train the nearest neighnour classifiers
 # Author: Alessio Milanese <milanese.alessio@gmail.com>
 
 import numpy as np
+import pandas as pd
 import sys
 import metric_learn
 
@@ -37,16 +38,20 @@ def estimate_weights(ALI, tax, sel_level):
     all_transformed = dict()
     for clade in all_clades:
         print(clade)
+        # for the X --------------------------------------------
         # we subselect the training
         this_ALI = ALI.loc[all_clades[clade],:]
+        # transform from pandas to numpy (for the features)
+        X = 1*this_ALI.to_numpy()
+        #X = X + 0.1
+
+        # for the y  -------------------------------------------
         # we need to create the species ground thruth
         rownames = this_ALI.index.values
         list_species = list()
         for i in rownames:
             list_species.append(tax[i][-1])
-        # transform
-        X = 1*this_ALI.to_numpy()
-
+        # we need numbers
         species_2_num = dict()
         cont = 1
         for i in list(set(list_species)):
@@ -57,31 +62,22 @@ def estimate_weights(ALI, tax, sel_level):
             y.append(species_2_num[i])
         y = np.array(y)
 
-
-        #plot_tsne(X, list_species)
-
+        # we learn the transformation --------------------------
         lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2,regularization = 0.4)
-
-        #X = X + 0.1
-
-        # fit the data!
+        # fit the data
         lmnn.fit(X, y)
         #TODO: check that it converges, you have to parse the output printed
         #      with verbose
 
-        # transform our input space
+        # transform our input space ----------------------------
         X_lmnn = lmnn.transform(X)
+        # create a panda object with the transformed space and the correct
+        # rownames
+        X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
 
-        # add to dict
+        # add to dict ------------------------------------------
         all_LMNN[clade] = lmnn
-        all_transformed[clade] = X_lmnn
-
-        #np.savetxt(out_dir + clade + "_pre", X, delimiter = "\t")
-        #np.savetxt(out_dir + clade + "_post", X_lmnn, delimiter = "\t")
-        #o = open(out_dir + clade + "_tax","w")
-        #for i in list_species:
-        #    o.write(i+"\n")
-        #o.close()
+        all_transformed[clade] = X_lmnn_PD
 
     return all_LMNN, all_transformed
 
