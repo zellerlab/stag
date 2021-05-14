@@ -150,11 +150,11 @@ def find_centroids(ALI,tax):
                 val_min = all_id_dist[i]
                 sel_min = i
         # we add it
-        result[sel_min] = species
+        result[species] = sel_min
 
     # the result is a ditionary where the values are:
-    # gene1 -> "E.coli"
-    # gene236 -> "P.copri"
+    # "E.coli" -> "gene1"
+    # "P.copri" -> "gene236 "
 
     # return the result
     return result
