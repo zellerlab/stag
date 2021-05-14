@@ -154,18 +154,92 @@ def find_centroids(ALI,tax):
 
     # the result is a ditionary where the values are:
     # "E.coli" -> "gene1"
-    # "P.copri" -> "gene236 "
+    # "P.copri" -> "gene236"
 
     # return the result
     return result
 
+
+# ------------------------------------------------------------------------------
+# calculate the distance of all vs centroids
+def calc_all_dist_to_centroids(centroids_this,ALI,tax):
+    # here we are already inside one clade
+    n_tax_level = len(list(tax.values())[0])-1
+    # find all possible genes
+    all_genes = list(ALI.index.values)
+
+    # create dict for the result
+    all_dist = dict()
+
+    for species in centroids_this:
+        sel_centroid = centroids_this[species]
+        sel_centroid_tax = tax[sel_centroid]
+        # now we calculate all possible distances from this centroid
+        all_genes_this = all_genes
+        all_genes_this.remove(sel_centroid)
+        for gene in all_genes_this:
+            # distance
+            d = dist_vectors(ALI,sel_centroid,gene)
+            # check taxonomy
+            for i in range(n_tax_level,-1,-1):
+                if sel_centroid_tax[i] == tax[gene][i]:
+                    sel_level = i
+                    break
+            # now in sel_level there is the level to predict
+            # i.e. if sel_level == 1 it means they have the same phylum
+            if not sel_level in all_dist:
+                all_dist[sel_level] = list()
+            all_dist[sel_level].append(d)
+
+    return all_dist
+
+# ------------------------------------------------------------------------------
+# find the thresholds given the distances
+# distances is like (if we use `-L 4`):
+# {4:[6.3,9.5,11.4,22.4,3.6],
+#  5:[2.3,2.4,2.0,2.1],
+#  6:[0.3,0.6,0.5,1.2,1.0]}
+# where 5 means genus
+def find_thresholds_from_dist(distances):
+    res = dict()
+    # we check for each level:
+    for i in distances:
+        res[i] = 0
+    return res
+
+
+# ------------------------------------------------------------------------------
 def find_thresholds(all_transformed, tax):
     # find centroids per species
+    threshold_clades = dict()
+
+    list_centroids_all = list()
+
     for clade in all_transformed:
         # find centroids per species
+        gene_centroids = list()
+        species_centroids = list()
+        # run find_centroids
         centroids_this = find_centroids(all_transformed[clade],tax)
+        # add them to the result
+        for c in centroids_this:
+            gene_centroids.append(centroids_this[c])
+            species_centroids.append(c)
+        # create a panda array
+        centroids_this_pd = all_transformed[clade].loc[gene_centroids,].to_numpy()
+        # where the rownames are the species
+        centroids_this_pd = pd.DataFrame(centroids_this_pd, index=species_centroids)
+        list_centroids_all.append(centroids_this_pd)
 
-    return "dummy1", "dummy2"
+        # calc all distances for this clade --------------
+        dist_all_vs_centroids = calc_all_dist_to_centroids(centroids_this,all_transformed[clade],tax)
+
+        # find the thresholds -------------------
+        threshold_clades[clade] = find_thresholds_from_dist(dist_all_vs_centroids)
+
+    centroids_all = pd.concat(list_centroids_all)
+    return threshold_clades, centroids_all
+
 
 #===============================================================================
 #                                      MAIN
