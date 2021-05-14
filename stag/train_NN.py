@@ -83,7 +83,7 @@ def estimate_weights(ALI, tax, sel_level):
         #    o.write(i+"\n")
         #o.close()
 
-        return all_LMNN, all_transformed
+    return all_LMNN, all_transformed
 
 
 #===============================================================================
