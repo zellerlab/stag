@@ -9,7 +9,9 @@ import pandas as pd
 import sys
 import metric_learn
 
-
+#===============================================================================
+#                                      UTIL
+#===============================================================================
 # ------------------------------------------------------------------------------
 # load taxonomy.
 # we need a different way to load the taxonomy here:
@@ -24,7 +26,9 @@ def load_tax_line(tax_file, ALI):
     o.close()
     return res
 
-# ------------------------------------------------------------------------------
+#===============================================================================
+#                          TRANSFORM THE SPACE
+#===============================================================================
 # function to estimate the weights
 def estimate_weights(ALI, tax, sel_level):
     # find all families (or other level), we test with sel_level = 4
@@ -77,10 +81,21 @@ def estimate_weights(ALI, tax, sel_level):
 
         # add to dict ------------------------------------------
         all_LMNN[clade] = lmnn
-        all_transformed[clade] = X_lmnn_PD
+        all_transformed[clade] = X_lmnn_PD # it's a pandas object
 
     return all_LMNN, all_transformed
 
+
+
+#===============================================================================
+#                     FIND CENTROIDS AND EVAL. THRESHOLDS
+#===============================================================================
+# we want to select only one sequence per species (centroid) and then calculate
+# centorids vs all to identify the threshold for genus and species (if for
+# example the NN_start_level is family)
+
+def find_trhresholds(all_transformed, tax):
+    return "dummy1", "dummy2"
 
 #===============================================================================
 #                                      MAIN
@@ -88,6 +103,10 @@ def estimate_weights(ALI, tax, sel_level):
 def train_NN_classifiers(alignment, tax_file, NN_start_level):
     # 0. load the taxonomy
     tax = load_tax_line(tax_file, alignment)
-    # 1. we find the transformations and we transform the original space
+    # 1. we calculate the transformations and we transform the original space
     all_LMNN, all_transformed = estimate_weights(alignment, tax, NN_start_level)
-    return "dummy"
+
+    # 2. find centroids and find the threshold distances
+    thresholds_NN, centroid_seq = find_trhresholds(all_transformed, tax)
+
+    return all_LMNN, thresholds_NN, centroid_seq

@@ -455,7 +455,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. train classifiers for the nearest neighbour
     logging.info('MAIN:Train classifiers for nearest neighbour')
-    NN_classifiers = train_NN_classifiers(alignment, tax_file, NN_start_level)
+    all_LMNN, thresholds_NN, centroid_seq = train_NN_classifiers(alignment, tax_file, NN_start_level)
     logging.info('TIME:Finish train classifiers for nearest neighbour')
 
     # 7. save the result
