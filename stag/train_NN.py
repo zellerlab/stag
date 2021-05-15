@@ -11,6 +11,8 @@ import metric_learn
 import statistics
 from sklearn.metrics import precision_recall_curve
 
+logging = "global_logging"
+
 #===============================================================================
 #                                      UTIL
 #===============================================================================
@@ -43,7 +45,7 @@ def estimate_weights(ALI, tax, sel_level):
     all_LMNN = dict()
     all_transformed = dict()
     for clade in all_clades:
-        print(clade)
+        logging.info('    TRAIN_NN_3: Clade: %s', clade)
         # for the X --------------------------------------------
         # we subselect the training
         this_ALI = ALI.loc[all_clades[clade],:]
@@ -193,6 +195,12 @@ def calc_all_dist_to_centroids(centroids_this,ALI,tax):
                 all_dist[sel_level] = list()
             all_dist[sel_level].append(d)
 
+    # we check for log
+    to_print = ""
+    for i in all_dist:
+        to_print = to_print + str(i) + "["+str(len(all_dist[i]))+"] "
+    logging.info('     TRAIN_NN_4: Training vals: %s', to_print)
+
     return all_dist
 
 
@@ -214,17 +222,23 @@ def find_thresholds_from_dist(distances):
             y_true = np.array(([0]*len(negative_vals)) + ([1]*len(positive_vals)))
             y_scores = np.array(negative_vals + positive_vals)
             precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
+
             # TODO does precision_recall_curve check enough values?!
+            logging.info(f'     TRAIN_NN_4: Number of thresholds: {i}: {len(thresholds)}')
 
             # we calcualte the F1 score and take the maximum
+            n_valid_thresholds = 0
             maxF1 = 0
             sel_threshold = 0
             for pr, re, th in zip(precision, recall, thresholds):
                 if pr !=0 and re != 0:
+                    n_valid_thresholds = n_valid_thresholds + 1
                     F1_this = 2*( (pr*re)/(pr+re) )
                     if F1_this > maxF1:
                         maxF1 = F1_this
                         sel_threshold = th
+            logging.info(f'     TRAIN_NN_4: Number of real thresholds: {i}: {n_valid_thresholds}')
+
             # save to res
             res[i] = sel_threshold
     return res
@@ -232,12 +246,13 @@ def find_thresholds_from_dist(distances):
 
 # ------------------------------------------------------------------------------
 def find_thresholds(all_transformed, tax):
-    # find centroids per species
+    # prepare the result
     threshold_clades = dict()
-
-    list_centroids_all = list()
+    list_centroids_all = list() # will contain pandas array
 
     for clade in all_transformed:
+        logging.info('   TRAIN_NN_2: Clade: %s', clade)
+        logging.info('    TRAIN_NN_3: Find centroids')
         # find centroids per species
         gene_centroids = list()
         species_centroids = list()
@@ -254,9 +269,11 @@ def find_thresholds(all_transformed, tax):
         list_centroids_all.append(centroids_this_pd)
 
         # calc all distances for this clade --------------
+        logging.info('    TRAIN_NN_3: Calculate distances')
         dist_all_vs_centroids = calc_all_dist_to_centroids(centroids_this,all_transformed[clade],tax)
 
         # find the thresholds -------------------
+        logging.info('    TRAIN_NN_3: Find thresholds')
         threshold_clades[clade] = find_thresholds_from_dist(dist_all_vs_centroids)
 
     centroids_all = pd.concat(list_centroids_all)
@@ -266,13 +283,21 @@ def find_thresholds(all_transformed, tax):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_NN_classifiers(alignment, tax_file, NN_start_level):
+def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
+    # set logging
+    global logging
+    logging = logging_
+
     # 0. load the taxonomy
+    logging.info('  TRAIN_NN_1: load tax')
     tax = load_tax_line(tax_file, alignment)
+
     # 1. we calculate the transformations and we transform the original space
+    logging.info('  TRAIN_NN_1: calculate LMNN')
     all_LMNN, all_transformed = estimate_weights(alignment, tax, NN_start_level)
 
     # 2. find centroids and find the threshold distances
+    logging.info('  TRAIN_NN_1: find centroids and thresholds')
     thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax)
 
     return all_LMNN, thresholds_NN, centroid_seq
