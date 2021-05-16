@@ -70,22 +70,28 @@ def estimate_weights(ALI, tax, sel_level):
             y.append(species_2_num[i])
         y = np.array(y)
 
-        # we learn the transformation --------------------------
-        lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2,regularization = 0.4)
-        # fit the data
-        lmnn.fit(X, y)
-        #TODO: check that it converges, you have to parse the output printed
-        #      with verbose
+        if len(y) > 5:
+            # we learn the transformation --------------------------
+            lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2,regularization = 0.4)
+            # fit the data
+            lmnn.fit(X, y)
+            #TODO: check that it converges, you have to parse the output printed
+            #      with verbose
 
-        # transform our input space ----------------------------
-        X_lmnn = lmnn.transform(X)
-        # create a panda object with the transformed space and the correct
-        # rownames
-        X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
+            # transform our input space ----------------------------
+            X_lmnn = lmnn.transform(X)
+            # create a panda object with the transformed space and the correct
+            # rownames
+            X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
 
-        # add to dict ------------------------------------------
-        all_LMNN[clade] = lmnn
-        all_transformed[clade] = X_lmnn_PD # it's a pandas object
+            # add to dict ------------------------------------------
+            all_LMNN[clade] = lmnn
+            all_transformed[clade] = X_lmnn_PD # it's a pandas object
+
+        else:
+            all_LMNN[clade] = "NOT ENOUGH DATA"
+            all_transformed[clade] = pd.DataFrame(X, index=rownames)
+
 
     return all_LMNN, all_transformed
 
