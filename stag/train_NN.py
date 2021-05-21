@@ -133,11 +133,11 @@ def find_centroids(ALI,tax):
     for species in all_species:
         # if there is only one
         if len(all_species[species]) == 1:
-            result[all_species[species][0]] = species
+            result[species] = all_species[species][0]
             continue
         # if there are 2, we choose randomly
         if len(all_species[species]) == 2:
-            result[all_species[species][0]] = species
+            result[species] = all_species[species][0]
             continue
         # if there are at least 3, then we calculate the centroid
         all_id_dist = dict()
