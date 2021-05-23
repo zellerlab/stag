@@ -223,30 +223,31 @@ def find_thresholds_from_dist(distances):
     # we check for each level:
     for i in distances:
         if i != min(list(distances.keys())): # the lowest (example 4) was already assigned
-            negative_vals = distances[i-1]
-            positive_vals = distances[i]
-            y_true = np.array(([0]*len(negative_vals)) + ([1]*len(positive_vals)))
-            y_scores = np.array(negative_vals + positive_vals)
-            precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
+            if i in distances and i-1 in distances:
+                negative_vals = distances[i-1]
+                positive_vals = distances[i]
+                y_true = np.array(([0]*len(negative_vals)) + ([1]*len(positive_vals)))
+                y_scores = np.array(negative_vals + positive_vals)
+                precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
 
-            # TODO does precision_recall_curve check enough values?!
-            logging.info(f'     TRAIN_NN_4: Number of thresholds: {i}: {len(thresholds)}')
+                # TODO does precision_recall_curve check enough values?!
+                logging.info(f'     TRAIN_NN_4: Number of thresholds: {i}: {len(thresholds)}')
 
-            # we calcualte the F1 score and take the maximum
-            n_valid_thresholds = 0
-            maxF1 = 0
-            sel_threshold = 0
-            for pr, re, th in zip(precision, recall, thresholds):
-                if pr !=0 and re != 0:
-                    n_valid_thresholds = n_valid_thresholds + 1
-                    F1_this = 2*( (pr*re)/(pr+re) )
-                    if F1_this > maxF1:
-                        maxF1 = F1_this
-                        sel_threshold = th
-            logging.info(f'     TRAIN_NN_4: Number of real thresholds: {i}: {n_valid_thresholds}')
+                # we calcualte the F1 score and take the maximum
+                n_valid_thresholds = 0
+                maxF1 = 0
+                sel_threshold = 0
+                for pr, re, th in zip(precision, recall, thresholds):
+                    if pr !=0 and re != 0:
+                        n_valid_thresholds = n_valid_thresholds + 1
+                        F1_this = 2*( (pr*re)/(pr+re) )
+                        if F1_this > maxF1:
+                            maxF1 = F1_this
+                            sel_threshold = th
+                logging.info(f'     TRAIN_NN_4: Number of real thresholds: {i}: {n_valid_thresholds}')
 
-            # save to res
-            res[i] = sel_threshold
+                # save to res
+                res[i] = sel_threshold
     return res
 
 
