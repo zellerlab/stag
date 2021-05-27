@@ -110,10 +110,18 @@ def estimate_weights(ALI, tax, sel_level):
 def dist_vectors(ALI,pos1,pos2,LMNN_model):
     xi = ALI.loc[pos1,].to_numpy()
     xj = ALI.loc[pos2,].to_numpy()
-    # Get mahalanobis matrix
-    m = LMNN_model.get_mahalanobis_matrix()
-    # distance
-    dist = np.sqrt( (( xi-xj ) .dot(m) ).dot(xi-xj))
+    if LMNN_model != "NOT ENOUGH DATA":
+        # Get mahalanobis matrix
+        m = LMNN_model.get_mahalanobis_matrix()
+        # distance
+        dist = np.sqrt( (( xi-xj ) .dot(m) ).dot(xi-xj))
+    else:
+        # if there was not enough data to calculate the LMNN, then we calculate the
+        # euclidean distance on the untransformed alignments
+        seq1 = ALI.loc[pos1,].to_numpy()
+        seq2 = ALI.loc[pos2,].to_numpy()
+        # euclidean distance
+        dist = np.linalg.norm(seq1-seq2)
     return dist
 
 
@@ -256,7 +264,7 @@ def find_thresholds_from_dist(distances):
 def find_thresholds(all_ali, tax, all_LMNN):
     # prepare the result
     threshold_clades = dict()
-    list_centroids_all = list() # will contain pandas array
+    list_centroids_all = dict() # will contain pandas array
 
     for clade in all_ali:
         logging.info('   TRAIN_NN_2: Clade: %s', clade)
@@ -274,7 +282,7 @@ def find_thresholds(all_ali, tax, all_LMNN):
         centroids_this_pd = all_ali[clade].loc[gene_centroids,].to_numpy()
         # where the rownames are the species
         centroids_this_pd = pd.DataFrame(centroids_this_pd, index=species_centroids)
-        list_centroids_all.append(centroids_this_pd)
+        list_centroids_all[clade] = centroids_this_pd
 
         # calc all distances for this clade --------------
         logging.info('    TRAIN_NN_3: Calculate distances')
@@ -284,8 +292,7 @@ def find_thresholds(all_ali, tax, all_LMNN):
         logging.info('    TRAIN_NN_3: Find thresholds')
         threshold_clades[clade] = find_thresholds_from_dist(dist_all_vs_centroids)
 
-    centroids_all = pd.concat(list_centroids_all)
-    return threshold_clades, centroids_all
+    return threshold_clades, list_centroids_all
 
 
 #===============================================================================
