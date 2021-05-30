@@ -20,6 +20,7 @@ logging = "global_logging"
 # load taxonomy.
 # we need a different way to load the taxonomy here:
 def load_tax_line(tax_file, ALI):
+    species_to_tax = dict()
     selected_seq = list(ALI.index.values)
     res = dict()
     o = open(tax_file,"r")
@@ -27,8 +28,9 @@ def load_tax_line(tax_file, ALI):
         vals = line.rstrip().split("\t")
         if vals[0] in selected_seq:
             res[vals[0]] = vals[1].split(";")
+            species_to_tax[vals[1].split(";")[-1]] = vals[1].split(";")
     o.close()
-    return res
+    return res, species_to_tax
 
 #===============================================================================
 #                          TRANSFORM THE SPACE
@@ -304,7 +306,7 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
 
     # 0. load the taxonomy
     logging.info('  TRAIN_NN_1: load tax')
-    tax = load_tax_line(tax_file, alignment)
+    tax, species_to_tax = load_tax_line(tax_file, alignment)
 
     # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
@@ -314,4 +316,4 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
     thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax)
 
-    return all_LMNN, thresholds_NN, centroid_seq
+    return all_LMNN, thresholds_NN, centroid_seq, species_to_tax
