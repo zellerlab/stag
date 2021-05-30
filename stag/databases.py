@@ -84,7 +84,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
                     print(key, *map(str, values), sep="\t", file=tax_out)
 
         # fourth: tax_function -----------------------------------------------------
-        tax_function = {str(key): np.array(db_in['tax_function/{}'.format(key)], dtype=np.float64) 
+        tax_function = {str(key): np.array(db_in['tax_function/{}'.format(key)], dtype=np.float64)
                         for key in db_in['tax_function']}
         if dir_output:
             tax_func_out = open(os.path.join(dir_output, "taxonomy_function.tsv"), "w")
@@ -99,7 +99,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
             for key in db_in['classifiers']:
                 classifier = db_in['classifiers/{}'.format(key)]
                 if not isinstance(classifier[0], str):
-                    classifiers[key] = np.array(classifier, dtype=np.float64) 
+                    classifiers[key] = np.array(classifier, dtype=np.float64)
                 else:
                     classifiers[key] = "no_negative_examples"
                 if dir_output:
@@ -108,7 +108,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
     return hmm_file.name, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version
 
 
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, hmm_file_path=None, protein_fasta_input=None):
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, hmm_file_path=None, protein_fasta_input=None):
 
     string_dt = h5py.special_dtype(vlen=str)
     with h5py.File(output, "w") as h5p_out:
