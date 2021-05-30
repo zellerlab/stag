@@ -80,6 +80,14 @@ def estimate_weights(ALI, tax, sel_level):
 
             # transform our input space ----------------------------
             X_lmnn = lmnn.transform(X)
+
+            # TO REMOVE ------------------------------------------------------------------------------
+            # WE CHECK THAT WE HAVE THE SAME
+            X_lmnn_my = X.dot(lmnn.components_.T)
+            print("distances: ",end = "")
+            print(np.sum(X_lmnn != X_lmnn_my))
+            # END TO REMOVE --------------------------------------------------------------------------
+
             # create a panda object with the transformed space and the correct
             # rownames
             X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
