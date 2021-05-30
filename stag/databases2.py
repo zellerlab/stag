@@ -68,7 +68,10 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
     hmm_string = "".join(line for line in open(hmm_file_path)) if hmm_file_path else "NA"
     ALL_DATA["hmm_file"] = hmm_string
 
-    ALL_DATA["taxonomy"] = full_taxonomy
+    full_taxonomy_this = dict()
+    for node, _ in full_taxonomy.get_all_nodes(get_root=True):
+        full_taxonomy_this[node] = list(full_taxonomy[node].children.keys())
+    ALL_DATA["taxonomy"] = full_taxonomy_this
 
     tax_function_this = dict()
     for c in tax_function:
