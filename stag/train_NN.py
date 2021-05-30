@@ -76,15 +76,18 @@ def estimate_weights(ALI, tax, sel_level):
             # we learn the transformation --------------------------
             lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2,regularization = 0.4)
             # fit the data
+            logging.info('     TRAIN_NN_4: Fit the data')
             lmnn.fit(X, y)
             #TODO: check that it converges, you have to parse the output printed
             #      with verbose
 
             # transform our input space ----------------------------
+            logging.info('     TRAIN_NN_4: Transform the data')
             X_lmnn = lmnn.transform(X)
 
             # TO REMOVE ------------------------------------------------------------------------------
             # WE CHECK THAT WE HAVE THE SAME
+            logging.info('     TRAIN_NN_4: Check we have the same')
             X_lmnn_my = X.dot(lmnn.components_.T)
             print("distances: ",end = "")
             print(np.sum(X_lmnn != X_lmnn_my))
