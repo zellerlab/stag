@@ -43,7 +43,7 @@ def estimate_weights(ALI, tax, sel_level):
         all_clades[tax[seq][sel_level]].append(seq)
     # now we do the analysis by clade
     all_LMNN = dict()
-    all_ali = dict()
+    all_transformed = dict()
     for clade in all_clades:
         logging.info('    TRAIN_NN_3: Clade: %s', clade)
         # for the X --------------------------------------------
@@ -79,20 +79,21 @@ def estimate_weights(ALI, tax, sel_level):
             #      with verbose
 
             # transform our input space ----------------------------
-            #X_lmnn = lmnn.transform(X)
+            X_lmnn = lmnn.transform(X)
             # create a panda object with the transformed space and the correct
             # rownames
-            #X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
+            X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
 
             # add to dict ------------------------------------------
             all_LMNN[clade] = lmnn
+            all_transformed[clade] = X_lmnn_PD # it's a pandas object
+
         else:
             all_LMNN[clade] = "NOT ENOUGH DATA"
+            all_transformed[clade] = pd.DataFrame(X, index=rownames)
 
-        # we need the original alignment for calculating distances
-        all_ali[clade] = pd.DataFrame(X, index=rownames)
 
-    return all_LMNN, all_ali
+    return all_LMNN, all_transformed
 
 
 
@@ -107,21 +108,11 @@ def estimate_weights(ALI, tax, sel_level):
 # Calculate perc identity between two sequences
 #  - ALI is the pandas DF
 #  - pos1 and pos2 are part of the rownames of ALI
-def dist_vectors(ALI,pos1,pos2,LMNN_model):
-    xi = ALI.loc[pos1,].to_numpy()
-    xj = ALI.loc[pos2,].to_numpy()
-    if LMNN_model != "NOT ENOUGH DATA":
-        # Get mahalanobis matrix
-        m = LMNN_model.get_mahalanobis_matrix()
-        # distance
-        dist = np.sqrt( (( xi-xj ) .dot(m) ).dot(xi-xj))
-    else:
-        # if there was not enough data to calculate the LMNN, then we calculate the
-        # euclidean distance on the untransformed alignments
-        seq1 = ALI.loc[pos1,].to_numpy()
-        seq2 = ALI.loc[pos2,].to_numpy()
-        # euclidean distance
-        dist = np.linalg.norm(seq1-seq2)
+def dist_vectors(ALI,pos1,pos2):
+    seq1 = ALI.loc[pos1,].to_numpy()
+    seq2 = ALI.loc[pos2,].to_numpy()
+    # euclidean distance
+    dist = np.linalg.norm(seq1-seq2)
     return dist
 
 
@@ -130,7 +121,7 @@ def dist_vectors(ALI,pos1,pos2,LMNN_model):
 # FIND CENTROIDS
 # It will return a dictionary where the keys are the centroid sequences and the
 # value is the species
-def find_centroids(ALI,tax,LMNN_model_this):
+def find_centroids(ALI,tax):
     # first find all species and their map to the seq id
     all_species = dict()
     for seq in ALI.index.values:
@@ -157,7 +148,7 @@ def find_centroids(ALI,tax,LMNN_model_this):
                 id_i = all_species[species][i]
                 id_j = all_species[species][j]
                 # find vector and distance
-                dist_this = dist_vectors(ALI,id_i,id_j,LMNN_model_this)
+                dist_this = dist_vectors(ALI,id_i,id_j)
                 # add distance
                 all_id_dist[id_i] = all_id_dist[id_i] + dist_this
                 all_id_dist[id_j] = all_id_dist[id_j] + dist_this
@@ -181,7 +172,7 @@ def find_centroids(ALI,tax,LMNN_model_this):
 
 # ------------------------------------------------------------------------------
 # calculate the distance of all vs centroids
-def calc_all_dist_to_centroids(centroids_this,ALI,tax,LMNN_this):
+def calc_all_dist_to_centroids(centroids_this,ALI,tax):
     # here we are already inside one clade
     n_tax_level = len(list(tax.values())[0])-1
     # find all possible genes
@@ -198,7 +189,7 @@ def calc_all_dist_to_centroids(centroids_this,ALI,tax,LMNN_this):
         all_genes_this.remove(sel_centroid)
         for gene in all_genes_this:
             # distance
-            d = dist_vectors(ALI,sel_centroid,gene,LMNN_this)
+            d = dist_vectors(ALI,sel_centroid,gene)
             # check taxonomy
             for i in range(n_tax_level,-1,-1):
                 if sel_centroid_tax[i] == tax[gene][i]:
@@ -261,32 +252,32 @@ def find_thresholds_from_dist(distances):
 
 
 # ------------------------------------------------------------------------------
-def find_thresholds(all_ali, tax, all_LMNN):
+def find_thresholds(all_transformed, tax):
     # prepare the result
     threshold_clades = dict()
     list_centroids_all = dict() # will contain pandas array
 
-    for clade in all_ali:
+    for clade in all_transformed:
         logging.info('   TRAIN_NN_2: Clade: %s', clade)
         logging.info('    TRAIN_NN_3: Find centroids')
         # find centroids per species
         gene_centroids = list()
         species_centroids = list()
         # run find_centroids
-        centroids_this = find_centroids(all_ali[clade],tax,all_LMNN[clade])
+        centroids_this = find_centroids(all_transformed[clade],tax)
         # add them to the result
         for c in centroids_this:
             gene_centroids.append(centroids_this[c])
             species_centroids.append(c)
         # create a panda array
-        centroids_this_pd = all_ali[clade].loc[gene_centroids,].to_numpy()
+        centroids_this_pd = all_transformed[clade].loc[gene_centroids,].to_numpy()
         # where the rownames are the species
         centroids_this_pd = pd.DataFrame(centroids_this_pd, index=species_centroids)
         list_centroids_all[clade] = centroids_this_pd
 
         # calc all distances for this clade --------------
         logging.info('    TRAIN_NN_3: Calculate distances')
-        dist_all_vs_centroids = calc_all_dist_to_centroids(centroids_this,all_ali[clade],tax,all_LMNN[clade])
+        dist_all_vs_centroids = calc_all_dist_to_centroids(centroids_this,all_transformed[clade],tax)
 
         # find the thresholds -------------------
         logging.info('    TRAIN_NN_3: Find thresholds')
@@ -307,12 +298,12 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
     logging.info('  TRAIN_NN_1: load tax')
     tax = load_tax_line(tax_file, alignment)
 
-    # 1. we calculate the transformations and divide the alignment
+    # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
-    all_LMNN, all_ali = estimate_weights(alignment, tax, NN_start_level)
+    all_LMNN, all_transformed = estimate_weights(alignment, tax, NN_start_level)
 
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
-    thresholds_NN, centroid_seq = find_thresholds(all_ali, tax, all_LMNN)
+    thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax)
 
     return all_LMNN, thresholds_NN, centroid_seq
