@@ -10,7 +10,7 @@ import h5py
 
 from . import __version__ as tool_version
 from stag.taxonomy3 import Taxonomy
-from stag.databases import load_db
+from stag.databases2 import load_db
 import stag.align as align
 
 def alignment_reader(aligned_sequences):

@@ -24,7 +24,7 @@ from sklearn.linear_model import LogisticRegression
 import h5py
 
 from stag.taxonomy3 import Taxonomy
-from stag.databases import save_to_file
+from stag.databases2 import save_to_file
 from stag.alignment import load_alignment_from_file
 from stag.train_NN import train_NN_classifiers
 
