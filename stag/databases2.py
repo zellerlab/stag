@@ -90,7 +90,10 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
 
     all_LMNN_this = dict()
     for c in all_LMNN:
-        all_LMNN_this[c] = all_LMNN[c].components_.T
+        if all_LMNN[c] != "NOT ENOUGH DATA":
+            all_LMNN_this[c] = all_LMNN[c].components_.T
+        else:
+            all_LMNN_this[c] = "NOT ENOUGH DATA"
     ALL_DATA["LMNN"] = all_LMNN_this
 
     ALL_DATA["thresholds_NN"] = thresholds_NN
