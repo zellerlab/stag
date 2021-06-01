@@ -38,6 +38,13 @@ def load_tax_line(tax_file, ALI):
 # given a 1-hot ancoding numpy array, it removes columns that are all the same
 def remove_invariant_columns(X_full):
     num_rows, num_cols = X_full.shape
+    # if there is only one sequence
+    if num_rows == 1:
+        col_to_keep = list(range(num_cols))
+        logging.info('    keeping %s columns (%s percent)', str(len(col_to_keep)),str(len(col_to_keep)/num_cols))
+        return X_full, col_to_keep
+        
+    # normal case: more than one seqeunce
     # colsum
     colsum = X_full.sum(axis=0)
     # which are not all zeros
