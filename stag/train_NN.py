@@ -35,7 +35,25 @@ def load_tax_line(tax_file, ALI):
 #===============================================================================
 #                          TRANSFORM THE SPACE
 #===============================================================================
-# function to estimate the weights
+# given a 1-hot ancoding numpy array, it removes columns that are all the same
+def remove_invariant_columns(X_full):
+    num_rows, num_cols = X_full.shape
+    # colsum
+    colsum = X_full.sum(axis=0)
+    # which are not all zeros
+    pos_all_non_0 = np.where(colsum != 0)[0].tolist()
+    # which are not all ones
+    pos_all_non_1 = np.where(colsum != num_rows)[0].tolist()
+    # we intersect the two sets
+    col_to_keep = list(set(pos_all_non_0) & set(pos_all_non_1))
+    col_to_keep.sort()
+
+    logging.info('    keeping %s columns (%s percent)', str(len(col_to_keep)),str(len(col_to_keep)/num_cols))
+
+    return X_full[:,col_to_keep], col_to_keep
+
+
+# MAIN function to estimate the weights
 def estimate_weights(ALI, tax, sel_level):
     # find all families (or other level), we test with sel_level = 4
     all_clades = dict()
@@ -52,8 +70,10 @@ def estimate_weights(ALI, tax, sel_level):
         # we subselect the training
         this_ALI = ALI.loc[all_clades[clade],:]
         # transform from pandas to numpy (for the features)
-        X = 1*this_ALI.to_numpy()
-        #X = X + 0.1
+        X_full = 1*this_ALI.to_numpy()
+        # we remove columns that do not change
+        X, sel_positions = remove_invariant_columns(X_full)
+
 
         # for the y  -------------------------------------------
         # we need to create the species ground thruth
