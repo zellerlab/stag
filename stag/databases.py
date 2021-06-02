@@ -108,7 +108,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
     return hmm_file.name, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version
 
 
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax, hmm_file_path=None, protein_fasta_input=None):
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax,all_sel_positions,NN_start_level, hmm_file_path=None, protein_fasta_input=None):
 
     string_dt = h5py.special_dtype(vlen=str)
     with h5py.File(output, "w") as h5p_out:
