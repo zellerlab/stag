@@ -56,7 +56,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
     return hmm_file.name, ALL_DATA["use_cmalign"], ALL_DATA["taxonomy"], ALL_DATA["tax_function"], ALL_DATA["classifiers"], ALL_DATA["tool_version"]
 
 
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax, hmm_file_path=None, protein_fasta_input=None):
+def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax,all_sel_positions, hmm_file_path=None, protein_fasta_input=None):
     # we create a dict with all the data we need to save
     ALL_DATA = dict()
     # save all
@@ -99,6 +99,7 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
     ALL_DATA["thresholds_NN"] = thresholds_NN
     ALL_DATA["centroid_seq"] = centroid_seq
     ALL_DATA["species_to_tax"] = species_to_tax
+    ALL_DATA["all_sel_positions"] = all_sel_positions
 
     # save ------------------------
     with open(output, "wb") as f:

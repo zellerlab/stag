@@ -455,7 +455,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. train classifiers for the nearest neighbour
     logging.info('MAIN:Train classifiers for nearest neighbour')
-    all_LMNN, thresholds_NN, centroid_seq, species_to_tax = train_NN_classifiers(alignment, tax_file, NN_start_level, logging)
+    all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions = train_NN_classifiers(alignment, tax_file, NN_start_level, logging)
     print()
     print(all_LMNN)
     print()
@@ -466,7 +466,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 7. save the result
     logging.info('MAIN:Save to file')
-    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
+    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax,all_sel_positions, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
     logging.info('TIME:Finish save to file')
 
     logging.info('MAIN:Finished')

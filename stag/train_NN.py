@@ -43,7 +43,7 @@ def remove_invariant_columns(X_full):
         col_to_keep = list(range(num_cols))
         logging.info('    keeping %s columns (%s percent)', str(len(col_to_keep)),str(len(col_to_keep)/num_cols))
         return X_full, col_to_keep
-        
+
     # normal case: more than one seqeunce
     # colsum
     colsum = X_full.sum(axis=0)
@@ -71,6 +71,7 @@ def estimate_weights(ALI, tax, sel_level):
     # now we do the analysis by clade
     all_LMNN = dict()
     all_transformed = dict()
+    all_sel_positions = dict()
     for clade in all_clades:
         logging.info('    TRAIN_NN_3: Clade: %s', clade)
         # for the X --------------------------------------------
@@ -80,6 +81,8 @@ def estimate_weights(ALI, tax, sel_level):
         X_full = 1*this_ALI.to_numpy()
         # we remove columns that do not change
         X, sel_positions = remove_invariant_columns(X_full)
+        # which columns were selected for this clade
+        all_sel_positions[clade] = sel_positions
 
 
         # for the y  -------------------------------------------
@@ -133,7 +136,7 @@ def estimate_weights(ALI, tax, sel_level):
             all_transformed[clade] = pd.DataFrame(X, index=rownames)
 
 
-    return all_LMNN, all_transformed
+    return all_LMNN, all_transformed, all_sel_positions
 
 
 
@@ -340,10 +343,10 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
 
     # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
-    all_LMNN, all_transformed = estimate_weights(alignment, tax, NN_start_level)
+    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level)
 
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
     thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax)
 
-    return all_LMNN, thresholds_NN, centroid_seq, species_to_tax
+    return all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions
