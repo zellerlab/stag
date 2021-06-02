@@ -54,7 +54,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
     if dir_output:
         params_out = open(os.path.join(dir_output, "parameters.tsv"), "w") if dir_output else contextlib.nullcontext()
 
-    return ALL_DATA["hmm_file_path"], ALL_DATA["use_cmalign"], ALL_DATA["taxonomy"], ALL_DATA["tax_function"], ALL_DATA["classifiers"], ALL_DATA["tool_version"]
+    return ALL_DATA
 
 
 def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, all_LMNN, thresholds_NN, centroid_seq, species_to_tax,all_sel_positions,NN_start_level, hmm_file_path=None, protein_fasta_input=None):

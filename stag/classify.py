@@ -133,7 +133,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
              aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, internal_call=False):
     t0 = time.time()
     db = load_db(database, protein_fasta_input=protein_fasta_input, aligned_sequences=aligned_sequences)
-    hmm_file_path, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version = db
+    # db is now a dictionary with all the data inside
     if verbose > 2:
         time_after_loading = time.time()
         sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")
@@ -146,7 +146,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
     if aligned_sequences:
         alignments = alignment_reader(aligned_sequences)
     else:
-        alignments = align.align_generator(fasta_input, protein_fasta_input, hmm_file_path, use_cmalign,
+        alignments = align.align_generator(fasta_input, protein_fasta_input, db["hmm_file_path"], db["use_cmalign"],
                                            threads, verbose, True, min_perc_state)
         if save_ali_to_file:
             alignment_out, write_alignments = open(save_ali_to_file, "w"), True
@@ -155,7 +155,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
         for gene_id, ali in alignments:
             if not alignment_length:
                 alignment_length = len(ali)
-            list_to_print.append(classify_seq(gene_id, ali, taxonomy, tax_function, classifiers, threads, verbose))
+            list_to_print.append(classify_seq(gene_id, ali, db["taxonomy"], db["tax_function"], db["classifiers"], threads, verbose))
 
             if write_alignments:
                 ali_str = np.char.mod('%.0f', ali)
@@ -166,7 +166,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
         sys.stderr.write("Classify sequences: " + str("{0:.2f}".format(time_after_classification - time_after_loading))+" sec\n")
 
     # delete the hmm temp file that was created --------------------------------
-    os.remove(hmm_file_path)
+    os.remove(db["hmm_file_path"])
 
     # print the sequences ------------------------------------------------------
     if output:
