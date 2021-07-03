@@ -10,7 +10,6 @@ import sys
 import metric_learn
 import statistics
 from sklearn.metrics import precision_recall_curve
-import math
 
 logging = "global_logging"
 
