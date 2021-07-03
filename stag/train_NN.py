@@ -10,6 +10,7 @@ import sys
 import metric_learn
 import statistics
 from sklearn.metrics import precision_recall_curve
+import math
 
 logging = "global_logging"
 
@@ -114,14 +115,6 @@ def estimate_weights(ALI, tax, sel_level):
             # transform our input space ----------------------------
             logging.info('     TRAIN_NN_4: Transform the data')
             X_lmnn = lmnn.transform(X)
-
-            # TO REMOVE ------------------------------------------------------------------------------
-            # WE CHECK THAT WE HAVE THE SAME
-            logging.info('     TRAIN_NN_4: Check we have the same')
-            X_lmnn_my = X.dot(lmnn.components_.T)
-            print("distances: ",end = "")
-            print(np.sum(X_lmnn != X_lmnn_my))
-            # END TO REMOVE --------------------------------------------------------------------------
 
             # create a panda object with the transformed space and the correct
             # rownames
