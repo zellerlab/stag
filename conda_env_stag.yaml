@@ -1,4 +1,4 @@
-name: stag_0.8.1_tax3
+name: stag__NN
 channels:
   - bioconda
   - defaults
@@ -16,4 +16,5 @@ dependencies:
   - seqtk
   - regex
   - prodigal
-  - metric_learn
+  - metric-learn
+  - math
