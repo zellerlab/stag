@@ -97,33 +97,42 @@ def estimate_weights(ALI, tax, sel_level):
         for i in list(set(list_species)):
             species_2_num[i] = cont
             cont = cont + 1
-        y = list()
+        y_list = list()
         for i in list_species:
-            y.append(species_2_num[i])
-        y = np.array(y)
+            y_list.append(species_2_num[i])
+        y = np.array(y_list)
 
         if len(y) > 5:
             # we learn the transformation --------------------------
             lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2,regularization = 0.4)
             # fit the data
             logging.info('     TRAIN_NN_4: Fit the data')
-            lmnn.fit(X, y)
-            #TODO: check that it converges, you have to parse the output printed
-            #      with verbose
 
-            # transform our input space ----------------------------
-            logging.info('     TRAIN_NN_4: Transform the data')
-            X_lmnn = lmnn.transform(X)
+            # we check that there are at least 2 species, otherwise lmnn.fit would fail
+            set_species = list(set(y_list))
+            if len(set_species) == 1:
+                logging.info('     TRAIN_NN_4: Only one species')
+                all_LMNN[clade] = "NOT ENOUGH DATA"
+                all_transformed[clade] = pd.DataFrame(X, index=rownames)
+            else:
+                lmnn.fit(X, y)
+                #TODO: check that it converges, you have to parse the output printed
+                #      with verbose
 
-            # create a panda object with the transformed space and the correct
-            # rownames
-            X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
+                # transform our input space ----------------------------
+                logging.info('     TRAIN_NN_4: Transform the data')
+                X_lmnn = lmnn.transform(X)
 
-            # add to dict ------------------------------------------
-            all_LMNN[clade] = lmnn
-            all_transformed[clade] = X_lmnn_PD # it's a pandas object
+                # create a panda object with the transformed space and the correct
+                # rownames
+                X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
+
+                # add to dict ------------------------------------------
+                all_LMNN[clade] = lmnn
+                all_transformed[clade] = X_lmnn_PD # it's a pandas object
 
         else:
+            logging.info('     TRAIN_NN_4: Not enough data ('+str(len(y_list))+')')
             all_LMNN[clade] = "NOT ENOUGH DATA"
             all_transformed[clade] = pd.DataFrame(X, index=rownames)
 
