@@ -2,17 +2,22 @@ import csv
 import logging
 
 class Taxon:
-    def __init__(self, parent=None, label=None):
+    def __init__(self, level=0, parent=None, label=None):
+        self.level = level
         self.label = label if label else Taxonomy.TREE_ROOT
         self.children = dict()
         self.genes = set()
+        self.species_nodes = set()
         self.parent = parent
     def add_child(self, child):
         self.children.setdefault(child.label, child)
+    def add_species_descendant(self, node):
+        self.species_nodes.add(node)
     def add_gene(self, gene):
         self.genes.add(gene)
     def is_leaf(self):
         return not self.children
+
 
 class Taxonomy(dict):
     TREE_ROOT = "tree_root"
@@ -36,11 +41,14 @@ class Taxonomy(dict):
         for line_no, (gene, lineage) in enumerate(csv.reader(open(fn), delimiter="\t"), start=1):
             parent = self[self.TREE_ROOT]
             lineage = self._check_lineage_depth(lineage, line_no)
-            for i, taxon in enumerate(lineage):
-                if i > 0:
+            last_level = len(lineage) - 1
+            for level, taxon in enumerate(lineage):
+                if level > 0:
                     parent = node
-                node = self.setdefault(taxon, Taxon(parent=parent, label=taxon))
+                node = self.setdefault(taxon, Taxon(level=level, parent=parent, label=taxon))
                 parent.add_child(node)
+                if level < last_level:
+                    node.add_species_descendant(lineage[-1])
             node.add_gene(gene)
             self.gene_lineages[gene] = lineage
 
@@ -60,6 +68,16 @@ class Taxonomy(dict):
     def is_last_node(self, node):
         return self.get(node, Taxon()).is_leaf()
     def find_gene_ids(self, node=None):
+		
+        node = self[node] if node else list(self[self.TREE_ROOT].children.values())[0]
+        if node.level == self.n_taxlevels - 1:
+            return list(node.genes)
+        genes = set()
+        for desc in node.species_nodes:
+            genes.update(self.get(desc, Taxon()).genes)
+        return list(genes)
+
+    def find_gene_ids_old(self, node=None):
         genes = set()
         nodes = [self[node if node else self.TREE_ROOT]]
         while nodes:
