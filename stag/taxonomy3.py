@@ -26,9 +26,8 @@ class Taxonomy(dict):
         self.n_taxlevels = 0
         self.gene_lineages = dict()
         self.fn = fn
-
-    def load_from_file(self):
-        self._read_taxonomy(self.fn)
+        if self.fn:    
+			self._load_taxonomy()
 
     def _check_lineage_depth(self, lineage, line_no):
         lineage = lineage.replace("/", "-").split(";") # issue10
@@ -37,8 +36,8 @@ class Taxonomy(dict):
         self.n_taxlevels = len(lineage)
         return lineage
 
-    def _read_taxonomy(self, fn):
-        for line_no, (gene, lineage) in enumerate(csv.reader(open(fn), delimiter="\t"), start=1):
+    def _load_taxonomy(self):
+        for line_no, (gene, lineage) in enumerate(csv.reader(open(self.fn), delimiter="\t"), start=1):
             parent = self[self.TREE_ROOT]
             lineage = self._check_lineage_depth(lineage, line_no)
             last_level = len(lineage) - 1
@@ -68,7 +67,7 @@ class Taxonomy(dict):
     def is_last_node(self, node):
         return self.get(node, Taxon()).is_leaf()
     def find_gene_ids(self, node=None):
-		
+        
         node = self[node] if node else list(self[self.TREE_ROOT].children.values())[0]
         if node.level == self.n_taxlevels - 1:
             return list(node.genes)
