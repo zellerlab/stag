@@ -105,7 +105,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
 
 def get_classification_input(taxonomy, alignment):
-    for node, siblings in taxonomy.get_all_nodes(get_root=True):
+    for node, siblings in taxonomy.get_all_nodes(get_root=False):
         logging.info(f'   TRAIN:"{node}":Find genes')
         positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
         logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
@@ -144,6 +144,35 @@ def perform_training(X, y, penalty_v, solver_v, node):
     clf.fit(X, y)
     return node, clf
 
+def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
+    t00 = time.time()
+    positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
+    t_select, t_train = time.time() - t00, 0
+
+    if positive_examples and negative_examples:
+        t0 = time.time()
+        clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
+        clf.fit(
+            alignment.loc[ negative_examples + positive_examples , : ].to_numpy(),
+            np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
+        )
+        t_train = time.time() - t0
+    else:
+        if positive_examples:
+            msg, clf = f'      Warning: no negative examples for "{node}"', "no_negative_examples"
+        elif negative_examples:
+            msg, clf = f'      Error: no positive examples for "{node}"', "ERROR_no_positive_examples"
+        else:
+            raise ValueError("This cannot be.")
+        logging.info(msg)
+
+    t_total = time.time() - t00
+    logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", f"{t_total:.3f}s", os.getpid()])))
+
+    return node, clf
+
+
+
 def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, solver_v):
     logging.info(f'   TRAIN:"{node}":Find genes (proc={os.getpid})')
     positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
@@ -165,6 +194,8 @@ def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, 
     return perform_training(X, y, penalty_v, solver_v, node)
 
 def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v):
+    return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
+    """
     results = list()
     for node, siblings in nodes:
         #logging.info(f'   TRAIN:"{node}":Find genes')
@@ -193,14 +224,21 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
         # logging.info(f'   "{node}": {len(positive_examples)} positive, {len(negative_examples)} negative\tselection: {t_select:.3f}s, training: {t_train:.3f}s\tpid={os.getpid()}')
         logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", f"{t_total:.3f}s", os.getpid()])))
     return results
+    """
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
+    import random
     import multiprocessing as mp
     print(f"train_all_classifiers_mp with {procs} processes.")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
         nodes = list(full_taxonomy.get_all_nodes(get_root=False))
-        step = len(nodes) // procs
+        # try to distribute the load a little (the higher nodes have more data attached)
+        # but still keep it reproducible, hence reset the seed every time
+        random.seed(313)
+        random.shuffle(nodes)
+        step = len(nodes) // procs + 1
+
         results = [
             pool.apply_async(get_classification_input_mp2, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
             for i in range(0, len(nodes), step)
@@ -419,7 +457,6 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     # 1. load the taxonomy into the tree (global variable)
     logging.info('MAIN:Load taxonomy')
     full_taxonomy = Taxonomy(tax_file)
-    full_taxonomy.load_from_file()
     logging.info('TIME:Finish load taxonomy')
 
     # 2. load the alignment into a pandas dataframe
