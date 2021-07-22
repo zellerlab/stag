@@ -25,7 +25,7 @@ import h5py
 
 from stag.taxonomy3 import Taxonomy
 from stag.databases import save_to_file
-from stag.alignment import load_alignment_from_file
+from stag.alignment import load_alignment_from_file, MultipleAlignment
 
 
 # function that finds positive and negative examples ===========================
@@ -66,37 +66,9 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
         missing_neg = min_negative_samples - len(negative_examples_subsample)
     # add negative examples if necessary
     if missing_neg > 0:
-        # positive examples
-        X_clade = alignment.loc[positive_examples, : ].to_numpy()
-        # always have 5 positive classes
-        n_positive_class = len(X_clade)
-        for i in range(n_positive_class, 5):
-            rr = random.choice(range(n_positive_class))
-            X_clade = np.vstack((X_clade, X_clade[rr,]))
-
-        # find possible genes to add additionaly to negatives
-        possible_neg = list(set(alignment.index.values).difference(set(positive_examples + negative_examples)))
-        if possible_neg: # if it is possible to add negatives
-                         # note that at the highest level, it's not possible
-            X_poss_na = alignment.loc[possible_neg, : ].to_numpy()
-
-            # choose 5 random positive clades
-            X_check_sim = X_clade[random.sample(range(len(X_clade)), 5), ]
-
-            random_clades = list()
-            for clade_i in range(5):
-                m_for_diff = np.tile(X_check_sim[clade_i,], (len(X_poss_na), 1))
-                differences = np.sum(np.bitwise_xor(m_for_diff, X_poss_na), axis=1)
-                non_zero = np.sum(differences != 0)
-                differences = np.where(differences == 0, np.nan, differences)
-                corr_ord = np.argsort(differences)[:non_zero + 1]
-                random_clades.append(list(corr_ord))
-            clade_indices = set()
-            for indices in zip(*random_clades):
-                clade_indices.update(indices)
-                if len(clade_indices) > missing_neg:
-                    break
-            negative_examples_subsample.extend(possible_neg[i] for i in clade_indices)
+        negative_examples_subsample.extend(
+            alignment.get_auxiliary_negative_examples(positive_examples, negative_examples, missing_neg)
+        )
 
     t_total = time.time() - t00
     logging.info(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos:.3f}\t{t_neg:.3f}\t{t_total:.3f}\t{os.getpid()}")
@@ -104,45 +76,12 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     return positive_examples_subsample, negative_examples_subsample
 
 
-def get_classification_input(taxonomy, alignment):
-    for node, siblings in taxonomy.get_all_nodes(get_root=False):
-        logging.info(f'   TRAIN:"{node}":Find genes')
-        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-        logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
+def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, procs=None):
+    return dict(
+        do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v)
+        for node, siblings in node, siblings in taxonomy.get_all_nodes(get_root=False)
+    )
 
-        # check that we have at least 1 example for each class:
-        if not negative_examples:
-            # when the node is the only child, then there are no negative examples
-            logging.info('      Warning: no negative examples for "%s"', node)
-            X, y = "no_negative_examples", None
-        elif not positive_examples:
-            # There should be positive examples
-            logging.info('      Error: no positive examples for "%s"', node)
-            X, y = "ERROR_no_positive_examples", None
-        else:
-            X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
-            y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
-        yield node, X, y
-
-def train_all_classifiers_nonmp(alignment, full_taxonomy, penalty_v, solver_v, procs=None):
-    print("train_all_classifiers_nonmp - single-proc")
-    all_classifiers = dict()
-    for node, X, y in get_classification_input(full_taxonomy, alignment):
-        if y is not None:
-            clf = LogisticRegression(random_state=0, penalty = penalty_v, solver=solver_v)
-            clf.fit(X, y)
-            all_classifiers[node] = clf
-        else:
-            all_classifiers[node] = X
-    return all_classifiers
-
-def perform_training(X, y, penalty_v, solver_v, node):
-    if y is None:
-        return node, X
-    # logging.info('         TRAIN:"%s":Train classifier', node)
-    clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
-    clf.fit(X, y)
-    return node, clf
 
 def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
     t00 = time.time()
@@ -153,7 +92,7 @@ def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
         t0 = time.time()
         clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
         clf.fit(
-            alignment.loc[ negative_examples + positive_examples , : ].to_numpy(),
+            alignment.get_rows(negative_examples + positive_examples),
             np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
         )
         t_train = time.time() - t0
@@ -172,63 +111,13 @@ def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
     return node, clf
 
 
-
-def get_classification_input_mp(node, siblings, taxonomy, alignment, penalty_v, solver_v):
-    logging.info(f'   TRAIN:"{node}":Find genes (proc={os.getpid})')
-    positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-    logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
-
-    # check that we have at least 1 example for each class:
-    if not negative_examples:
-        # when the node is the only child, then there are no negative examples
-        logging.info('      Warning: no negative examples for "%s', node)
-        X, y = "no_negative_examples", None
-    elif not positive_examples:
-        # There should be positive examples
-        logging.info('      Error: no positive examples for "%s', node)
-        X, y = "ERROR_no_positive_examples", None
-    else:
-        X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
-        y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
-
-    return perform_training(X, y, penalty_v, solver_v, node)
-
-def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v):
-    return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
-    """
-    results = list()
-    for node, siblings in nodes:
-        #logging.info(f'   TRAIN:"{node}":Find genes')
-        t00 = time.time()
-        positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
-        t_select = time.time() - t00
-        #logging.info(f'      SEL_GENES:"{node}": {len(positive_examples)} positive, {len(negative_examples)} negative')
-
-        # check that we have at least 1 example for each class:
-        if not negative_examples:
-            # when the node is the only child, then there are no negative examples
-            logging.info('      Warning: no negative examples for "%s', node)
-            X, y = "no_negative_examples", None
-        elif not positive_examples:
-            # There should be positive examples
-            logging.info('      Error: no positive examples for "%s', node)
-            X, y = "ERROR_no_positive_examples", None
-        else:
-            X = alignment.loc[ negative_examples + positive_examples , : ].to_numpy()
-            y = np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
-        t0 = time.time()
-        results.append(perform_training(X, y, penalty_v, solver_v, node))
-        t1 = time.time()
-        t_train, t_total = t1 - t0, t1 - t00
-
-        # logging.info(f'   "{node}": {len(positive_examples)} positive, {len(negative_examples)} negative\tselection: {t_select:.3f}s, training: {t_train:.3f}s\tpid={os.getpid()}')
-        logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", f"{t_total:.3f}s", os.getpid()])))
-    return results
-    """
-
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import random
     import multiprocessing as mp
+
+    def process_chunk(nodes, taxonomy, alignment, penalty_v, solver_v):
+        return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
+
     print(f"train_all_classifiers_mp with {procs} processes.")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
@@ -240,7 +129,7 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
         step = len(nodes) // procs + 1
 
         results = [
-            pool.apply_async(get_classification_input_mp2, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
+            pool.apply_async(process_chunk, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
             for i in range(0, len(nodes), step)
         ]
 
@@ -249,17 +138,6 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
             res_d.update(res.get())
         return res_d
 
-        #results = [
-        #    pool.apply_async(get_classification_input_mp, args=(node, siblings, full_taxonomy, alignment, penalty_v, solver_v))
-        #    for node, siblings in full_taxonomy.get_all_nodes(get_root=True)
-        #]
-
-        #results = [
-        #    pool.apply_async(perform_training, args=(X, y, penalty_v, solver_v, node))
-        #    for node, X, y in list(get_classification_input(full_taxonomy, alignment))
-        #]
-
-        # return dict(p.get() for p in results)
 
 def train_all_classifiers(*args, procs=None):
     train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
@@ -338,12 +216,19 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
         test_filter = training_tax.remove_clades(list(test_set))
         training_filter = training_tax.find_gene_ids(training_tax.get_root())
 
-    training_al = alignment.loc[ training_filter, : ]
-    classifiers_train = train_all_classifiers(training_al, training_tax, penalty_v, solver_v, procs=procs)
+    classifiers_train = train_all_classifiers(
+        alignment.get_rows(training_filter),
+        training_tax,
+        penalty_v, solver_v, procs=procs
+    )
 
     # 3. Classify the test set
-    test_al = alignment.loc[ test_filter , : ]
-    pr = predict(test_al, training_tax, classifiers_train)
+    # test_al = alignment.loc[ test_filter , : ]
+    pr = predict(
+        alignment.get_rows(test_filter),
+        training_tax,
+        classifiers_train
+    )
     for g in pr:
         # g is:
         # ["geneB",["A","B","D","species8"],[0.99,0.96,0.96,0.07]]
@@ -461,12 +346,12 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 2. load the alignment into a pandas dataframe
     logging.info('MAIN:Load alignment')
-    alignment = load_alignment_from_file(aligned_seq_file)
+    alignment = MultipleAlignment(aligned_seq_file)
     logging.info('TIME:Finish load alignment')
 
     # 3. check that the taxonomy and the alignment are consistent
     logging.info('MAIN:Check taxonomy and alignment')
-    full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
+    full_taxonomy.ensure_geneset_consistency(alignment.get_index())
     logging.info('TIME:Finish check-up')
 
     # 4. build a classifier for each node
