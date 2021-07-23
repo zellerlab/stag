@@ -17,6 +17,8 @@ import time
 import tempfile
 import shutil
 from collections import Counter
+import random
+import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
@@ -25,7 +27,7 @@ import h5py
 
 from stag.taxonomy3 import Taxonomy
 from stag.databases import save_to_file
-from stag.alignment import load_alignment_from_file, MultipleAlignment
+from stag.alignment import load_alignment_from_file, EncodedAlignment
 
 
 # function that finds positive and negative examples ===========================
@@ -77,10 +79,10 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
 
 def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, procs=None):
-    return dict(
+    return dict((
         do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v)
-        for node, siblings in node, siblings in taxonomy.get_all_nodes(get_root=False)
-    )
+        for node, siblings in taxonomy.get_all_nodes(get_root=False)
+    ))
 
 
 def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
@@ -92,7 +94,7 @@ def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
         t0 = time.time()
         clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
         clf.fit(
-            alignment.get_rows(negative_examples + positive_examples),
+            alignment.get_rows(node, negative_examples + positive_examples),
             np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
         )
         t_train = time.time() - t0
@@ -111,13 +113,11 @@ def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
     return node, clf
 
 
+def process_chunk(nodes, taxonomy, alignment, penalty_v, solver_v):
+    return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
+
+
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
-    import random
-    import multiprocessing as mp
-
-    def process_chunk(nodes, taxonomy, alignment, penalty_v, solver_v):
-        return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
-
     print(f"train_all_classifiers_mp with {procs} processes.")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
@@ -346,7 +346,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 2. load the alignment into a pandas dataframe
     logging.info('MAIN:Load alignment')
-    alignment = MultipleAlignment(aligned_seq_file)
+    alignment = EncodedAlignment(aligned_seq_file)
     logging.info('TIME:Finish load alignment')
 
     # 3. check that the taxonomy and the alignment are consistent
