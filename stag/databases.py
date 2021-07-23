@@ -129,19 +129,20 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
             h5p_out.create_dataset(f"taxonomy/{node}", data=np.array(list(full_taxonomy[node].children.keys()), "S10000"), dtype=string_dt, compression="gzip")
         # fourth, the taxonomy function --------------------------------------------
         h5p_out.create_group("tax_function")
-        for c in tax_function:
+        for node, clf in tax_function.items():
             # we append the intercept at the head (will have position 0)
-            vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
-            h5p_out.create_dataset("tax_function/" + str(c), data=vals, dtype=np.float64, compression="gzip")
+            vals = np.append((clf.intercept_, clf.coef_))
+            h5p_out.create_dataset(f"tax_function/{node}", data=vals, dtype=np.float64, compression="gzip")
         # fifth, save the classifiers ----------------------------------------------
         h5p_out.create_group("classifiers")
-        for c in classifiers:
-            if classifiers[c] != "no_negative_examples":
-                vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
-                h5p_out.create_dataset("classifiers/" + c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
-            else:
+        for node, clf in classifiers.items():
+            if clf is None: # == "no_negative_examples":
                 # in this case, it always predict 1, we save it as an array of
                 # with the string "no_negative_examples"
-                h5p_out.create_dataset("classifiers/" + c, data=np.array(["no_negative_examples"], "S40"), dtype=string_dt, compression="gzip")
+                kwargs = {"data": np.array(["no_negative_examples"], "S40"), "dtype": string_dt}
+            else:
+                kwargs = {"data": np.append(clf.intercept_, clf.coef_), "compression_opts": 8, "dtype": np.float64}
+
+            h5p_out.create_dataset(f"classifiers/{node}", compression="gzip", **kwargs)
 
         h5p_out.flush()

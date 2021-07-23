@@ -79,10 +79,10 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
 
 def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, procs=None):
-    return dict((
+    return list(
         do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v)
         for node, siblings in taxonomy.get_all_nodes(get_root=False)
-    ))
+    )
 
 
 def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
@@ -98,14 +98,11 @@ def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
             np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
         )
         t_train = time.time() - t0
-    else:
-        if positive_examples:
-            msg, clf = f'      Warning: no negative examples for "{node}"', "no_negative_examples"
-        elif negative_examples:
-            msg, clf = f'      Error: no positive examples for "{node}"', "ERROR_no_positive_examples"
-        else:
-            raise ValueError("This cannot be.")
+    elif positive_examples:
+        msg, clf = f'      Warning: no negative examples for "{node}"', None  # "no_negative_examples"
         logging.info(msg)
+    else:
+        raise ValueError(f'This literally cannot happen: no positive examples for "{node}"!')
 
     t_total = time.time() - t00
     logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", f"{t_total:.3f}s", os.getpid()])))
@@ -133,9 +130,9 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
             for i in range(0, len(nodes), step)
         ]
 
-        res_d = dict()
+        res_d = list()
         for res in results:
-            res_d.update(res.get())
+            res_d.extend(res.get())
         return res_d
 
 
@@ -185,11 +182,13 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
 
     return tax, perc
 
+
 def predict(test_al, training_tax, classifiers_train):
     return [
         [gene, *predict_one_gene([test_al.loc[ gene , : ].to_numpy()], training_tax, classifiers_train)]
         for gene in test_al.index.values
     ]
+
 
 def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, perc_test_set=0.33, gene_level=False, procs=None):
     # perc_test_set <= 0.5 !
@@ -216,10 +215,12 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
         test_filter = training_tax.remove_clades(list(test_set))
         training_filter = training_tax.find_gene_ids(training_tax.get_root())
 
-    classifiers_train = train_all_classifiers(
-        alignment.get_rows(training_filter),
-        training_tax,
-        penalty_v, solver_v, procs=procs
+    classifiers_train = dict(
+        train_all_classifiers(
+            alignment.get_rows(training_filter),
+            training_tax,
+            penalty_v, solver_v, procs=procs
+        )
     )
 
     # 3. Classify the test set
@@ -276,7 +277,7 @@ def estimate_function(all_calc_functions):
     for level, count in sorted(level_counter.items()):
         logging.info(f'   LEARN_FUNCTION:Number of lines: level {level}: {count}')
 
-    all_classifiers = dict()
+    all_classifiers = list()
     for uniq_level in sorted(level_counter):
         # NOTE: we always need the negative class to be first
         correct_order = [[], []]
@@ -287,7 +288,7 @@ def estimate_function(all_calc_functions):
         y = np.asarray([0] * len(correct_order[0]) + [1] * len(correct_order[1]))
         clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
         clf.fit(X, y)
-        all_classifiers[str(uniq_level)] = clf
+        all_classifiers.append((str(uniq_level), clf))
 
     return all_classifiers
 
