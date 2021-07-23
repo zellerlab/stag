@@ -26,8 +26,8 @@ class Taxonomy(dict):
         self.n_taxlevels = 0
         self.gene_lineages = dict()
         self.fn = fn
-        if self.fn:    
-			self._load_taxonomy()
+        if self.fn:
+            self._load_taxonomy()
 
     def _check_lineage_depth(self, lineage, line_no):
         lineage = lineage.replace("/", "-").split(";") # issue10
