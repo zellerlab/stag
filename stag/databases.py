@@ -129,19 +129,17 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
             h5p_out.create_dataset(f"taxonomy/{node}", data=np.array(list(full_taxonomy[node].children.keys()), "S10000"), dtype=string_dt, compression="gzip")
         # fourth, the taxonomy function --------------------------------------------
         h5p_out.create_group("tax_function")
-        for node, clf in tax_function.items():
-            # we append the intercept at the head (will have position 0)
-            vals = np.append((clf.intercept_, clf.coef_))
-            h5p_out.create_dataset(f"tax_function/{node}", data=vals, dtype=np.float64, compression="gzip")
+        for node, clf in tax_function:
+            h5p_out.create_dataset(f"tax_function/{node}", data=clf, dtype=np.float64, compression="gzip")
         # fifth, save the classifiers ----------------------------------------------
         h5p_out.create_group("classifiers")
-        for node, clf in classifiers.items():
-            if clf is None: # == "no_negative_examples":
+        for node, clf in classifiers: #.items():
+            if clf is None:
                 # in this case, it always predict 1, we save it as an array of
                 # with the string "no_negative_examples"
                 kwargs = {"data": np.array(["no_negative_examples"], "S40"), "dtype": string_dt}
             else:
-                kwargs = {"data": np.append(clf.intercept_, clf.coef_), "compression_opts": 8, "dtype": np.float64}
+                kwargs = {"data": clf, "compression_opts": 8, "dtype": np.float64}
 
             h5p_out.create_dataset(f"classifiers/{node}", compression="gzip", **kwargs)
 
