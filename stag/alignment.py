@@ -51,11 +51,24 @@ def count_bits(n):
 
 
 class EncodedAlignment:
-	def __init__(self, fn):
+	# this has some unsafe methods (__init__, filter_alignment), but I don't have time right now.
+	def __init__(self, fn=None, other_aln=None, ncols=None, npads=None):
 		self.alignment = None
 		self.ncols = None
 		self.npads = None
-		self._load_alignment(fn)
+		if fn:
+			self._load_alignment(fn)
+		elif other_aln is not None:
+			self.alignment = other_aln
+			self.ncols = ncols
+			self.npads = npads
+
+	def filter_alignment(self, rows):
+		return EncodedAlignment(
+			other_aln=self.alignment.loc[ rows, : ],
+			ncols=self.ncols,
+			npads=self.npads
+		)
 
 	def _load_alignment(self, fn):
 		with open(fn) as _in:
@@ -140,4 +153,4 @@ class EncodedAlignment:
 			)
 		logging.info(f"Unpacked {node}: {len(rows)} rows in {time.time() - t0:.3f}s.")
 
-		return np.vstack(alignment)
+		return np.vstack(alignment) if alignment else np.array([])
