@@ -18,64 +18,81 @@ import tempfile
 import shutil
 from collections import Counter
 import random
+import pickle
 import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-import h5py
 
 from stag.taxonomy3 import Taxonomy
 from stag.databases import save_to_file
 from stag.alignment import load_alignment_from_file, EncodedAlignment
 
 
+class BalancingParameters:
+    # 1. max 500 positive samples ----------------------------------------------
+    MAX_POSITIVE_SAMPLES = 500
+    # 2. max 1000 negative samples ---------------------------------------------
+    MAX_NEGATIVE_SAMPLES = 1000
+    # 3. max 20 times more negative than positive ------------------------------
+    # but if there is only one other sibling, we choose only 3 times more negative
+    NEG_POS_FACTOR_1_SIBLING = 3
+    NEG_POS_FACTOR_N_SIBLINGS = 20
+    # 4. we want to have at least 5 times more negative than positive ----------
+    MIN_NEGATIVE_SAMPLE_FACTOR = 5
+
+    @staticmethod
+    def get_neg_pos_sample_factor(n_siblings):
+        return BalancingParameters.NEG_POS_FACTOR_N_SIBLINGS if n_siblings > 1 else BalancingParameters.NEG_POS_FACTOR_1_SIBLING
+
+    @staticmethod
+    def get_missing_negatives(n_positives, n_negatives):
+        return max(0, n_positives * BalancingParameters.MIN_NEGATIVE_SAMPLE_FACTOR - n_negatives)
+
+
+def balance_neg_pos_ratio(positive_examples, negative_examples, alignment, n_siblings):
+
+    if len(positive_examples) > BalancingParameters.MAX_POSITIVE_SAMPLES:
+        positive_examples = random.sample(positive_examples, BalancingParameters.MAX_POSITIVE_SAMPLES)
+    n_positives = len(positive_examples)
+
+    max_negatives = min(
+        BalancingParameters.MAX_NEGATIVE_SAMPLES,
+        BalancingParameters.get_neg_pos_sample_factor(n_siblings) * n_positives
+    )
+
+    if len(negative_examples) > max_negatives:
+        negative_examples = random.sample(negative_examples, max_negatives)
+
+    # i still think there should be an else here, otherwise we downsample, then upsample again in some (hypothetical) cases
+    missing_negatives = BalancingParameters.get_missing_negatives(n_positives, len(negative_examples))
+    if missing_negatives:
+        negative_examples += alignment.get_auxiliary_negative_examples(positive_examples, negative_examples, missing_negatives)
+
+    return positive_examples, negative_examples
+
+
 # function that finds positive and negative examples ===========================
 def find_training_genes(node, siblings, full_taxonomy, alignment):
-    t00 = time.time()    
+    t00 = time.time()
     # "positive_examples" and "negative_examples" are list of gene ids
     positive_examples = full_taxonomy.find_gene_ids(node)
     t_pos = time.time() - t00
     t0 = time.time()
     negative_examples = list()
     for s in siblings:
-        negative_examples.extend(full_taxonomy.find_gene_ids(s))
+        negative_examples += full_taxonomy.find_gene_ids(s)
     t_neg = time.time() - t0
 
-    if not negative_examples:
-        # it means that there was only one child, and we cannot do anything
-        return positive_examples, negative_examples
-
-    # From here, it means that there is at least one sibling ==================
-    # We make classes more balanced
-    positive_examples_subsample = list(positive_examples)
-    negative_examples_subsample = list(negative_examples)
-    # 1. max 500 positive samples ----------------------------------------------
-    if len(positive_examples_subsample) > 500:
-        positive_examples_subsample = random.sample(positive_examples_subsample, 500)
-    # 2. max 1000 negative samples ---------------------------------------------
-    if len(negative_examples_subsample) > 1000:
-        negative_examples_subsample = random.sample(negative_examples_subsample, 1000)
-    # 3. max 20 times more negative than positive ------------------------------
-    # but if there is only one other sibling, we choose only 3 times more negative
-    max_negative_samples = len(positive_examples_subsample) * (20 if len(siblings) > 1 else 3)
-    if len(negative_examples_subsample) > max_negative_samples:
-        negative_examples_subsample = random.sample(negative_examples_subsample, max_negative_samples)
-    # 4. we want to have at least 5 times more negative than positive ----------
-    missing_neg = 0 # how many negative sequences we need to add
-    min_negative_samples = len(positive_examples_subsample) * 5
-    if len(negative_examples_subsample) < min_negative_samples:
-        missing_neg = min_negative_samples - len(negative_examples_subsample)
-    # add negative examples if necessary
-    if missing_neg > 0:
-        negative_examples_subsample.extend(
-            alignment.get_auxiliary_negative_examples(positive_examples, negative_examples, missing_neg)
-        )
+    # if there are negative examples, then balance negative/positive ratio
+    if negative_examples:
+        positive_examples, negative_examples = balance_neg_pos_ratio(positive_examples, negative_examples, alignment, len(siblings))
 
     t_total = time.time() - t00
     logging.info(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos:.3f}\t{t_neg:.3f}\t{t_total:.3f}\t{os.getpid()}")
 
-    return positive_examples_subsample, negative_examples_subsample
+    return positive_examples, negative_examples
 
 
 def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, procs=None):
@@ -125,19 +142,13 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
         random.shuffle(nodes)
         step = len(nodes) // procs + 1
 
-        results = [
-            pool.apply_async(process_chunk, args=(nodes[i:i+step], full_taxonomy, alignment, penalty_v, solver_v))
-            for i in range(0, len(nodes), step)
-        ]
-
-        res_d = list()
-        for res in results:
-            res_d.extend(res.get())
-        return res_d
+        results = pool.starmap_async(do_training, ((node, siblings, full_taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes), step)
+        return list(results.get())
 
 
 def train_all_classifiers(*args, procs=None):
     train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
+
     return train_f(*args, procs=procs)
 
 
@@ -185,8 +196,8 @@ def predict_one_gene(test_seq, training_tax, classifiers_train):
 
 def predict(test_al, training_tax, classifiers_train):
     return [
-        [gene, *predict_one_gene([test_al.loc[ gene , : ].to_numpy()], training_tax, classifiers_train)]
-        for gene in test_al.index.values
+        [gene, *predict_one_gene(test_al.get_rows(gene, [gene]), training_tax, classifiers_train)]
+        for gene in test_al.alignment.index.values
     ]
 
 
@@ -217,16 +228,15 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
 
     classifiers_train = dict(
         train_all_classifiers(
-            alignment.get_rows(training_filter),
+            alignment.filter_alignment(training_filter),
             training_tax,
             penalty_v, solver_v, procs=procs
         )
     )
 
     # 3. Classify the test set
-    # test_al = alignment.loc[ test_filter , : ]
     pr = predict(
-        alignment.get_rows(test_filter),
+        alignment.filter_alignment(test_filter),
         training_tax,
         classifiers_train
     )
@@ -272,7 +282,6 @@ def estimate_function(all_calc_functions):
     # with corr_level_this = 0, we should assign "A"
     # with corr_level_this = 2, we should assign "A","B","C"
     # with corr_level_this = -1, we should assign "" (no taxonomy)
-                                                                             
     level_counter = Counter(correct_level)
     for level, count in sorted(level_counter.items()):
         logging.info(f'   LEARN_FUNCTION:Number of lines: level {level}: {count}')
@@ -303,11 +312,9 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
     # do the cross validation for each level
     all_calc_functions = list()
     for level in range(n_levels):
-        all_calc_functions.extend(learn_function(level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs))
-        #all_calc_functions.extend(learn_function_one_level(level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs))
+        all_calc_functions += learn_function(level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
     # do the cross val. for the last level (using the genes)
-    # all_calc_functions.extend(learn_function_genes_level(n_levels, alignment, full_taxonomy, penalty_v, solver_v, procs=procs))
-    all_calc_functions.extend(learn_function(n_levels, alignment, full_taxonomy, penalty_v, solver_v, gene_level=True, procs=procs))
+    all_calc_functions += learn_function(n_levels, alignment, full_taxonomy, penalty_v, solver_v, gene_level=True, procs=procs)
 
     # save all_calc_functions if necessary -------------------------------------
     if save_cross_val_data:
@@ -357,12 +364,33 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 4. build a classifier for each node
     logging.info('MAIN:Train all classifiers')
-    classifiers = train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+    classifiers_file = output + ".classifiers.dat"
+    if all((os.path.exists(f) for f in (classifiers_file, classifiers_file + ".ok"))):
+        classifiers = pickle.load(open(classifiers_file, "rb"))
+    else:
+        classifiers = [
+            (node, np.append(clf.intercept_, clf.coef_) if clf else None)
+            for node, clf in train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+        ]
+        with open(classifiers_file, "wb") as clf_out:
+            pickle.dump(classifiers, clf_out)
+        open(classifiers_file + ".ok", "w").close()
     logging.info('TIME:Finish train all classifiers')
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
-    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
+    taxfunc_file = output + ".taxfunc.dat"
+    if all((os.path.exists(f) for f in (taxfunc_file, taxfunc_file + ".ok"))):
+        tax_function = pickle.load(open(taxfunc_file, "rb"))
+    else:
+        tax_function = [
+            (node, np.append(clf.intercept_, clf.coef_) if clf else None)
+            for node, clf in learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
+        ]
+        with open(taxfunc_file, "wb") as clf_out:
+            pickle.dump(tax_function, clf_out)
+        open(taxfunc_file + ".ok", "w").close()
+
     logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. save the result
