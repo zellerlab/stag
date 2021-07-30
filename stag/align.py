@@ -201,10 +201,15 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
+    encoder = None
     with temp_file:
         for gid, ali in align_generator(seq_file, protein_file, hmm_file, use_cmalign,
                                         n_threads, verbose, False, min_perc_state):
-            print(gid, *map(int, ali), sep="\t", file=temp_file)
+            if encoder is None:
+                encoder = AlignmentEncoder(ali)
+                print(encoder.ncols, encoder.npads, sep="\t", file=temp_file)
+            #print(gid, *map(int, ali), sep="\t", file=temp_file)
+            print(gid, *encoder.encode(ali), sep="\t", file=temp_file)
 
         try:
             temp_file.flush()
@@ -216,3 +221,19 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
         shutil.move(temp_file.name, res_file)
     except:
         raise ValueError(f"[E::align] The resulting file couldn't be saved. You can find the file here:\n{temp_file.name}.")
+
+
+
+class AlignmentEncoder:
+    def __init__(self, aln_row):
+        self.ncols = len(aln_row)
+        self.npads = (32 - self.ncols % 32) if self.ncols % 32 else 0
+
+    def encode(self, aln_row):
+        split_row = np.array_split(aln_row > 0, np.arange(32, len(aln_row), 32))
+        split_row[-1] = np.append(split_row[-1], np.zeros(self.npads) > 0)
+        encoded = np.sum(
+            np.apply_along_axis(lambda x:(x * (1<<np.arange(0,32))), 1, split_row),
+            axis=1
+        )
+        return encoded
