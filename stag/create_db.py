@@ -226,6 +226,8 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
         test_filter = training_tax.remove_clades(list(test_set))
         training_filter = training_tax.find_gene_ids(training_tax.get_root())
 
+    logging.info(f'  TEST: training_taxonomy has {len(training_tax)} nodes.')
+
     classifiers_train = dict(
         train_all_classifiers(
             alignment.filter_alignment(training_filter),
@@ -348,22 +350,22 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     logging.info('TIME:start')
 
     # 1. load the taxonomy into the tree (global variable)
-    logging.info('MAIN:Load taxonomy')
+    logging.info('MAIN:Loading taxonomy')
     full_taxonomy = Taxonomy(tax_file)
-    logging.info('TIME:Finish load taxonomy')
+    logging.info(f'TIME:Finished loading taxonomy - {len(full_taxonomy)} nodes in taxonomy')
 
     # 2. load the alignment into a pandas dataframe
-    logging.info('MAIN:Load alignment')
+    logging.info('MAIN:Loading alignment')
     alignment = EncodedAlignment(aligned_seq_file)
-    logging.info('TIME:Finish load alignment')
+    logging.info('TIME:Finished loading alignment')
 
     # 3. check that the taxonomy and the alignment are consistent
-    logging.info('MAIN:Check taxonomy and alignment')
+    logging.info('MAIN:Checking taxonomy and alignment')
     full_taxonomy.ensure_geneset_consistency(alignment.get_index())
-    logging.info('TIME:Finish check-up')
+    logging.info(f'TIME:Finished check-up - {len(full_taxonomy)} nodes in taxonomy')
 
     # 4. build a classifier for each node
-    logging.info('MAIN:Train all classifiers')
+    logging.info('MAIN:Training all classifiers')
     classifiers_file = output + ".classifiers.dat"
     if all((os.path.exists(f) for f in (classifiers_file, classifiers_file + ".ok"))):
         classifiers = pickle.load(open(classifiers_file, "rb"))
@@ -375,10 +377,10 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
         with open(classifiers_file, "wb") as clf_out:
             pickle.dump(classifiers, clf_out)
         open(classifiers_file + ".ok", "w").close()
-    logging.info('TIME:Finish train all classifiers')
+    logging.info('TIME:Finished training all classifiers')
 
     # 5. learn the function to identify the correct taxonomy level
-    logging.info('MAIN:Learn taxonomy selection function')
+    logging.info('MAIN:Learning taxonomy selection function')
     taxfunc_file = output + ".taxfunc.dat"
     if all((os.path.exists(f) for f in (taxfunc_file, taxfunc_file + ".ok"))):
         tax_function = pickle.load(open(taxfunc_file, "rb"))
@@ -391,11 +393,11 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
             pickle.dump(tax_function, clf_out)
         open(taxfunc_file + ".ok", "w").close()
 
-    logging.info('TIME:Finish learn taxonomy selection function')
+    logging.info('TIME:Finished learning taxonomy selection function')
 
     # 6. save the result
-    logging.info('MAIN:Save to file')
+    logging.info('MAIN:Saving database to file')
     save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
-    logging.info('TIME:Finish save to file')
+    logging.info('TIME:Finished saving database')
 
     logging.info('MAIN:Finished')
