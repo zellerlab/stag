@@ -53,6 +53,10 @@ def count_bits(n):
 
 class EncodedAlignment:
 	# this has some unsafe methods (__init__, filter_alignment), but I don't have time right now.
+	# "fast" decoding via
+	# https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding
+	# https://stackoverflow.com/questions/45604688/apply-function-on-each-row-row-wise-of-a-numpy-array
+	# https://pypi.org/project/bitarray/ <- another possibility
 	def __init__(self, fn=None, other_aln=None, ncols=None, npads=None):
 		self.alignment = None
 		self.ncols = None
