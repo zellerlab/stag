@@ -38,12 +38,11 @@ class Taxonomy(dict):
 
     def _load_taxonomy(self):
         for line_no, (gene, lineage) in enumerate(csv.reader(open(self.fn), delimiter="\t"), start=1):
-            parent = self[self.TREE_ROOT]
+            node = parent = self[self.TREE_ROOT]
             lineage = self._check_lineage_depth(lineage, line_no)
-            last_level = len(lineage) - 1
-            for level, taxon in enumerate(lineage):
-                if level > 0:
-                    parent = node
+            last_level = len(lineage)
+            for level, taxon in enumerate(lineage, start=1):
+                parent = node
                 node = self.setdefault(taxon, Taxon(level=level, parent=parent, label=taxon))
                 parent.add_child(node)
                 if level < last_level:
@@ -68,12 +67,16 @@ class Taxonomy(dict):
         return list(self.get(node, Taxon()).children.keys())
 
     def get_last_level_to_genes(self):
-        return {node: set(node.genes) for node in self.values() if node.genes}
+        return {node.label: set(node.genes) for node in self.values() if node.genes}
 
     def is_last_node(self, node):
         return self.get(node, Taxon()).is_leaf()
 
     def find_gene_ids(self, node=None):
+
+        if not node:
+            return [gene for node in self.values() for gene in node.genes]
+
         nodes = list(self[Taxonomy.TREE_ROOT].children.keys()) if (node is None or node == self.get_root()) else [node]
 
         if any(self.get(node) is None for node in nodes):
@@ -81,7 +84,7 @@ class Taxonomy(dict):
 
         genes = set()
         for node in nodes:
-            if self[node].level == self.n_taxlevels - 1:
+            if self[node].genes:
                 genes.update(self[node].genes)
             else:
                 for descendant in self[node].species_nodes:
@@ -135,8 +138,15 @@ class Taxonomy(dict):
         self.remove_clades(empty_nodes)
 
     def find_node_level(self, tax_level):
+        return {
+            node.label: set(node.children)
+            for node in self.values()
+            if node.level == tax_level
+        }
+        """
         nodes = dict()
-        queue = [(self[self.TREE_ROOT], -1)]
+        # queue = [(self[self.TREE_ROOT], -1)]
+        queue = [(child, 1) for child in self[self.TREE_ROOT].children]
         while queue:
             node, level = queue.pop(0)
             if level + 1 == tax_level:
@@ -145,6 +155,7 @@ class Taxonomy(dict):
             else:
                 queue.extend((child, level + 1) for child in node.children.values())
         return nodes
+        """
 
     def get_all_nodes(self, mode=None, get_root=False):
         queue = [(self[self.TREE_ROOT], set())]
@@ -178,11 +189,8 @@ class Taxonomy(dict):
         # since the selection of the genes for training and testing is done at taxonomy level
         drop_genes = genes_in_tree.difference(genes)
         if drop_genes:
-            n_drop_genes = len(drop_genes)
             self.remove_genes(drop_genes)
-        else:
-            n_drop_genes = None
-        logging.info(f"   CHECK: check genes that we need to remove from the taxonomy: {n_drop_genes}")
+        logging.info(f"   CHECK: check genes that we need to remove from the taxonomy: {len(drop_genes)}")
 
         # verify number of genes is consistent between set and taxonomy tree
         genes_in_tree = self.find_gene_ids()
