@@ -233,7 +233,7 @@ class AlignmentEncoder:
         split_row = np.array_split(aln_row > 0, np.arange(32, len(aln_row), 32))
         split_row[-1] = np.append(split_row[-1], np.zeros(self.npads) > 0)
         encoded = np.sum(
-            np.apply_along_axis(lambda x:(x * (1<<np.arange(0,32))), 1, split_row),
+            np.apply_along_axis(lambda x:(x * (1<<np.arange(0,32))[::-1]), 1, split_row),
             axis=1
         )
         return encoded
