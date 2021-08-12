@@ -218,13 +218,14 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
 
     # 2. Create new taxonomy and alignment file & train the classifiers
     training_tax = full_taxonomy.copy()
+
     if gene_level:
         training_tax.remove_genes(list(test_set))
         training_filter = training_set
         test_filter = test_set
     else:
         test_filter = training_tax.remove_clades(list(test_set))
-        training_filter = training_tax.find_gene_ids(training_tax.get_root())
+        training_filter = training_tax.find_gene_ids()  # training_tax.get_root())
 
     logging.info(f'  TEST: training_taxonomy has {len(training_tax)} nodes.')
 
@@ -295,11 +296,14 @@ def estimate_function(all_calc_functions):
         for level, (_, _, prob, *_) in zip(correct_level, all_uniq.values()):
             correct_order[int(uniq_level == level)].append(prob)
 
-        X = np.array([np.array(xi) for xi in correct_order[0] + correct_order[1]])
-        y = np.asarray([0] * len(correct_order[0]) + [1] * len(correct_order[1]))
-        clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
-        clf.fit(X, y)
-        all_classifiers.append((str(uniq_level), clf))
+        if correct_order[0] and correct_order[1]:
+            X = np.array([np.array(xi) for xi in correct_order[0] + correct_order[1]])
+            y = np.asarray([0] * len(correct_order[0]) + [1] * len(correct_order[1]))
+            clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
+            clf.fit(X, y)
+            all_classifiers.append((str(uniq_level), clf))
+        else:
+            logging.info(f'Could not train classifier {uniq_level}: neg={len(correct_order[0])} pos={len(correct_order[1])}')
 
     return all_classifiers
 
