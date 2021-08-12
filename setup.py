@@ -49,7 +49,8 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 		entry_points={
 			"console_scripts": [
 				"stag=stag.__main__:main",
-				"stag_test=stag.stag_test:main"
+				"stag_test=stag.stag_test:main",
+				"concat_alignment=stag.concat_alignment:main"
 			],
 		},
 		scripts=[],
