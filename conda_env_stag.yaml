@@ -6,6 +6,7 @@ channels:
   - intel
 dependencies:
   - python>=3.7
+  - nextflow>=21.0
   - hmmer
   - infernal
   - easel
