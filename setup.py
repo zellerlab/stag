@@ -33,7 +33,7 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 			"Development Status :: 4 - Beta",
 			"Topic :: Scientific Engineering :: Bio/Informatics",
 			"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-	        "Operating System :: POSIX :: Linux",
+			"Operating System :: POSIX :: Linux",
 			"Programming Language :: Python :: 3.7"
 		],
 		zip_safe=False,
@@ -50,7 +50,10 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 			"console_scripts": [
 				"stag=stag.__main__:main",
 				"stag_test=stag.stag_test:main",
-				"concat_alignment=stag.concat_alignment:main"
+				"concat_alignment=stag.concat_alignment:main",
+				"train_classifiers=stag.train_classifiers:main",
+				"learn_function=stag.learn_function:main",
+				"save_db=stag.save_db:main",
 			],
 		},
 		scripts=[],
