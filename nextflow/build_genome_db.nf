@@ -22,8 +22,7 @@ process align_marker_genes {
 
 	output:
 	stdout
-	val(gene), emit: gene
-	path("${gene}/${gene}.ali"), emit: alignment
+	tuple val(gene), path("${gene}/${gene}.ali"), emit: alignment
 
 	script:
 
@@ -44,38 +43,6 @@ process align_marker_genes {
 }
 
 
-process create_marker_dbs {
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	tuple val(gene), path(seqs)
-	path(alignment)
-
-	output:
-	stdout
-	val(gene), emit: gene
-	path("${gene}/${gene}.stagDB"), emit: stag_db
-	path("${gene}/${gene}.cross_val"), emit: cross_val
-
-	script:
-
-	if (seqs.size() == 2) {
-		"""
-		mkdir -p ${gene}
-		stag create_db -t $task.cpus -s ${alignment} -x ${params.taxonomy} -a ${params.hmmlib}/${gene}.hmm -o ${gene}/${gene}.stagDB -C ${gene}/${gene}.cross_val -p ${gene}.faa
-		"""
-	} else {
-		"""
-		mkdir -p ${gene}
-		stag create_db -t $task.cpus -s ${alignment} -x ${params.taxonomy} -a ${params.hmmlib}/${gene}.hmm -o ${gene}/${gene}.stagDB -C ${gene}/${gene}.cross_val
-		"""
-	}
-	
-
-
-}
-
-
 process concat_alignments {
 	publishDir "$output_dir", mode: params.publish_mode
 
@@ -84,119 +51,134 @@ process concat_alignments {
 
 	output:
 	stdout
-	path("concat_alignment.txt"), emit: alignment
+	tuple val("genome"), path("concat_alignment.txt"), emit: alignment
 
 	script:
 	"""
-	concat_alignment ${alignments} > concat_alignment.txt
+	echo \$(ls $alignments)
+    concat_alignment \$(ls ${alignments}) > concat_alignment.txt
 	"""
 
 }
 
 
-process create_genome_db {
-	publishDir "$output_dir", mode: params.publish_mode
-	
+process learn_function {
+
 	input:
-	path(concat_alignment)
+	tuple val(gene), path(alignment), val(level)
 
 	output:
 	stdout
-	path("concat_alignment_db"), emit: stag_db
-	path("concat_alignment_db.classifiers.dat"), emit: classifiers
-	path("concat_alignment_db.taxfunc.dat"), emit: taxfunc
-	path("concat_alignment_db.cross.txt"), emit: cv
+	tuple val(gene), path("${gene}.${level}.lfunc.dat"), emit: lfunc
 
 	script:
 	"""
-	touch dummy.txt
-	stag create_db -t $task.cpus -s ${concat_alignment} -o concat_alignment_db -C concat_alignment_db.cross.txt -x ${params.taxonomy} -a dummy.txt 
+	learn_function ${params.taxonomy} ${alignment} ${level} -o ${gene} -t $task.cpus
 	"""
-		
+}
+
+
+process train_classifiers {
+
+	input:
+	tuple val(gene), path(alignment)
+
+	output:
+	stdout
+	tuple val(gene), path("${gene}.classifiers.dat"), emit: classifiers
+
+	script:
+	"""
+	train_classifiers ${params.taxonomy} ${alignment} -o ${gene} -t $task.cpus
+	"""
+}
+
+
+process save_db {
+	publishDir "${output_dir}/databases" 
+
+	input:
+	tuple val(gene), path(lfunc), path(classifiers)
+	tuple val(ali_id), path(alignment)
+	
+	output:
+	stdout
+	tuple val(gene), path("${gene}.stagDB"), emit: db
+	path("${gene}.cross_val")
+
+	script:
+	"""
+	touch hmm_dummy.txt
+	touch protein_stuff.txt
+	save_db ${params.taxonomy} ${alignment} ${classifiers} hmm_dummy.txt protein_stuff.txt \$(ls *.lfunc.dat) -o ${gene}
+	"""
 }
 
 
 workflow {
 	
+	/* 
+		1. We expect marker gene (+ opt. protein) sequences arranged in --input_dir via the pattern
+	       `<marker_gene_id>.(fna|faa)`.
+
+		   The input channel will crawl the whole --input_dir subtree.
+	*/
+	
 	seq_ch = Channel
 		.fromPath(params.input_dir + "/" + "**.{faa,fna}")
 		.map { file ->
-			def sample = file.name.replaceAll(/.(faa|fna)$/, "")
-			return tuple(sample, file)
+			def gene = file.name.replaceAll(/.(faa|fna)$/, "")
+			return tuple(gene, file)
 		}
 		.groupTuple(sort: true)
 
 	seq_ch.view()
 
+	/*
+		2. Align the marker gene sets need to be against gene-specific hmms (provided via config file).
+	*/
 
 	align_marker_genes(seq_ch)
-	//align_marker_genes.out.view()
-	create_marker_dbs(seq_ch, align_marker_genes.out.alignment)
+	aln_ch = align_marker_genes.out.alignment
 
-	concat_alignments(align_marker_genes.out.alignment.collect())
-	create_genome_db(concat_alignments.out.alignment)
-}
-/*
+	/*
+		3. Concatenate the individual alignments into a genome alignment.
+	*/
 
-	fastq_ch = Channel
-    	.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
-        .map { file ->
-				def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
-				sample = sample.replaceAll(/_R?[12]$/, "")
-				return tuple(sample, file)
-		}
-		.groupTuple()
-	//fastq_ch.view()
+	all_aln_ch = aln_ch 
+		.map { rec -> return rec[1] }
+		.collect()
 
-	bam_ch = Channel
-		.fromPath(params.input_dir + "/" + "**.bam")
-		.map { file ->
-			def sample = file.name.replaceAll(/.bam$/, "")
-			return tuple(sample, file)
-		}
+	concat_alignments(all_aln_ch)
+
+	/*
+		4. Train the classifiers on the individual marker gene alignments as well as on the genome alignment.
+	*/	
+
+	clf_input_ch = aln_ch.concat(concat_alignments.out.alignment)
+	train_classifiers(clf_input_ch)
+
+	/*
+		5. Estimate the learning function on the individual marker gene alignments as well as on the genome alignment.
+	*/
+
+	levels = Channel.of(0..6)  // levels could come via params/config
+
+	genome_db_learn_input_ch = concat_alignments.out.alignment.combine(levels)
+	learn_input_ch = aln_ch.combine(levels).concat(genome_db_learn_input_ch)
+	learn_function(learn_input_ch)
+
+	lf_combine_ch = learn_function.out.lfunc
 		.groupTuple(sort: true)
-	//bam_ch.view()
 
-	make_dummy_fastqs(fastq_ch)
-	make_dummy_bam(bam_ch)
-	
-	bam2fq(bam_ch)
-	fq2bam(fastq_ch)
+	/*
+		6. Combine the classifier trainings and learning function estimates and save the database.
+	*/
 
-	if (params.bam_input) {
-		count_reads(make_dummy_bam.out.sample, make_dummy_bam.out.bam)
-		pathseq(make_dummy_bam.out.sample, make_dummy_bam.out.bam)
-		if (bam2fq.out.r2 != null) {
-			kraken2_paired(bam2fq.out.sample, bam2fq.out.r1, bam2fq.out.r2)
-			motus_paired(bam2fq.out.sample, bam2fq.out.r1, bam2fq.out.r2)
-			mtag_extraction_paired(bam2fq.out.sample, bam2fq.out.r1, bam2fq.out.r2)
-			mapseq_paired(mtag_extraction_paired.out.sample, mtag_extraction_paired.out.bac_lsu_r1, mtag_extraction_paired.out.bac_ssu_r1, mtag_extraction_paired.out.bac_lsu_r2, mtag_extraction_paired.out.bac_ssu_r2)
-			collate_mapseq_paired(mapseq_paired.out.bac_lsu_r1.collect(), mapseq_paired.out.bac_ssu_r1.collect(), mapseq_paired.out.bac_lsu_r2.collect(), mapseq_paired.out.bac_ssu_r2.collect())
-		} else {
-			kraken2_single(bam2fq.out.sample, bam2fq.out.r1)
-			motus_single(bam2fq.out.sample, bam2fq.out.r1)
-			mtag_extraction_single(bam2fq.out.sample, bam2fq.out.r1)
-			mapseq_single(mtag_extraction_single.out.sample, mtag_extraction_single.out.bac_lsu_r1, mtag_extraction_single.out.bac_ssu_r1)
-			collate_mapseq_single(mapseq_single.out.bac_lsu_r1.collect(), mapseq_single.out.bac_ssu_r1.collect())
-		}
-	} else {
-		count_reads(fq2bam.out.sample, fq2bam.out.bam)
-		pathseq(fq2bam.out.sample, fq2bam.out.bam)
-		if (make_dummy_fastqs.out.r2 != null) {
-			kraken2_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
-			motus_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
-            mtag_extraction_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
-			mapseq_paired(mtag_extraction_paired.out.sample, mtag_extraction_paired.out.bac_lsu_r1, mtag_extraction_paired.out.bac_ssu_r1, mtag_extraction_paired.out.bac_lsu_r2, mtag_extraction_paired.out.bac_ssu_r2)
-			collate_mapseq_paired(mapseq_paired.out.bac_lsu_r1.collect(), mapseq_paired.out.bac_ssu_r1.collect(), mapseq_paired.out.bac_lsu_r2.collect(), mapseq_paired.out.bac_ssu_r2.collect())
-		} else {
-			kraken2_single(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1)
-			motus_single(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1)
-			mtag_extraction_single(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1)
-			mapseq_single(mtag_extraction_single.out.sample, mtag_extraction_single.out.bac_lsu_r1, mtag_extraction_single.out.bac_ssu_r1)
-			collate_mapseq_single(mapseq_single.out.bac_lsu_r1.collect(), mapseq_single.out.bac_ssu_r1.collect())
-		}
-	}
+	lf_clf_combine_ch = lf_combine_ch.join(train_classifiers.out.classifiers)
+	lf_clf_combine_ch.view()
 
+	save_db(lf_clf_combine_ch, concat_alignments.out.alignment)
+	save_db.out.db.view()
 
 }
-*/

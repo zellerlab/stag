@@ -30,13 +30,13 @@ process align_marker_genes {
 		"""
 		echo "PROTEIN"
 		mkdir -p ${gene}
-		touch ${gene}/${gene}.ali
+		stag align -t $task.cpus -i ${gene}.fna -p ${gene}.faa -x ${params.taxonomy} -a ${params.hmmlib}/${gene}.hmm -o ${gene}/${gene}.ali
 		""" 
 	} else {
 		"""
 		echo "NO PROTEIN"
 		mkdir -p ${gene}
-		touch ${gene}/${gene}.ali
+		stag align -t $task.cpus -i ${gene}.fna -x ${params.taxonomy} -a ${params.hmmlib}/${gene}.hmm -o ${gene}/${gene}.ali
 		"""       	
 	}
 
@@ -55,12 +55,11 @@ process concat_alignments {
 
 	script:
 	"""
-	echo $alignments
-	touch concat_alignment.txt
+	echo \$(ls $alignments)
+    concat_alignment \$(ls ${alignments}) > concat_alignment.txt
 	"""
 
 }
-
 
 
 process learn_function {
@@ -74,7 +73,7 @@ process learn_function {
 
 	script:
 	"""
-	touch "${gene}.${level}.lfunc.dat"
+	learn_function ${params.taxonomy} ${alignment} ${level} -o ${gene} -t $task.cpus
 	"""
 }
 
@@ -90,23 +89,28 @@ process train_classifiers {
 
 	script:
 	"""
-	touch "${gene}.classifiers.dat"
+	train_classifiers ${params.taxonomy} ${alignment} -o ${gene} -t $task.cpus
 	"""
 }
 
 
 process save_db {
+	publishDir "${output_dir}/databases" 
 
 	input:
 	tuple val(gene), path(lfunc), path(classifiers)
+	tuple val(ali_id), path(alignment)
 	
 	output:
 	stdout
 	tuple val(gene), path("${gene}.stagDB"), emit: db
+	path("${gene}.cross_val")
 
 	script:
 	"""
-	touch ${gene}.stagDB
+	touch hmm_dummy.txt
+	touch protein_stuff.txt
+	save_db ${params.taxonomy} ${alignment} ${classifiers} hmm_dummy.txt protein_stuff.txt \$(ls *.lfunc.dat) -o ${gene}
 	"""
 }
 
@@ -172,8 +176,9 @@ workflow {
 	*/
 
 	lf_clf_combine_ch = lf_combine_ch.join(train_classifiers.out.classifiers)
+	lf_clf_combine_ch.view()
 
-	save_db(lf_clf_combine_ch)
+	save_db(lf_clf_combine_ch, concat_alignments.out.alignment)
 	save_db.out.db.view()
 
 }
