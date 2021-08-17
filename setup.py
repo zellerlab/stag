@@ -56,7 +56,7 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 				"save_db=stag.save_db:main",
 			],
 		},
-		scripts=[],
+		scripts=["nextflow/build_genome_db.nf"],
 		package_data={
 			"stag.test": ["gene.hmm", "sequences.fasta", "sequences.taxonomy"]
 		},
