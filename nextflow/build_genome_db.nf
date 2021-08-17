@@ -98,8 +98,7 @@ process save_db {
 	publishDir "${output_dir}/databases" 
 
 	input:
-	tuple val(gene), path(lfunc), path(classifiers)
-	tuple val(ali_id), path(alignment)
+	tuple val(gene), path(lfunc), path(classifiers), path(alignment)
 	
 	output:
 	stdout
@@ -135,7 +134,7 @@ workflow {
 	seq_ch.view()
 
 	/*
-		2. Align the marker gene sets need to be against gene-specific hmms (provided via config file).
+		2. Align the marker gene sets against gene-specific hmms (provided via config file).
 	*/
 
 	align_marker_genes(seq_ch)
@@ -156,6 +155,7 @@ workflow {
 	*/	
 
 	clf_input_ch = aln_ch.concat(concat_alignments.out.alignment)
+	clf_input_ch.view()
 	train_classifiers(clf_input_ch)
 
 	/*
@@ -175,10 +175,10 @@ workflow {
 		6. Combine the classifier trainings and learning function estimates and save the database.
 	*/
 
-	lf_clf_combine_ch = lf_combine_ch.join(train_classifiers.out.classifiers)
+	lf_clf_combine_ch = lf_combine_ch.join(train_classifiers.out.classifiers.join(clf_input_ch))
 	lf_clf_combine_ch.view()
 
-	save_db(lf_clf_combine_ch, concat_alignments.out.alignment)
+	save_db(lf_clf_combine_ch)
 	save_db.out.db.view()
 
 }
