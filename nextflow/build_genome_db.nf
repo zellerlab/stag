@@ -106,10 +106,11 @@ process save_db {
 	path("${gene}.cross_val")
 
 	script:
+	def hmm_file = ($gene == "genome") ? "hmm_dummy.txt" : ${params.hmmlib}/${gene}.hmm;
 	"""
 	touch hmm_dummy.txt
 	touch protein_stuff.txt
-	save_db ${params.taxonomy} ${alignment} ${classifiers} hmm_dummy.txt protein_stuff.txt \$(ls *.lfunc.dat) -o ${gene}
+	save_db ${params.taxonomy} ${alignment} ${classifiers} ${hmm_file} protein_stuff.txt \$(ls *.lfunc.dat) -o ${gene}
 	"""
 }
 
