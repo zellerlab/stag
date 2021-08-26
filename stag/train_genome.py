@@ -6,35 +6,21 @@ import tarfile
 from stag.helpers import check_file_exists
 from stag.classify import classify
 
-# cschu 2021-04-10: we need to change the alignment format!! -> this is too hacky.
-# find the length of the alignments --------------------------------------------
-def find_length_ali(gene_db, fasta_input, protein_fasta_input):
-    return classify(gene_db, fasta_input=fasta_input,
-                    protein_fasta_input=protein_fasta_input, internal_call=True)[0]
 
-def get_dummy_fastas():
-    fasta_files = list()
-    for seq in ("AAA", "A"):
-        with tempfile.NamedTemporaryFile(delete=False, mode="w") as tmp_fasta:
-            os.chmod(tmp_fasta.name, 0o644)
-            print(">test", seq, sep="\n", file=tmp_fasta, flush=True)
-            fasta_files.append(tmp_fasta.name)
-    return fasta_files
-
-def get_alignment_lengths(list_genes):
-    fna, faa = get_dummy_fastas()
+def get_alignment_lengths(f):
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as length_file:
         os.chmod(length_file.name, 0o644)
-        for gene_db in list_genes:
-            print(os.path.basename(gene_db), find_length_ali(gene_db, fna, faa), sep="\t", flush=True, file=length_file)
-        [os.remove(f) for f in (fna, faa)]
+        for line in open(f):
+            cog, _, length = line.strip().split("\t")
+            if length != "-":
+                print(cog, length, sep="\t", flush=True, file=length_file)
         return length_file.name
 
 
 def train_genome(output, list_genes, gene_threshold_file, threads, verbose, concat_stag_db):
     check_file_exists(gene_threshold_file, isfasta=False)
     with open(gene_threshold_file) as f:
-        gene_thresholds = set(line.strip().split("\t")[0] for line in f if line)
+        gene_thresholds = set(line.strip().split("\t")[0] for line in f if line if line.strip()[-1] != "-")
 
     list_genes = list_genes.split(",")
     missing_thresholds = set(os.path.basename(fn) for fn in list_genes).difference(gene_thresholds)
@@ -56,7 +42,7 @@ def train_genome(output, list_genes, gene_threshold_file, threads, verbose, conc
                 genome_tar.add(fn, base_fn)
             except:
                 raise ValueError(f"[E::main] Error: when adding {fn} to the database")
-        for source, target in zip((gene_threshold_file, get_alignment_lengths(list_genes), concat_stag_db), core_db_files):
+        for source, target in zip((gene_threshold_file, get_alignment_lengths(gene_threshold_file), concat_stag_db), core_db_files):
             genome_tar.add(source, target)
 
     try:
