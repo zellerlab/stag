@@ -9,6 +9,8 @@ import pandas as pd
 import sys
 import metric_learn
 import statistics
+import multiprocessing as mp
+
 from sklearn.metrics import precision_recall_curve
 
 logging = "global_logging"
@@ -60,26 +62,32 @@ def remove_invariant_columns(X_full):
     return X_full[:,col_to_keep], col_to_keep
 
 
+
 # MAIN function to estimate the weights
-def estimate_weights(ALI, tax, sel_level):
+def estimate_weights(ALI, tax, sel_level, procs=1):
+
+    def get_x_columns(ALI, clade):
+        # we subselect the training
+        this_ALI = ALI.loc[all_clades[clade],:]
+        # transform from pandas to numpy (for the features)
+        X_full = 1 * this_ALI.to_numpy()
+
+        return X_full
+
+
     # find all families (or other level), we test with sel_level = 4
     all_clades = dict()
     for seq in tax:
-        if not tax[seq][sel_level] in all_clades:
-            all_clades[tax[seq][sel_level]] = list()
-        all_clades[tax[seq][sel_level]].append(seq)
+        all_clades.setdefault(tax[seq][sel_level], list()).append(seq)
     # now we do the analysis by clade
     all_LMNN = dict()
     all_transformed = dict()
     all_sel_positions = dict()
+
+    clades_to_compute = set()
     for clade in all_clades:
         logging.info('    TRAIN_NN_3: Clade: %s', clade)
-        # for the X --------------------------------------------
-        # we subselect the training
-        this_ALI = ALI.loc[all_clades[clade],:]
-        # transform from pandas to numpy (for the features)
-        X_full = 1*this_ALI.to_numpy()
-        # we remove columns that do not change
+        X_full = get_x_columns(ALI, clade)
         X, sel_positions = remove_invariant_columns(X_full)
         # which columns were selected for this clade
         all_sel_positions[clade] = sel_positions
@@ -88,56 +96,57 @@ def estimate_weights(ALI, tax, sel_level):
         # for the y  -------------------------------------------
         # we need to create the species ground thruth
         rownames = this_ALI.index.values
-        list_species = list()
-        for i in rownames:
-            list_species.append(tax[i][-1])
+        list_species = [tax[row][-1] for row in rownames]
         # we need numbers
-        species_2_num = dict()
-        cont = 1
-        for i in list(set(list_species)):
-            species_2_num[i] = cont
-            cont = cont + 1
-        y_list = list()
-        for i in list_species:
-            y_list.append(species_2_num[i])
-        y = np.array(y_list)
+        species_2_num = {
+            species: i for i, species in enumerate(set(list_species), start=1)
+        }
+        y = np.array([species_2_num[species] for species in list_species])
 
-        if len(y) > 5:
-            # we learn the transformation --------------------------
-            lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2,regularization = 0.4)
-            # fit the data
-            logging.info('     TRAIN_NN_4: Fit the data')
-
-            # we check that there are at least 2 species, otherwise lmnn.fit would fail
-            set_species = list(set(y_list))
-            if len(set_species) == 1:
-                logging.info('     TRAIN_NN_4: Only one species')
-                all_LMNN[clade] = "NOT ENOUGH DATA"
-                all_transformed[clade] = pd.DataFrame(X, index=rownames)
-            else:
-                lmnn.fit(X, y)
-                #TODO: check that it converges, you have to parse the output printed
-                #      with verbose
-
-                # transform our input space ----------------------------
-                logging.info('     TRAIN_NN_4: Transform the data')
-                X_lmnn = lmnn.transform(X)
-
-                # create a panda object with the transformed space and the correct
-                # rownames
-                X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
-
-                # add to dict ------------------------------------------
-                all_LMNN[clade] = lmnn
-                all_transformed[clade] = X_lmnn_PD # it's a pandas object
-
-        else:
-            logging.info('     TRAIN_NN_4: Not enough data ('+str(len(y_list))+')')
+        if len(set(y)) == 1 or len(y) <= 5:
             all_LMNN[clade] = "NOT ENOUGH DATA"
-            all_transformed[clade] = pd.DataFrame(X, index=rownames)
+            message = f'Not enough data ({len(y)})' if len(y) <= 5 else 'Only one species'
+            logging.info(f'     TRAIN_NN_4: {message}')        
+        else:
+            logging.info('     TRAIN_NN_4: Fit the data')
+            if procs == 1:
+                all_LMNN[clade], all_transformed[clade] = estimate_weights_for_clade(X, y)
+            else:
+                clades_to_compute.add((clade, y))
 
+    if clades_to_compute:
+        with mp.Pool(processes=procs) as pool:
+            results = [
+                pool.apply_async(
+                    estimate_weights_for_clade,
+                    args=(get_x_columns(ALI, clade).loc[:, all_sel_positions[clade]], y)
+                )
+                for clade, y in clades_to_compute
+            ]
+
+            for res in results:
+                all_LMNN[clade], all_transformed[clade] = res.get()
+                    
 
     return all_LMNN, all_transformed, all_sel_positions
+
+def estimate_weights_for_clade(X, y):
+    # we learn the transformation --------------------------
+    lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2, regularization=0.4)
+    lmnn.fit(X, y)
+
+    #TODO: check that it converges, you have to parse the output printed
+    #      with verbose
+
+    logging.info('     TRAIN_NN_4: Transform the data')
+    X_lmnn = lmnn.transform(X)
+
+    # create a panda object with the transformed space and the correct
+    # rownames
+    X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
+
+    return lmnn, X_lmnn_PD
+    
 
 
 
@@ -333,7 +342,7 @@ def find_thresholds(all_transformed, tax):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
+def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, procs=1):
     # set logging
     global logging
     logging = logging_
@@ -344,7 +353,7 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_):
 
     # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
-    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level)
+    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level, procs=procs)
 
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
