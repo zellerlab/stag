@@ -71,8 +71,10 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
         this_ALI = ALI.loc[all_clades[clade],:]
         # transform from pandas to numpy (for the features)
         X_full = 1 * this_ALI.to_numpy()
+        # find rownames
+        rownames = this_ALI.index.values
 
-        return X_full
+        return X_full,rownames
 
 
     # find all families (or other level), we test with sel_level = 4
@@ -87,7 +89,7 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
     clades_to_compute = set()
     for clade in all_clades:
         logging.info('    TRAIN_NN_3: Clade: %s', clade)
-        X_full = get_x_columns(ALI, clade)
+        X_full,rownames = get_x_columns(ALI, clade)
         X, sel_positions = remove_invariant_columns(X_full)
         # which columns were selected for this clade
         all_sel_positions[clade] = sel_positions
@@ -95,7 +97,6 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
 
         # for the y  -------------------------------------------
         # we need to create the species ground thruth
-        rownames = this_ALI.index.values
         list_species = [tax[row][-1] for row in rownames]
         # we need numbers
         species_2_num = {
@@ -106,11 +107,11 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
         if len(set(y)) == 1 or len(y) <= 5:
             all_LMNN[clade] = "NOT ENOUGH DATA"
             message = f'Not enough data ({len(y)})' if len(y) <= 5 else 'Only one species'
-            logging.info(f'     TRAIN_NN_4: {message}')        
+            logging.info(f'     TRAIN_NN_4: {message}')
         else:
             logging.info('     TRAIN_NN_4: Fit the data')
             if procs == 1:
-                all_LMNN[clade], all_transformed[clade] = estimate_weights_for_clade(X, y)
+                all_LMNN[clade], all_transformed[clade] = estimate_weights_for_clade(X, y,rownames)
             else:
                 clades_to_compute.add((clade, y))
 
@@ -119,18 +120,18 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
             results = [
                 pool.apply_async(
                     estimate_weights_for_clade,
-                    args=(get_x_columns(ALI, clade).loc[:, all_sel_positions[clade]], y)
+                    args=(get_x_columns(ALI, clade).loc[:, all_sel_positions[clade]], y,rownames)
                 )
                 for clade, y in clades_to_compute
             ]
 
             for res in results:
                 all_LMNN[clade], all_transformed[clade] = res.get()
-                    
+
 
     return all_LMNN, all_transformed, all_sel_positions
 
-def estimate_weights_for_clade(X, y):
+def estimate_weights_for_clade(X, y, rownames):
     # we learn the transformation --------------------------
     lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2, regularization=0.4)
     lmnn.fit(X, y)
@@ -146,7 +147,7 @@ def estimate_weights_for_clade(X, y):
     X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
 
     return lmnn, X_lmnn_PD
-    
+
 
 
 
