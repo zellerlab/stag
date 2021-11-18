@@ -207,7 +207,7 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
-    if verbose > 4: sys.stderr.write(f"train_all_classifiers_mp with {procs} processes.")
+    if verbose > 4: sys.stderr.write(f"train_all_classifiers_mp with {procs} processes.\n")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
         nodes = list(full_taxonomy.get_all_nodes(get_root=False))
