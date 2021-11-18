@@ -210,7 +210,7 @@ def main(argv=None):
                                  'classify_genome','test','convert_ali',"unzip_db"])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=1, help='Number of threads to be used.')
-    parser.add_argument('-v', action='store', type=int, default=3, dest='verbose', help='Verbose levels', choices=list(range(1,5)))
+    parser.add_argument('-v', action='store', type=int, default=3, dest='verbose', help='Verbose levels', choices=list(range(1,10)))
     parser.add_argument('-c', action='store_true', dest='use_cm_align', help='Set if you want to use cmalign isntead of hmmalign')
     parser.add_argument('-s', action="store", default=None,dest='aligned_sequences', help='sequences that needs to be aligned')
     parser.add_argument('-a', action="store", default=None,dest='template_al', help='alignment template')

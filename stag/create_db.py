@@ -28,6 +28,7 @@ from stag.databases2 import save_to_file
 from stag.alignment import load_alignment_from_file
 from stag.train_NN import train_NN_classifiers
 
+verbose = "global_verbose"
 
 # function to check the NN level -----------------------------------------------
 def check_level_NN_start_level(full_taxonomy, NN_start_level):
@@ -206,7 +207,7 @@ def get_classification_input_mp2(nodes, taxonomy, alignment, penalty_v, solver_v
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
     import multiprocessing as mp
-    print(f"train_all_classifiers_mp with {procs} processes.")
+    if verbose > 4: sys.stderr.write(f"train_all_classifiers_mp with {procs} processes.")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
         nodes = list(full_taxonomy.get_all_nodes(get_root=False))
@@ -418,7 +419,11 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
     return estimate_function(all_calc_functions)
 
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level, procs=None):
+def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level, procs=None):
+    # set verbose
+    global verbose
+    verbose = verbose_
+
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
                         filemode='w',
@@ -454,8 +459,9 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. train classifiers for the nearest neighbour
+    if verbose > 3: sys.stderr.write("Train NN\n")
     logging.info('MAIN:Train classifiers for nearest neighbour')
-    all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions = train_NN_classifiers(alignment, tax_file, NN_start_level, logging, procs=procs if procs else 1)
+    all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions = train_NN_classifiers(alignment, tax_file, NN_start_level, logging, verbose, procs=procs if procs else 1)
     logging.info('TIME:Finish train classifiers for nearest neighbour')
 
     # 7. save the result

@@ -14,6 +14,7 @@ import multiprocessing as mp
 from sklearn.metrics import precision_recall_curve
 
 logging = "global_logging"
+verbose = "global_verbose"
 
 #===============================================================================
 #                                      UTIL
@@ -105,11 +106,13 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
         y = np.array([species_2_num[species] for species in list_species])
 
         if len(set(y)) == 1 or len(y) <= 5:
+            if verbose > 5: sys.stderr.write("------------------- "+clade+": NOT ENOUGH DATA\n")
             all_LMNN[clade] = "NOT ENOUGH DATA"
             message = f'Not enough data ({len(y)})' if len(y) <= 5 else 'Only one species'
             logging.info(f'     TRAIN_NN_4: {message}')
         else:
             logging.info('     TRAIN_NN_4: Fit the data')
+            if verbose > 4: sys.stderr.write("----- "+clade+"("+str(len(y))+"): will train\n")
             if procs == 1:
                 all_LMNN[clade], all_transformed[clade] = estimate_weights_for_clade(X, y,rownames)
             else:
@@ -120,7 +123,7 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
             results = [
                 pool.apply_async(
                     estimate_weights_for_clade,
-                    args=(get_x_columns(ALI, clade)[0].loc[:, all_sel_positions[clade]], np.array(y),get_x_columns(ALI, clade)[1])
+                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y),get_x_columns(ALI, clade)[0])
                 )
                 for clade, y in clades_to_compute
             ]
@@ -133,8 +136,10 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
 
 def estimate_weights_for_clade(X, y, rownames):
     # we learn the transformation --------------------------
+    if verbose > 4: sys.stderr.write("---------- ("+str(len(y))+"): start fit\n")
     lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2, regularization=0.4)
     lmnn.fit(X, y)
+    if verbose > 4: sys.stderr.write("---------- ("+str(len(y))+"): finish fit\n")
 
     #TODO: check that it converges, you have to parse the output printed
     #      with verbose
@@ -343,21 +348,27 @@ def find_thresholds(all_transformed, tax):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, procs=1):
+def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_, procs=1):
     # set logging
     global logging
     logging = logging_
+    # set verbose
+    global verbose
+    verbose = verbose_
 
     # 0. load the taxonomy
     logging.info('  TRAIN_NN_1: load tax')
+    if verbose > 4: sys.stderr.write("-- Load taxonomy\n")
     tax, species_to_tax = load_tax_line(tax_file, alignment)
 
     # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
+    if verbose > 4: sys.stderr.write("-- Calculate LMNN\n")
     all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level, procs=procs)
 
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
+    if verbose > 4: sys.stderr.write("-- Find centroids and thresholds\n")
     thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax)
 
     return all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions
