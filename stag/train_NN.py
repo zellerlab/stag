@@ -123,7 +123,7 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
             results = [
                 pool.apply_async(
                     estimate_weights_for_clade,
-                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y), ALI.index.values)
+                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y), get_x_columns(ALI, clade)[1])
                 )
                 for clade, y in clades_to_compute
             ]
