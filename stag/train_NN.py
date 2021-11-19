@@ -149,6 +149,7 @@ def estimate_weights_for_clade(X, y, rownames):
 
     # create a panda object with the transformed space and the correct
     # rownames
+    if verbose > 5: sys.stderr.write("--------------- ("+str(len(y))+"): dimX_lmnn="+str(X_lmnn.shape[0])+"x"+str(X_lmnn.shape[1])+"; dim_rownames="+str(len(rownames))+"\n")
     X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
 
     return lmnn, X_lmnn_PD
