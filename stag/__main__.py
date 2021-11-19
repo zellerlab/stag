@@ -96,6 +96,7 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-M{bco.ResetAll}  FILE  save intermediate distances for the NN classifier {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
@@ -222,6 +223,7 @@ def main(argv=None):
     parser.add_argument('-d', action="store", dest='database', default=None, help='file containing the database')
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
+    parser.add_argument('-M', action="store", dest='intermediate_dist_for_NN', default=None, help='name of the file for the intermediate distances calculated in the NN')
     parser.add_argument('-m', action='store', type=int, default=None, dest='min_perc_state', help='Minimum number of mapping states, i.e. how many features of the classifier we cover')
     parser.add_argument('-l', action='store_true', dest='long_out', help='Print more columns for the classification pipeline')
     parser.add_argument('-r', action='store_true', dest='keep_all_genes', help='keep all genes when doing the classification of genomes')
@@ -324,7 +326,7 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, args.intermediate_dist_for_NN, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -370,7 +372,7 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, args.intermediate_dist_for_NN, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:

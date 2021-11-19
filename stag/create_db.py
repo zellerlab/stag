@@ -419,7 +419,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
     return estimate_function(all_calc_functions)
 
 
-def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level, procs=None):
+def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level,intermediate_dist_for_NN, procs=None):
     # set verbose
     global verbose
     verbose = verbose_
@@ -461,7 +461,7 @@ def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_fil
     # 6. train classifiers for the nearest neighbour
     if verbose > 3: sys.stderr.write("Train NN\n")
     logging.info('MAIN:Train classifiers for nearest neighbour')
-    all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions = train_NN_classifiers(alignment, tax_file, NN_start_level, logging, verbose, procs=procs if procs else 1)
+    all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions = train_NN_classifiers(alignment, tax_file, NN_start_level, logging, verbose,intermediate_dist_for_NN, procs=procs if procs else 1)
     logging.info('TIME:Finish train classifiers for nearest neighbour')
 
     # 7. save the result

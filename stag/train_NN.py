@@ -35,6 +35,23 @@ def load_tax_line(tax_file, ALI):
     o.close()
     return res, species_to_tax
 
+# ------------------------------------------------------------------------------
+# save distances to file
+# dist_all_vs_centroids is like (if we use `-L 4`):
+# {4:[6.3,9.5,11.4,22.4,3.6],
+#  5:[2.3,2.4,2.0,2.1],
+#  6:[0.3,0.6,0.5,1.2,1.0]}
+# where 5 means genus
+def save_distances_to_file(dist_all_vs_centroids, clade, intermediate_dist_for_NN):
+    o = open(intermediate_dist_for_NN,"r")
+    for dis in distances:
+        o.write(clade+"\t"+str(dis))
+        for i in distances[dis]:
+            o.write("\t"+str(i))
+        o.write("\n")
+    o.close()
+
+
 #===============================================================================
 #                          TRANSFORM THE SPACE
 #===============================================================================
@@ -312,7 +329,7 @@ def find_thresholds_from_dist(distances):
 
 
 # ------------------------------------------------------------------------------
-def find_thresholds(all_transformed, tax):
+def find_thresholds(all_transformed, tax, intermediate_dist_for_NN):
     # prepare the result
     threshold_clades = dict()
     list_centroids_all = dict() # will contain pandas array
@@ -339,6 +356,10 @@ def find_thresholds(all_transformed, tax):
         logging.info('    TRAIN_NN_3: Calculate distances')
         dist_all_vs_centroids = calc_all_dist_to_centroids(centroids_this,all_transformed[clade],tax)
 
+        # check if saving the intermediate distances -------
+        if(intermediate_dist_for_NN is not None):
+            save_distances_to_file(dist_all_vs_centroids, clade, intermediate_dist_for_NN)
+
         # find the thresholds -------------------
         logging.info('    TRAIN_NN_3: Find thresholds')
         threshold_clades[clade] = find_thresholds_from_dist(dist_all_vs_centroids)
@@ -349,7 +370,7 @@ def find_thresholds(all_transformed, tax):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_, procs=1):
+def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,intermediate_dist_for_NN, procs=1):
     # set logging
     global logging
     logging = logging_
@@ -370,6 +391,6 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
     if verbose > 4: sys.stderr.write("-- Find centroids and thresholds\n")
-    thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax)
+    thresholds_NN, centroid_seq = find_thresholds(all_transformed, tax, intermediate_dist_for_NN)
 
     return all_LMNN, thresholds_NN, centroid_seq, species_to_tax, all_sel_positions
