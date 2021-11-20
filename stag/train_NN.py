@@ -42,7 +42,7 @@ def load_tax_line(tax_file, ALI):
 #  5:[2.3,2.4,2.0,2.1],
 #  6:[0.3,0.6,0.5,1.2,1.0]}
 # where 5 means genus
-def save_distances_to_file(dist_all_vs_centroids, clade, intermediate_dist_for_NN):
+def save_distances_to_file(distances, clade, intermediate_dist_for_NN):
     o = open(intermediate_dist_for_NN,"w")
     for dis in distances:
         o.write(clade+"\t"+str(dis))
