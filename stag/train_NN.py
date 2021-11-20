@@ -43,13 +43,12 @@ def load_tax_line(tax_file, ALI):
 #  6:[0.3,0.6,0.5,1.2,1.0]}
 # where 5 means genus
 def save_distances_to_file(distances, clade, intermediate_dist_for_NN):
-    o = open(intermediate_dist_for_NN,"w")
-    for dis in distances:
-        o.write(clade+"\t"+str(dis))
-        for i in distances[dis]:
-            o.write("\t"+str(i))
-        o.write("\n")
-    o.close()
+    with open(intermediate_dist_for_NN, "a") as o:
+        for dis in distances:
+            o.write(clade+"\t"+str(dis))
+            for i in distances[dis]:
+                o.write("\t"+str(i))
+            o.write("\n")
 
 
 #===============================================================================
