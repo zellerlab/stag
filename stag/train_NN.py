@@ -124,6 +124,8 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
         if len(set(y)) == 1 or len(y) <= min_training_data_lmnn:
             if verbose > 5: sys.stderr.write("------------------- "+clade+": NOT ENOUGH DATA\n")
             all_LMNN[clade] = "NOT ENOUGH DATA"
+            # we add the untransformed data
+            all_transformed[clade] = pd.DataFrame(X, index=rownames)
             message = f'Not enough data ({len(y)})' if len(y) <= min_training_data_lmnn else 'Only one species'
             logging.info(f'     TRAIN_NN_4: {message}')
         else:
