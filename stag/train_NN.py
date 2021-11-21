@@ -81,7 +81,7 @@ def remove_invariant_columns(X_full):
 
 
 # MAIN function to estimate the weights
-def estimate_weights(ALI, tax, sel_level, procs=1):
+def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
 
     def get_x_columns(ALI, clade):
         # we subselect the training
@@ -121,10 +121,10 @@ def estimate_weights(ALI, tax, sel_level, procs=1):
         }
         y = np.array([species_2_num[species] for species in list_species])
 
-        if len(set(y)) == 1 or len(y) <= 5:
+        if len(set(y)) == 1 or len(y) <= min_training_data_lmnn:
             if verbose > 5: sys.stderr.write("------------------- "+clade+": NOT ENOUGH DATA\n")
             all_LMNN[clade] = "NOT ENOUGH DATA"
-            message = f'Not enough data ({len(y)})' if len(y) <= 5 else 'Only one species'
+            message = f'Not enough data ({len(y)})' if len(y) <= min_training_data_lmnn else 'Only one species'
             logging.info(f'     TRAIN_NN_4: {message}')
         else:
             logging.info('     TRAIN_NN_4: Fit the data')
@@ -371,7 +371,7 @@ def find_thresholds(all_transformed, tax, intermediate_dist_for_NN):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,intermediate_dist_for_NN, procs=1):
+def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,intermediate_dist_for_NN, min_training_data_lmnn, procs=1):
     # set logging
     global logging
     logging = logging_
@@ -387,7 +387,7 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,
     # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
     if verbose > 4: sys.stderr.write("-- Calculate LMNN\n")
-    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level, procs=procs)
+    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level, min_training_data_lmnn, procs=procs)
 
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')

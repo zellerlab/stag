@@ -97,6 +97,7 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-M{bco.ResetAll}  FILE  save intermediate distances for the NN classifier {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-u{bco.ResetAll}  INT   set minimum number of sequences required for training the LMNN model {bco.LightMagenta}[5]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
@@ -141,6 +142,8 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n\n")
     sys.stderr.write(f"  {bco.LightBlue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-M{bco.ResetAll}  FILE  save intermediate distances for the NN classifier {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-u{bco.ResetAll}  INT   set minimum number of sequences required for training the LMNN model {bco.LightMagenta}[5]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
@@ -224,6 +227,7 @@ def main(argv=None):
     parser.add_argument('-S', action="store", dest='intermediate_al', default=None, help='name of the file for the intermediate alignment')
     parser.add_argument('-C', action="store", dest='intermediate_cross_val', default=None, help='name of the file for the intermediate cross validation results')
     parser.add_argument('-M', action="store", dest='intermediate_dist_for_NN', default=None, help='name of the file for the intermediate distances calculated in the NN')
+    parser.add_argument('-u', action='store', type=int, default=5, dest='min_training_data_lmnn', help='min number of sequences to run LMNN, if lower we do not transform')
     parser.add_argument('-m', action='store', type=int, default=None, dest='min_perc_state', help='Minimum number of mapping states, i.e. how many features of the classifier we cover')
     parser.add_argument('-l', action='store_true', dest='long_out', help='Print more columns for the classification pipeline')
     parser.add_argument('-r', action='store_true', dest='keep_all_genes', help='keep all genes when doing the classification of genomes')
@@ -326,7 +330,8 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, args.intermediate_dist_for_NN, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, args.NN_start_level,
+                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -372,7 +377,8 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, args.NN_start_level, args.intermediate_dist_for_NN, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, args.NN_start_level,
+                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
