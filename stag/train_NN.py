@@ -136,7 +136,9 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
             else:
                 clades_to_compute.add((clade, tuple(y)))
 
+    if verbose > 4: sys.stderr.write("  Finished first pass through all clades\n")
     if clades_to_compute:
+        if verbose > 4: sys.stderr.write("  Enter multiprocessing\n")
         with mp.Pool(processes=procs) as pool:
             results = [
                 pool.apply_async(
