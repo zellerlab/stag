@@ -132,12 +132,17 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
              long_out=False, current_tool_version=tool_version,
              aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, internal_call=False):
     t0 = time.time()
+
+    # ==========================================================================
+    # load database
     db = load_db(database, protein_fasta_input=protein_fasta_input, aligned_sequences=aligned_sequences)
     # db is now a dictionary with all the data inside
     if verbose > 2:
         time_after_loading = time.time()
         sys.stderr.write("Load database: " + str("{0:.2f}".format(time_after_loading - t0))+" sec\n")
 
+    # ==========================================================================
+    # align sequences
     alignment_length = None
     # align the sequences and classify them
     list_to_print = list()
@@ -151,6 +156,8 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
         if save_ali_to_file:
             alignment_out, write_alignments = open(save_ali_to_file, "w"), True
 
+    # ==========================================================================
+    # classify sequences along the tree
     with alignment_out:
         for gene_id, ali in alignments:
             if not alignment_length:
@@ -168,7 +175,11 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
     # delete the hmm temp file that was created --------------------------------
     os.remove(db["hmm_file_path"])
 
-    # print the sequences ------------------------------------------------------
+    # ==========================================================================
+    # do NN classification
+
+    # ==========================================================================
+    # print sequences
     if output:
         outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
         os.chmod(outfile.name, 0o644)
