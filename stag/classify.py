@@ -125,6 +125,76 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
 
 
 #===============================================================================
+#                            DO NN CLASSIFICATION
+#===============================================================================
+# we change `list_to_print` directly inside the function adding the NN
+# classification. Note that we have to change the position -1
+def NN_classification(list_to_print,db,ali):
+    annotation_this = "" # annotation based on the NN and the thresholds
+    NN_this = "" # nearest neighbour sequence
+    min_this = float('inf') # distance to the NN_this
+
+    # --------------------------------------------------------------------------
+    # check if there is a family annotation (note it can be different than
+    # family the selected level)
+    current_annotation = list_to_print[-1][1].split(";")
+    NN_start_level = db["NN_start_level"] # it's the `-L` option, default is `4` (family)
+    if len(current_annotation) <= NN_start_level:
+        # we do not have a family annotation, hence we don't do NN classification
+        min_this = "-1"
+    else:
+        # there is a family annotation
+        family_this = current_annotation[NN_start_level]
+        lmnn_this = db["LMNN"][family_this]
+        # the alignment was reduced, keeping only some columns (the one that do change)
+        # hence we select the same columns
+        col_to_keep = db["all_sel_positions"][family_this]
+        ali_sel = ali[col_to_keep]
+        # we need to check if there was enough data to do the training
+        # if there is enough data, then we do LMNN transformation, otherwise no
+        if isinstance(lmnn_this,(np.ndarray)):
+        # same as: if lmnn_this != "NOT ENOUGH DATA":
+            # we transform the vector. This is exactly the same as in the training
+            # after transformation
+            ali_sel = ali_sel.dot(lmnn_this)
+
+        # calculate the distances to all centroid sequences and find the minimum
+        for species in db["centroid_seq"][family_this].index.values:
+            distance_this = dist_vectors(db["centroid_seq"][family_this],species,ali_sel)
+            if distance_this < min_this:
+                min_this = distance_this
+                NN_this = species
+
+        # now we found the closest sequence, and we can use the threshold to decide
+        # the NN taxonomy
+        sel_level_nn = -1
+        for th in db["thresholds_NN"][family_this]:
+            if th > sel_level_nn:
+                if db["thresholds_NN"][family_this][th] > min_this:
+                    sel_level_nn = th
+        # prepare the new taxonomy
+        if sel_level_nn == -1:
+            annotation_this = ""
+        else:
+            annotation_this = db["species_to_tax"][NN_this][0:sel_level_nn+1]
+    # --------------------------------------------------------------------------
+    # change the `list_to_print`
+    list_to_print[-1].append(";".join(annotation_this))
+    list_to_print[-1].append(NN_this)
+    list_to_print[-1].append(str(min_this))
+
+# Calculate perc identity between two sequences
+#  - ALI is the pandas DF with the centroids
+#  - pos is the centroid we are cheking
+#  - ali_sel is the sequence we are cheking
+def dist_vectors(ALI,pos,ali_sel):
+    seq1 = ALI.loc[pos,].to_numpy()
+    # euclidean distance
+    dist = np.linalg.norm(seq1-ali_sel)
+    return dist
+
+
+#===============================================================================
 #                                      MAIN
 #===============================================================================
 
@@ -168,15 +238,15 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
                 ali_str = np.char.mod('%.0f', ali)
                 print(gene_id, *ali_str, sep="\t", file=alignment_out)
 
+            # we do NN classification per sample (not ideal, would be better to collect all the alignment from one family)
+            NN_classification(list_to_print,db,ali)
+
     if verbose > 2:
         time_after_classification = time.time()
         sys.stderr.write("Classify sequences: " + str("{0:.2f}".format(time_after_classification - time_after_loading))+" sec\n")
 
     # delete the hmm temp file that was created --------------------------------
     os.remove(db["hmm_file_path"])
-
-    # ==========================================================================
-    # do NN classification
 
     # ==========================================================================
     # print sequences
@@ -186,9 +256,9 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
     else:
         outfile = sys.stdout
 
-
     out_header = ["sequence", "taxonomy", "full_taxonomy", "selected_level",
-                  "prob_from_classifiers", "prob_per_level", "n_aligned_characters"]
+                  "prob_from_classifiers", "prob_per_level", "n_aligned_characters",
+                  "annotation_NN","NN","distance"]
 
     if not long_out or internal_call:
         out_header = out_header[:2]
