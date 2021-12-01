@@ -431,25 +431,25 @@ def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_fil
                         format='[%(asctime)s] %(message)s')
     logging.info('TIME:start')
 
+    # 1. load the taxonomy into the tree (global variable)
+    logging.info('MAIN:Load taxonomy')
+    full_taxonomy = Taxonomy(tax_file)
+    full_taxonomy.load_from_file()
+    logging.info('TIME:Finish load taxonomy')
+
+    # 2. load the alignment into a pandas dataframe
+    logging.info('MAIN:Load alignment')
+    alignment = load_alignment_from_file(aligned_seq_file)
+    logging.info('TIME:Finish load alignment')
+
+    # 3. check that the taxonomy and the alignment are consistent
+    logging.info('MAIN:Check taxonomy and alignment')
+    full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
+    check_level_NN_start_level(full_taxonomy, NN_start_level)
+    logging.info('TIME:Finish check-up')
+
     # to test the NN we can skip the first steps
     if not skip_training_1:
-        # 1. load the taxonomy into the tree (global variable)
-        logging.info('MAIN:Load taxonomy')
-        full_taxonomy = Taxonomy(tax_file)
-        full_taxonomy.load_from_file()
-        logging.info('TIME:Finish load taxonomy')
-
-        # 2. load the alignment into a pandas dataframe
-        logging.info('MAIN:Load alignment')
-        alignment = load_alignment_from_file(aligned_seq_file)
-        logging.info('TIME:Finish load alignment')
-
-        # 3. check that the taxonomy and the alignment are consistent
-        logging.info('MAIN:Check taxonomy and alignment')
-        full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
-        check_level_NN_start_level(full_taxonomy, NN_start_level)
-        logging.info('TIME:Finish check-up')
-
         # 4. build a classifier for each node
         logging.info('MAIN:Train all classifiers')
         classifiers = train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
