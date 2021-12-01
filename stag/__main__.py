@@ -238,6 +238,8 @@ def main(argv=None):
     parser.add_argument('-G', action="store", dest="marker_genes", default=None, help="Set of identified marker genes in lieu of a genomic sequence")
     parser.add_argument('-L', action='store', type=int, default=4, dest='NN_start_level', help='from which level we start to learn the NN classifiers')
 
+    parser.add_argument('--skip_training_1', action='store_true', dest='skip_training_1', help='when training a database, skip the first training and go directly to the NN, used to test the NN training')
+
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
     args = parser.parse_args()
@@ -331,7 +333,7 @@ def main(argv=None):
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
                             args.penalty_logistic, args.solver_logistic, args.NN_start_level,
-                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, procs=args.threads)
+                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, args.skip_training_1, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -378,7 +380,7 @@ def main(argv=None):
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
                             args.penalty_logistic, args.solver_logistic, args.NN_start_level,
-                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, procs=args.threads)
+                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, args.skip_training_1, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:

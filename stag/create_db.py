@@ -419,7 +419,7 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
     return estimate_function(all_calc_functions)
 
 
-def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level,intermediate_dist_for_NN,min_training_data_lmnn, procs=None):
+def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, NN_start_level,intermediate_dist_for_NN,min_training_data_lmnn,skip_training_1, procs=None):
     # set verbose
     global verbose
     verbose = verbose_
@@ -431,32 +431,34 @@ def create_db(aligned_seq_file, tax_file, verbose_, output, use_cmalign, hmm_fil
                         format='[%(asctime)s] %(message)s')
     logging.info('TIME:start')
 
-    # 1. load the taxonomy into the tree (global variable)
-    logging.info('MAIN:Load taxonomy')
-    full_taxonomy = Taxonomy(tax_file)
-    full_taxonomy.load_from_file()
-    logging.info('TIME:Finish load taxonomy')
+    # to test the NN we can skip the first steps
+    if not skip_training_1:
+        # 1. load the taxonomy into the tree (global variable)
+        logging.info('MAIN:Load taxonomy')
+        full_taxonomy = Taxonomy(tax_file)
+        full_taxonomy.load_from_file()
+        logging.info('TIME:Finish load taxonomy')
 
-    # 2. load the alignment into a pandas dataframe
-    logging.info('MAIN:Load alignment')
-    alignment = load_alignment_from_file(aligned_seq_file)
-    logging.info('TIME:Finish load alignment')
+        # 2. load the alignment into a pandas dataframe
+        logging.info('MAIN:Load alignment')
+        alignment = load_alignment_from_file(aligned_seq_file)
+        logging.info('TIME:Finish load alignment')
 
-    # 3. check that the taxonomy and the alignment are consistent
-    logging.info('MAIN:Check taxonomy and alignment')
-    full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
-    check_level_NN_start_level(full_taxonomy, NN_start_level)
-    logging.info('TIME:Finish check-up')
+        # 3. check that the taxonomy and the alignment are consistent
+        logging.info('MAIN:Check taxonomy and alignment')
+        full_taxonomy.ensure_geneset_consistency(list(alignment.index.values))
+        check_level_NN_start_level(full_taxonomy, NN_start_level)
+        logging.info('TIME:Finish check-up')
 
-    # 4. build a classifier for each node
-    logging.info('MAIN:Train all classifiers')
-    classifiers = train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
-    logging.info('TIME:Finish train all classifiers')
+        # 4. build a classifier for each node
+        logging.info('MAIN:Train all classifiers')
+        classifiers = train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+        logging.info('TIME:Finish train all classifiers')
 
-    # 5. learn the function to identify the correct taxonomy level
-    logging.info('MAIN:Learn taxonomy selection function')
-    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
-    logging.info('TIME:Finish learn taxonomy selection function')
+        # 5. learn the function to identify the correct taxonomy level
+        logging.info('MAIN:Learn taxonomy selection function')
+        tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
+        logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. train classifiers for the nearest neighbour
     if verbose > 3: sys.stderr.write("Train NN\n")
