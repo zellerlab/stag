@@ -134,7 +134,7 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
             logging.info('     TRAIN_NN_4: Fit the data')
             if verbose > 4: sys.stderr.write("----- "+clade+"("+str(len(y))+"): will train\n")
             if procs == 1:
-                all_LMNN[clade], all_transformed[clade],unused = estimate_weights_for_clade(X, y, rownames, clade)
+                all_LMNN[clade], all_transformed[clade],unused = estimate_weights_for_clade(X, y, rownames, clade, verbose)
             else:
                 clades_to_compute.add((clade, tuple(y)))
 
@@ -149,7 +149,7 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
             results = [
                 pool.apply_async(
                     estimate_weights_for_clade,
-                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y), get_x_columns(ALI, clade)[1], clade)
+                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y), get_x_columns(ALI, clade)[1], clade, verbose)
                 )
                 for clade, y in clades_to_compute
             ]
@@ -165,15 +165,13 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
         logging.info(' Finished train of all NN')
     return all_LMNN, all_transformed, all_sel_positions
 
-def estimate_weights_for_clade(X, y, rownames, clade):
+def estimate_weights_for_clade(X, y, rownames, clade, verb):
     # we learn the transformation --------------------------
-    if verbose > 4:
+    if verb > 4:
         UTIL_log.print_log("---------- ("+str(len(y))+"): start fit\n")
-        logging.info('       TRAIN_NN_5: Enter one prcess -- start fit')
     lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2, regularization=0.4)
     lmnn.fit(X, y)
-    if verbose > 4:
-        logging.info('       TRAIN_NN_5: Finish fit')
+    if verb > 4:
         UTIL_log.print_log("---------- ("+str(len(y))+"): finish fit\n")
 
     #TODO: check that it converges, you have to parse the output printed
@@ -184,7 +182,7 @@ def estimate_weights_for_clade(X, y, rownames, clade):
 
     # create a panda object with the transformed space and the correct
     # rownames
-    if verbose > 5: sys.stderr.write("--------------- ("+str(len(y))+"): dimX_lmnn="+str(X_lmnn.shape[0])+"x"+str(X_lmnn.shape[1])+"; dim_rownames="+str(len(rownames))+"\n")
+    if verb > 5: sys.stderr.write("--------------- ("+str(len(y))+"): dimX_lmnn="+str(X_lmnn.shape[0])+"x"+str(X_lmnn.shape[1])+"; dim_rownames="+str(len(rownames))+"\n")
     X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
 
     return lmnn, X_lmnn_PD, clade
