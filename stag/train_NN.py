@@ -145,7 +145,7 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
         if verbose > 4:
             UTIL_log.print_log("  Enter multiprocessing\n")
             logging.info('       TRAIN_NN_5: Enter multiprocessing')
-        with mp.Pool(processes=procs) as pool:
+        with mp.get_context("spawn").Pool(processes=procs) as pool:
             results = [
                 pool.apply_async(
                     estimate_weights_for_clade,
@@ -160,6 +160,9 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
                 all_transformed[cla] = transformed
 
 
+    if verbose > 4:
+        UTIL_log.print_log("  Finished train of all NN\n")
+        logging.info(' Finished train of all NN')
     return all_LMNN, all_transformed, all_sel_positions
 
 def estimate_weights_for_clade(X, y, rownames, clade):
