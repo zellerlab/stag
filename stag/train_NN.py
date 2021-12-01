@@ -11,8 +11,6 @@ import metric_learn
 import statistics
 import multiprocessing as mp
 
-mp.set_start_method("spawn")
-
 from sklearn.metrics import precision_recall_curve
 
 from stag import UTIL_log
