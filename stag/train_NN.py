@@ -138,9 +138,13 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
             else:
                 clades_to_compute.add((clade, tuple(y)))
 
-    if verbose > 4: UTIL_log.print_log("  Finished first pass through all clades\n")
+    if verbose > 4:
+        UTIL_log.print_log("  Finished first pass through all clades\n")
+        logging.info('       TRAIN_NN_5: Finished first pass')
     if clades_to_compute:
-        if verbose > 4: UTIL_log.print_log("  Enter multiprocessing\n")
+        if verbose > 4:
+            UTIL_log.print_log("  Enter multiprocessing\n")
+            logging.info('       TRAIN_NN_5: Enter multiprocessing')
         with mp.Pool(processes=procs) as pool:
             results = [
                 pool.apply_async(
@@ -160,10 +164,14 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
 
 def estimate_weights_for_clade(X, y, rownames, clade):
     # we learn the transformation --------------------------
-    if verbose > 4: UTIL_log.print_log("---------- ("+str(len(y))+"): start fit\n")
+    if verbose > 4:
+        UTIL_log.print_log("---------- ("+str(len(y))+"): start fit\n")
+        logging.info('       TRAIN_NN_5: Enter one prcess -- start fit')
     lmnn = metric_learn.LMNN(k=1, learn_rate=1e-2, regularization=0.4)
     lmnn.fit(X, y)
-    if verbose > 4: UTIL_log.print_log("---------- ("+str(len(y))+"): finish fit\n")
+    if verbose > 4:
+        logging.info('       TRAIN_NN_5: Finish fit')
+        UTIL_log.print_log("---------- ("+str(len(y))+"): finish fit\n")
 
     #TODO: check that it converges, you have to parse the output printed
     #      with verbose
