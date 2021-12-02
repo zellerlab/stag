@@ -21,6 +21,7 @@ The stag classifier requires:
   * pandas
   * sklearn
   * h5py
+  * metric-learn
 
 If you have [conda](https://conda.io/docs/), you can install all the dependencies in `conda_env_stag.yaml`.
 See [Installation wiki](https://github.com/zellerlab/stag/wiki/Installation) for more info.
