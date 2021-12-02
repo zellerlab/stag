@@ -177,7 +177,6 @@ def estimate_weights_for_clade(X, y, rownames, clade, verb):
     #TODO: check that it converges, you have to parse the output printed
     #      with verbose
 
-    logging.info('     TRAIN_NN_4: Transform the data')
     X_lmnn = lmnn.transform(X)
 
     # create a panda object with the transformed space and the correct
