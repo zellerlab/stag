@@ -119,3 +119,40 @@ def read_fasta(fasta_stream, head_start=0, is_binary=True):
             seq.append(line)
     if seq:
         yield sid, "".join(seq)
+
+
+# ------------------------------------------------------------------------------
+# function to check the taxonomy and count the number of sequences per clade
+def print_clade_count(taxonomy, verbose, output):
+    res = dict()
+    o = open(taxonomy,"r")
+    tax_val = o.readline().rstrip().split("\t")[1].split(";")
+    o.close()
+    # we fill in per level
+    for i in range(len(tax_val)):
+        res[i] = dict()
+
+    o = open(taxonomy,"r")
+    for i in o:
+        tax_val = i.rstrip().split("\t")[1].split(";")
+        for lvl,clade in enumerate(tax_val):
+            if clade in res[lvl]:
+                res[lvl][clade] = res[lvl][clade] + 1
+            else:
+                res[lvl][clade] = 1
+    o.close()
+
+    # print result ------------
+    if not output:
+        # we print to stdout
+        outfile = sys.stdout
+    else:
+        outfile = open(output,"w")
+
+    outfile.write("Taxonomic_level\tClade\tCount\n")
+    for lv in res:
+        for cl in res[lv]:
+            outfile.write(str(lv)+"\t"+cl+"\t"+str(res[lv][cl])+"\n")
+
+    if output:
+        outfile.close()

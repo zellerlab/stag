@@ -14,7 +14,7 @@ import json
 import pathlib
 
 from . import __version__ as tool_version
-from .helpers import bco, print_error, check_file_exists, check_file_doesnt_exists
+from .helpers import bco, print_error, check_file_exists, check_file_doesnt_exists, print_clade_count
 import stag.align as align
 import stag.create_db as create_db
 import stag.classify as classify
@@ -52,15 +52,16 @@ def msg(name=None):
 
 {bco.Cyan}Command:{bco.ResetAll}
  {bco.LightGreen}-- Single gene{bco.ResetAll}
-      {bco.LightBlue}train{bco.ResetAll}        Train a classifier and create a database
-      {bco.LightBlue}classify{bco.ResetAll}     Taxonomically annotate a gene
+      {bco.LightBlue}train{bco.ResetAll}         Train a classifier and create a database
+      {bco.LightBlue}classify{bco.ResetAll}      Taxonomically annotate a gene
 
-      {bco.LightBlue}align{bco.ResetAll}        Align a sequence to a hmm or infernal model
-      {bco.LightBlue}create_db{bco.ResetAll}    Create a database given the aligned sequences
-      {bco.LightBlue}check_input{bco.ResetAll}  Check the input for the train command
-      {bco.LightBlue}correct_seq{bco.ResetAll}  Correct sequences that are in wrong orientation
-      {bco.LightBlue}convert_ali{bco.ResetAll}  Convert between 1-hot-encoding and fasta, and vice versa
-      {bco.LightBlue}unzip_db{bco.ResetAll}     Create a directory with the content of a database
+      {bco.LightBlue}align{bco.ResetAll}         Align a sequence to a hmm or infernal model
+      {bco.LightBlue}create_db{bco.ResetAll}     Create a database given the aligned sequences
+      {bco.LightBlue}check_input{bco.ResetAll}   Check the input for the train command
+      {bco.LightBlue}correct_seq{bco.ResetAll}   Correct sequences that are in wrong orientation
+      {bco.LightBlue}convert_ali{bco.ResetAll}   Convert between 1-hot-encoding and fasta, and vice versa
+      {bco.LightBlue}unzip_db{bco.ResetAll}      Create a directory with the content of a database
+      {bco.LightBlue}clade_counts{bco.ResetAll}  Print number of sequences per clade in a given taxonomy
 
  {bco.LightGreen}-- Genome{bco.ResetAll}
       {bco.LightBlue}train_genome{bco.ResetAll}     Merge classifiers of single genes
@@ -202,6 +203,14 @@ def print_menu_unzip_db():
     sys.stderr.write(f"  {bco.LightBlue}-d{bco.ResetAll}  FILE  database created with create_db or train {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  DIR   create a dir with the unzipped database {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+# ------------------------------------------------------------------------------
+def print_menu_clade_counts():
+    sys.stderr.write("\n")
+    sys.stderr.write(f"{bco.Cyan}Usage:{bco.ResetAll} {bco.Green}stag{bco.ResetAll} clade_counts {bco.LightBlue}-x{bco.ResetAll} <taxonomy> [options]\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-x{bco.ResetAll}  FILE  taxonomy file (tab separated) {bco.LightMagenta}[required]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+
 
 # ------------------------------------------------------------------------------
 # MAIN
@@ -211,7 +220,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
     parser.add_argument('command', action="store", default=None, help='mode to run stag',
                         choices=['align','train','classify','create_db','check_input','correct_seq','train_genome',
-                                 'classify_genome','test','convert_ali',"unzip_db"])
+                                 'classify_genome','test','convert_ali',"unzip_db","clade_counts"])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=1, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=3, dest='verbose', help='Verbose levels', choices=list(range(1,10)))
@@ -503,6 +512,24 @@ def main(argv=None):
 
         # call function
         unzip_db.unzip_db(args.database, args.verbose, args.output)
+
+
+    # --------------------------------------------------------------------------
+    # CLADE_COUNTS routine
+    # --------------------------------------------------------------------------
+    elif args.command == 'clade_counts':
+        # check that '-x' have been provided
+        if not args.taxonomy:
+            error = "missing <taxonomy> (-x)"
+
+        if error:
+            handle_error(error, print_menu_clade_counts)
+
+        # check that '-x' is a file
+        check_file_exists(args.taxonomy, isfasta = False)
+
+        # call function
+        print_clade_count(args.taxonomy, args.verbose, args.output)
 
     # --------------------------------------------------------------------------
     # TRAIN_GENOME routine
