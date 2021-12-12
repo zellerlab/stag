@@ -139,7 +139,7 @@ def NN_classification(list_to_print,db,ali):
     # family the selected level)
 
     # Note that we check the full taxonomy, so we always have a taxonomy annotation
-    current_annotation = list_to_print[-1][2].split(";") # changed from: list_to_print[-1][1]
+    current_annotation = list_to_print[-1][2].split("/") # changed from: list_to_print[-1][1]
 
     NN_start_level = db["NN_start_level"] # it's the `-L` option, default is `4` (family)
     if len(current_annotation) <= NN_start_level:
