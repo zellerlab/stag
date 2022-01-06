@@ -98,6 +98,7 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-f{bco.ResetAll}        force to rewrite output file\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-M{bco.ResetAll}  FILE  save intermediate distances for the NN classifier {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-B{bco.ResetAll}  DIR   save features used for the NN (transformed and untransformed) {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-u{bco.ResetAll}  INT   set minimum number of sequences required for training the LMNN model {bco.LightMagenta}[5]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
@@ -144,6 +145,7 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-M{bco.ResetAll}  FILE  save intermediate distances for the NN classifier {bco.LightMagenta}[None]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-B{bco.ResetAll}  DIR   save features used for the NN (transformed and untransformed) {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-u{bco.ResetAll}  INT   set minimum number of sequences required for training the LMNN model {bco.LightMagenta}[5]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
@@ -246,6 +248,7 @@ def main(argv=None):
     parser.add_argument('-E', action="store", default="liblinear", dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
     parser.add_argument('-G', action="store", dest="marker_genes", default=None, help="Set of identified marker genes in lieu of a genomic sequence")
     parser.add_argument('-L', action='store', type=int, default=4, dest='NN_start_level', help='from which level we start to learn the NN classifiers')
+    parser.add_argument('-B', action="store", dest="base_save_features", default=None, help="Save the LMNN transformed and untransformed, this is the base path")
 
     parser.add_argument('--skip_training_1', action='store_true', dest='skip_training_1', help='when training a database, skip the first training and go directly to the NN, used to test the NN training')
 
@@ -342,7 +345,8 @@ def main(argv=None):
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
                             args.penalty_logistic, args.solver_logistic, args.NN_start_level,
-                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, args.skip_training_1, procs=args.threads)
+                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, args.skip_training_1,
+                            args.base_save_features, procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -389,7 +393,8 @@ def main(argv=None):
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
                             args.penalty_logistic, args.solver_logistic, args.NN_start_level,
-                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, args.skip_training_1, procs=args.threads)
+                            args.intermediate_dist_for_NN, args.min_training_data_lmnn, args.skip_training_1,
+                            args.base_save_features, procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:

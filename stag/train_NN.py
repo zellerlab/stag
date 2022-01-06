@@ -83,7 +83,7 @@ def remove_invariant_columns(X_full):
 
 
 # MAIN function to estimate the weights
-def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
+def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, base_save_features, procs=1):
 
     def get_x_columns(ALI, clade):
         # we subselect the training
@@ -134,7 +134,7 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
             logging.info('     TRAIN_NN_4: Fit the data')
             if verbose > 4: sys.stderr.write("----- "+clade+"("+str(len(y))+"): will train\n")
             if procs == 1:
-                all_LMNN[clade], all_transformed[clade],unused = estimate_weights_for_clade(X, y, rownames, clade, verbose)
+                all_LMNN[clade], all_transformed[clade],unused = estimate_weights_for_clade(X, y, rownames, clade, verbose, base_save_features)
             else:
                 clades_to_compute.add((clade, tuple(y)))
 
@@ -149,7 +149,7 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
             results = [
                 pool.apply_async(
                     estimate_weights_for_clade,
-                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y), get_x_columns(ALI, clade)[1], clade, verbose)
+                    args=(get_x_columns(ALI, clade)[0][:, all_sel_positions[clade]], np.array(y), get_x_columns(ALI, clade)[1], clade, verbose, base_save_features)
                 )
                 for clade, y in clades_to_compute
             ]
@@ -165,7 +165,7 @@ def estimate_weights(ALI, tax, sel_level, min_training_data_lmnn, procs=1):
         logging.info(' Finished train of all NN')
     return all_LMNN, all_transformed, all_sel_positions
 
-def estimate_weights_for_clade(X, y, rownames, clade, verb):
+def estimate_weights_for_clade(X, y, rownames, clade, verb, base_save_features=None):
     # we learn the transformation --------------------------
     if verb > 4:
         UTIL_log.print_log("---------- ("+str(len(y))+"): start fit\n")
@@ -183,6 +183,11 @@ def estimate_weights_for_clade(X, y, rownames, clade, verb):
     # rownames
     if verb > 5: sys.stderr.write("--------------- ("+str(len(y))+"): dimX_lmnn="+str(X_lmnn.shape[0])+"x"+str(X_lmnn.shape[1])+"; dim_rownames="+str(len(rownames))+"\n")
     X_lmnn_PD = pd.DataFrame(X_lmnn, index=rownames)
+
+    # if we have to save the features, we do it now:
+    if(base_save_features is not None):
+        X_lmnn_PD.to_csv(base_save_features+"/"+clade+'_transformed.gz', compression= 'gzip')
+        pd.DataFrame(X, index=rownames).to_csv(base_save_features+"/"+clade+'_original.gz', compression= 'gzip')
 
     return lmnn, X_lmnn_PD, clade
 
@@ -385,7 +390,7 @@ def find_thresholds(all_transformed, tax, intermediate_dist_for_NN):
 #===============================================================================
 #                                      MAIN
 #===============================================================================
-def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,intermediate_dist_for_NN, min_training_data_lmnn, procs=1):
+def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,intermediate_dist_for_NN, min_training_data_lmnn, base_save_features, procs=1):
     # set logging
     global logging
     logging = logging_
@@ -401,7 +406,7 @@ def train_NN_classifiers(alignment, tax_file, NN_start_level,logging_, verbose_,
     # 1. we calculate the transformations and we transform the original space
     logging.info('  TRAIN_NN_1: calculate LMNN')
     if verbose > 4: sys.stderr.write("-- Calculate LMNN\n")
-    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level, min_training_data_lmnn, procs=procs)
+    all_LMNN, all_transformed, all_sel_positions = estimate_weights(alignment, tax, NN_start_level, min_training_data_lmnn, base_save_features, procs=procs)
 
     # 2. find centroids and find the threshold distances
     logging.info('  TRAIN_NN_1: find centroids and thresholds')
