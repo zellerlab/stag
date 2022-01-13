@@ -6,6 +6,7 @@ import shutil
 import contextlib
 
 import numpy as np
+import pandas as pd
 import h5py
 
 from . import __version__ as tool_version
@@ -129,7 +130,7 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
 #===============================================================================
 # we change `list_to_print` directly inside the function adding the NN
 # classification. Note that we have to change the position -1
-def NN_classification(list_to_print,db,ali):
+def NN_classification(list_to_print,db,ali,base_save_features):
     annotation_this = "" # annotation based on the NN and the thresholds
     NN_this = "" # nearest neighbour sequence
     min_this = float('inf') # distance to the NN_this
@@ -153,6 +154,10 @@ def NN_classification(list_to_print,db,ali):
         # hence we select the same columns
         col_to_keep = db["all_sel_positions"][family_this]
         ali_sel = ali[col_to_keep]
+        # if we have to save the features, we do it now:
+        if(base_save_features is not None):
+            sequence_ID = list_to_print[-1][0]
+            pd.DataFrame(np.array([ali_sel*1]), index=[sequence_ID]).to_csv(base_save_features+"/"+family_this+"_"+sequence_ID+'_original.gz', compression= 'gzip')
         # we need to check if there was enough data to do the training
         # if there is enough data, then we do LMNN transformation, otherwise no
         if isinstance(lmnn_this,(np.ndarray)):
@@ -160,6 +165,9 @@ def NN_classification(list_to_print,db,ali):
             # we transform the vector. This is exactly the same as in the training
             # after transformation
             ali_sel = ali_sel.dot(lmnn_this)
+            if(base_save_features is not None):
+                sequence_ID = list_to_print[-1][0]
+                pd.DataFrame(np.array([ali_sel]), index=[sequence_ID]).to_csv(base_save_features+"/"+family_this+"_"+sequence_ID+'_transformed.gz', compression= 'gzip')
 
         # calculate the distances to all centroid sequences and find the minimum
         for species in db["centroid_seq"][family_this].index.values:
@@ -203,7 +211,7 @@ def dist_vectors(ALI,pos,ali_sel):
 
 def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, threads=1, output=None,
              long_out=False, current_tool_version=tool_version,
-             aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, internal_call=False):
+             aligned_sequences=None, save_ali_to_file=None, min_perc_state=0, base_save_features=None, internal_call=False):
     t0 = time.time()
 
     # ==========================================================================
@@ -242,7 +250,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
                 print(gene_id, *ali_str, sep="\t", file=alignment_out)
 
             # we do NN classification per sample (not ideal, would be better to collect all the alignment from one family)
-            NN_classification(list_to_print,db,ali)
+            NN_classification(list_to_print,db,ali,base_save_features)
 
     if verbose > 2:
         time_after_classification = time.time()

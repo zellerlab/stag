@@ -116,6 +116,7 @@ def print_menu_classify():
     sys.stderr.write(f"  {bco.LightBlue}-S{bco.ResetAll}  FILE  save intermediate alignment file {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name {bco.LightMagenta}[stdout]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-l{bco.ResetAll}        long output (with more information about the classification)\n")
+    sys.stderr.write(f"  {bco.LightBlue}-B{bco.ResetAll}  DIR   save features used for the NN (transformed and untransformed) {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
@@ -437,7 +438,8 @@ def main(argv=None):
         classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input,
                           verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out,
                           current_tool_version=tool_version, aligned_sequences=args.aligned_sequences,
-                          save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state)
+                          save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state,
+                          base_save_features = args.base_save_features)
 
     # --------------------------------------------------------------------------
     # CHECK_INPUT routine
