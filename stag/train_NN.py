@@ -11,7 +11,7 @@ import metric_learn
 import statistics
 import multiprocessing as mp
 
-from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import f1_score
 
 from stag import UTIL_log
 
@@ -307,6 +307,74 @@ def calc_all_dist_to_centroids(centroids_this,ALI,tax):
     return all_dist
 
 
+# ------------------------------------------------------------------------------
+# help function for the find_thresholds_from_dist
+def find_thresholds_this(negative_vals,positive_vals):
+    # find all possible thresholds, so like given these distances:
+    # [1,3,4,8,10,20] the intermediate values are:
+    # [2,3.5,6,9,15] which are the possible thresholds
+    all_vals = negative_vals+positive_vals
+    all_vals.sort()
+    #
+    res = list()
+    for i in range(len(all_vals)-1):
+        res.append((all_vals[i+1]+all_vals[i])/2)
+    return res
+
+def measureF1(negative_vals,positive_vals,thresholds):
+    res_f1 = list()
+    for t in thresholds:
+        y_true = np.array(([0]*len(negative_vals)) + ([1]*len(positive_vals)))
+        y_pred = list()
+        for i in negative_vals:
+            if i < t:
+                # we measure distances, hence this would be a FP
+                y_pred.append(1)
+            else:
+                y_pred.append(0)
+        for i in positive_vals:
+            if i < t:
+                # we measure distances, hence this would be a TP
+                y_pred.append(1)
+            else:
+                y_pred.append(0)
+        y_pred = np.array(y_pred)
+
+        if len(set(y_true) - set(y_pred)) > 0:
+            # it means y_pred contains only zeros, we set the F1 score to zero
+            # directly, so that I don't get a warning from np.f1_score
+            res_f1.append(0)
+        else:
+            res_f1.append(f1_score(y_true, y_pred,average='weighted'))
+    return res_f1
+
+def find_max(thresholds_in,thresholdsF1_in,negative_vals,positive_vals):
+    max_val = 0
+    max_pos = -1
+    thresh_1s = list()
+    for i in range(len(thresholds_in)):
+        if thresholdsF1_in[i] > max_val:
+            max_val = thresholdsF1_in[i]
+            max_pos = i
+            if thresholdsF1_in[i] == 1:
+                thresh_1s.append(i)
+    #
+    # if there is no value equal to 1 (maximum), or only 1
+    if len(thresh_1s)==0 or len(thresh_1s)==1:
+        return thresholds_in[max_pos], thresholdsF1_in[max_pos]
+    # if we arrive here there are more than one perfect F1
+    new_best = (max(thresh_1s) + min(thresh_1s)) / 2
+    # we need also to check that the value in between has still a F1 of 1
+    if measureF1(negative_vals,positive_vals,new_best)[0] == 1:
+        return new_best, 1
+    else:
+        sys.stderr.write("Error. Cannot find best F1, will choose randomly between the best.")
+        return min(thresh_1s), 1
+
+
+
+
+
 
 # ------------------------------------------------------------------------------
 # find the thresholds given the distances
@@ -323,28 +391,11 @@ def find_thresholds_from_dist(distances):
             if i in distances and i-1 in distances:
                 negative_vals = distances[i-1]
                 positive_vals = distances[i]
-                y_true = np.array(([0]*len(negative_vals)) + ([1]*len(positive_vals)))
-                y_scores = np.array(negative_vals + positive_vals)
-                precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
-
-                # TODO does precision_recall_curve check enough values?!
-                logging.info(f'     TRAIN_NN_4: Number of thresholds: {i}: {len(thresholds)}')
-
-                # we calcualte the F1 score and take the maximum
-                n_valid_thresholds = 0
-                maxF1 = 0
-                sel_threshold = 0
-                for pr, re, th in zip(precision, recall, thresholds):
-                    if pr !=0 and re != 0:
-                        n_valid_thresholds = n_valid_thresholds + 1
-                        F1_this = 2*( (pr*re)/(pr+re) )
-                        if F1_this > maxF1:
-                            maxF1 = F1_this
-                            sel_threshold = th
-                logging.info(f'     TRAIN_NN_4: Number of real thresholds: {i}: {n_valid_thresholds}')
-
-                # save to res
-                res[i] = sel_threshold
+                #
+                thresholds_start = find_thresholds_this(negative_vals,positive_vals)
+                thresholds_start_F1 = measureF1(negative_vals,positive_vals,thresholds_start)
+                best_threshold,best_f1 = find_max(thresholds_start,thresholds_start_F1,negative_vals,positive_vals)
+                res[i] = best_threshold
     return res
 
 
