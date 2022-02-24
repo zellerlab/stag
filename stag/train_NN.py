@@ -309,17 +309,41 @@ def calc_all_dist_to_centroids(centroids_this,ALI,tax):
 
 # ------------------------------------------------------------------------------
 # help function for the find_thresholds_from_dist
-def find_thresholds_this(negative_vals,positive_vals):
+def find_possible_thresholds(negative_vals,positive_vals):
     # find all possible thresholds, so like given these distances:
     # [1,3,4,8,10,20] the intermediate values are:
     # [2,3.5,6,9,15] which are the possible thresholds
-    all_vals = negative_vals+positive_vals
-    all_vals.sort()
     #
-    res = list()
-    for i in range(len(all_vals)-1):
-        res.append((all_vals[i+1]+all_vals[i])/2)
-    return res
+    # we do this only if there are few thresholds to check (let's say 1000)
+    # on a test, to run on 1,000 it takes 2 seconds
+    all_vals = negative_vals+positive_vals
+    # there might be repeated values:
+    all_vals = list(set(all_vals))
+    if len(all_vals) < 1000:
+        # sort them
+        all_vals.sort()
+        #
+        res = list()
+        for i in range(len(all_vals)-1):
+            res.append((all_vals[i+1]+all_vals[i])/2)
+        # if there are too many thresholds too check it takes too long
+        return res
+    else:
+        # the more distances there are, the more thresholds to check.
+        # but even if there would be less thresholds, it would still take a long
+        # time since there are more distances to calculate the F1 on
+        #
+        # we then use 500 values equally sampled from the min to the max
+        v_min = min(all_vals)
+        v_max = max(all_vals)
+        step = (v_max - v_min)/500
+        res = list()
+        for i in range(500):
+            res.append(v_min + (step * i))
+        return res
+
+
+
 
 def measureF1(negative_vals,positive_vals,thresholds):
     res_f1 = list()
@@ -392,7 +416,7 @@ def find_thresholds_from_dist(distances):
                 negative_vals = distances[i-1]
                 positive_vals = distances[i]
                 #
-                thresholds_start = find_thresholds_this(negative_vals,positive_vals)
+                thresholds_start = find_possible_thresholds(negative_vals,positive_vals)
                 thresholds_start_F1 = measureF1(negative_vals,positive_vals,thresholds_start)
                 best_threshold,best_f1 = find_max(thresholds_start,thresholds_start_F1,negative_vals,positive_vals)
                 res[i] = best_threshold
