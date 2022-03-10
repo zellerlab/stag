@@ -21,7 +21,7 @@ def load_genome_DB(database, tool_version, verbose):
             raise ValueError(f"[E::align] Error: {f} is missing.")
 
     with open(os.path.join(dirpath, "threshold_file.tsv")) as threshold_in:
-        gene_thresholds = dict(line.rstrip().split("\t") for line in threshold_in)
+        gene_thresholds = dict(line.rstrip().split("\t")[:2] for line in threshold_in)
         gene_order = list(gene_thresholds.keys())
 
     with open(os.path.join(dirpath, "hmm_lengths_file.tsv")) as hmm_lengths_in:
@@ -48,9 +48,8 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
 
         # check that it is the correct database, for 'classify', we need a single
         # gene
-        if db_in['db_type'][0] != "single_gene":
-            sys.stderr.write("[E::main] Error: this database is not designed to run with stag classify\n")
-            sys.exit(1)
+        if db_in['db_type'][0] != b"single_gene":
+            raise ValueError("[E::main] Error: this database is not designed to run with stag classify.")
         # check if we used proteins
         if not aligned_sequences and not dir_output:
             if protein_fasta_input and not db_in['align_protein'][0]:
@@ -64,7 +63,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
         hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
         with hmm_file:
             os.chmod(hmm_file.name, 0o644)
-            hmm_file.write(db_in['hmm_file'][0])
+            hmm_file.write(db_in['hmm_file'][0].decode())
             hmm_file.flush()
             os.fsync(hmm_file.fileno())
 
@@ -75,7 +74,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
         use_cmalign = db_in['use_cmalign'][0] # bool
 
         # third: taxonomy ----------------------------------------------------------
-        taxonomy = {key: list(db_in['taxonomy/{}'.format(key)]) for key in db_in['taxonomy']}
+        taxonomy = {key: [s.decode() for s in db_in[f'taxonomy/{key}']] for key in db_in['taxonomy']}
         if dir_output:
             tax_out = open(os.path.join(dir_output, "node_hierarchy.tsv"), "w")
             with tax_out:
@@ -84,7 +83,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
                     print(key, *map(str, values), sep="\t", file=tax_out)
 
         # fourth: tax_function -----------------------------------------------------
-        tax_function = {str(key): np.array(db_in['tax_function/{}'.format(key)], dtype=np.float64) 
+        tax_function = {str(key): np.array(db_in[f'tax_function/{key}'], dtype=np.float64)
                         for key in db_in['tax_function']}
         if dir_output:
             tax_func_out = open(os.path.join(dir_output, "taxonomy_function.tsv"), "w")
@@ -97,9 +96,9 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
         class_out = open(os.path.join(dir_output, "classifiers_weights.tsv"), "w") if dir_output else contextlib.nullcontext()
         with class_out:
             for key in db_in['classifiers']:
-                classifier = db_in['classifiers/{}'.format(key)]
-                if not isinstance(classifier[0], str):
-                    classifiers[key] = np.array(classifier, dtype=np.float64) 
+                classifier = db_in[f'classifiers/{key}']
+                if classifier[0] != b"no_negative_examples":
+                    classifiers[key] = np.array(classifier, dtype=np.float64)
                 else:
                     classifiers[key] = "no_negative_examples"
                 if dir_output:
@@ -132,19 +131,18 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
             h5p_out.create_dataset(f"taxonomy/{node}", data=np.array(list(full_taxonomy[node].children.keys()), "S10000"), dtype=string_dt, compression="gzip")
         # fourth, the taxonomy function --------------------------------------------
         h5p_out.create_group("tax_function")
-        for c in tax_function:
-            # we append the intercept at the head (will have position 0)
-            vals = np.append(tax_function[c].intercept_, tax_function[c].coef_)
-            h5p_out.create_dataset("tax_function/" + str(c), data=vals, dtype=np.float64, compression="gzip")
+        for node, clf in tax_function:
+            h5p_out.create_dataset(f"tax_function/{node}", data=clf, dtype=np.float64, compression="gzip")
         # fifth, save the classifiers ----------------------------------------------
         h5p_out.create_group("classifiers")
-        for c in classifiers:
-            if classifiers[c] != "no_negative_examples":
-                vals = np.append(classifiers[c].intercept_, classifiers[c].coef_)
-                h5p_out.create_dataset("classifiers/" + c, data=vals, dtype=np.float64, compression="gzip", compression_opts=8)
-            else:
+        for node, clf in classifiers: #.items():
+            if clf is None:
                 # in this case, it always predict 1, we save it as an array of
                 # with the string "no_negative_examples"
-                h5p_out.create_dataset("classifiers/" + c, data=np.array(["no_negative_examples"], "S40"), dtype=string_dt, compression="gzip")
+                kwargs = {"data": np.array(["no_negative_examples"], "S40"), "dtype": string_dt}
+            else:
+                kwargs = {"data": clf, "compression_opts": 8, "dtype": np.float64}
+
+            h5p_out.create_dataset(f"classifiers/{node}", compression="gzip", **kwargs)
 
         h5p_out.flush()

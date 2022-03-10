@@ -16,6 +16,7 @@ import h5py
 import re
 import json
 import pathlib
+import pickle
 
 import contextlib
 import multiprocessing as mp
@@ -30,18 +31,12 @@ try:
 except ImportError:
     DEVNULL = open(os.devnull, 'wb')
 
+
 def validate_genome_files(files):
     if any("##" in f for f in files):
         offender = [f for f in files if "##" in f][0]
         err = "Error with: {}\n".format(offender)
         raise ValueError(f"{err}[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
-
-def cleanup_prodigal(files):
-    for genes, proteins in files:
-        try:
-            [os.remove(f) for f in (genes, proteins)]
-        except:
-            pass
 
 
 def cleanup_prodigal(files):
@@ -91,9 +86,11 @@ def run_prodigal(genome):
 
     return parsed_genes, parsed_proteins
 
+
 # run prodigal on all the genomes listed in fasta_input
 def run_prodigal_genomes(genome_files):
     return {genome: run_prodigal(genome) for genome in genome_files}
+
 
 # ==============================================================================
 # EXTRACT THE MARKER GENES
@@ -137,7 +134,6 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name
     return sel_genes
 
 
-
 # for one marker gene, we extract all the genes/proteins from all genomes
 def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_threshold, all_genes_raw):
     # we go throught the genome and find the genes that pass the filter
@@ -154,6 +150,7 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_thresh
             file_to_align = genomes_pred[g][0]
         # call function that uses hmmsearch
         all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name)
+
 
 def select_genes(all_genes_raw, keep_all_genes):
     return_dict = dict()
@@ -198,6 +195,7 @@ def select_genes(all_genes_raw, keep_all_genes):
                 if max_v != 0:
                     return_dict[genome][mg].append(sel_gene)
     return return_dict
+
 
 # function that extract the genes and proteins based on the IDs from
 # "selected_genes", only for one marker gene
@@ -304,6 +302,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
 
     return all_predicted
 
+
 def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
 
     found_marker_genes = {
@@ -318,27 +317,30 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
     for mg in found_marker_genes:
         db = os.path.join(database_base_path, mg)
         if not os.path.isfile(db):
-            raise ValueError(f"Error: file for gene database {db} is missing")
+            db = db + ".stagDB"
+            if not os.path.isfile(db):
+                raise ValueError(f"Error: file for gene database {db} is missing")
 
     pool = mp.Pool(processes=procs)
 
-    results = (
+    results = [
         pool.apply_async(
             classify,
-            args=(os.path.join(database_base_path,mg),),
+            args=(os.path.join(database_base_path, mg + ".stagDB" if db.endswith(".stagDB") else ""), ),
             kwds={"fasta_input": fna, "protein_fasta_input": faa,
                   "save_ali_to_file": os.path.join(dir_ali, mg),
                   "internal_call": True}
         )
         for mg, (fna, faa) in found_marker_genes.items()
-    )
+    ]
 
-    d = dict()
+    dlist = list()
     for p in results:
         _, predictions = p.get()
-        d.update(predictions)
-    return d
-    #return dict(p.get()[1] for p in results)
+        dlist += predictions
+
+    return dlist
+
 
 def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes, full_genomes=True):
     outdir = os.path.join(output, "genes_predictions")
@@ -348,7 +350,7 @@ def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose,
     print("**********")
     # we parse "all_classifications"
     merged_predictions = dict()
-    for marker_gene, lineage in all_classifications.items():
+    for marker_gene, lineage in all_classifications:
         genome, mg_id = marker_gene.rstrip().split("##")
         sep = "_" if "_" in genome else "."
         genome = genome.split(sep)
@@ -360,6 +362,7 @@ def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose,
         genome_filename = os.path.basename(genome)
         with open(os.path.join(outdir, os.path.basename(genome)), "w") as merged_out:
             print(*predictions, sep="\n", file=merged_out, flush=True)
+
 
 def concat_alignments(genome_files, ali_dir, gene_order, ali_lengths, full_genomes=True):
     all_genes = dict()
@@ -466,7 +469,15 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
     align_dir = os.path.join(output, "MG_ali")
     pathlib.Path(align_dir).mkdir(exist_ok=True, parents=True)
 
-    all_classifications = annotate_MGs(MGS, database_files, temp_dir, align_dir, procs=threads)
+    print("MGS", MGS)
+
+    if os.path.exists(os.path.join(output, "classifications.dat")) and os.path.exists(os.path.join(output, "classifications.dat.ok")):
+        all_classifications = pickle.load(open(os.path.join(output, "classifications.dat")))
+    else:
+        all_classifications = annotate_MGs(MGS, database_files, temp_dir, align_dir, procs=threads)
+        with open(os.path.join(output, "classifications.dat"), "wb") as ac_out:
+            pickle.dump(all_classifications, ac_out)
+        open(os.path.join(output, "classifications.dat.ok"), "wb").close()
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
     # Example:

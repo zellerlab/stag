@@ -142,7 +142,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
 
     if protein_file:
         seq_stream = zip(read_fasta(parse_cmd.stdout, head_start=1),
-                         read_fasta(seq_file, is_binary=False, head_start=1))
+                         read_fasta(open(seq_file), is_binary=False, head_start=1))
     else:
         seq_stream = read_fasta(parse_cmd.stdout, head_start=1)
 
@@ -176,7 +176,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
 
     # print the number of sequences that were filtered
     if verbose > 3:
-        print(f" Number of sequences that pass the filter: {n_pass}", file=sys.stderr)
+xzxxzzz`` FGGGBDSSSDDSSXDDDDCCCCCCCCCCCCCCCCCCCCCCC CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
         print(f" Number of sequences that do not pass the filter: {n_not_pass}", file=sys.stderr)
 
 # ------------------------------------------------------------------------------
