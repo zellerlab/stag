@@ -18,6 +18,9 @@ import tempfile
 import shutil
 from collections import Counter
 
+import warnings
+warnings.filterwarnings("error")
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -300,11 +303,11 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
         test_filter = training_tax.remove_clades(list(test_set))
         training_filter = training_tax.find_gene_ids(training_tax.get_root())
 
-    training_al = alignment.loc[ training_filter, : ]
+    training_al = alignment.loc[ list(sorted(training_filter)), : ]
     classifiers_train = train_all_classifiers(training_al, training_tax, penalty_v, solver_v, procs=procs)
 
     # 3. Classify the test set
-    test_al = alignment.loc[ test_filter , : ]
+    test_al = alignment.loc[ list(sorted(test_filter)) , : ]
     pr = predict(test_al, training_tax, classifiers_train)
     for g in pr:
         # g is:
@@ -319,7 +322,8 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
     #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],2]
     # .....                                                                               ]
 
-def estimate_function(all_calc_functions):
+
+def estimate_function(all_calc_functions, max_iter=5000):
     # The all_calc_functions looks like:
     #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
     # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],2]
@@ -362,7 +366,7 @@ def estimate_function(all_calc_functions):
 
         X = np.array([np.array(xi) for xi in correct_order[0] + correct_order[1]])
         y = np.asarray([0] * len(correct_order[0]) + [1] * len(correct_order[1]))
-        clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
+        clf = LogisticRegression(random_state=0, penalty="none", solver='saga', max_iter=max_iter)
         clf.fit(X, y)
         all_classifiers[str(uniq_level)] = clf
 
@@ -372,7 +376,7 @@ def estimate_function(all_calc_functions):
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
 # level a new gene should be assigned to.
-def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=None):
+def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=5000, procs=None):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
 
@@ -405,10 +409,10 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
             print("[E::main] Error: failed to save the cross validation results\n" + \
                   f"[E::main] you can find the file here: \n{outfile.name}\n", file=sys.stderr)
 
-    return estimate_function(all_calc_functions)
+    return estimate_function(all_calc_functions, max_iter=max_iter)
 
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, procs=None):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, max_iter=5000, procs=None):
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
                         filemode='w',
@@ -439,7 +443,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learn taxonomy selection function')
-    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
+    tax_function = learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=max_iter, procs=procs)
     logging.info('TIME:Finish learn taxonomy selection function')
 
     # 6. save the result
