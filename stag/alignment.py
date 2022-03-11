@@ -70,7 +70,7 @@ class EncodedAlignment:
 
 	def filter_alignment(self, rows):
 		return EncodedAlignment(
-			other_aln=self.alignment.loc[ rows, : ],
+			other_aln=self.alignment.loc[ list(rows), : ],
 			ncols=self.ncols,
 			npads=self.npads
 		)
@@ -112,14 +112,20 @@ class EncodedAlignment:
 
 				m_for_diff = np.tile(check_positives[clade,], (n_negatives, 1))
 
-				differences = np.sum(
-					np.apply_along_axis(
-						lambda x:(((x[:, None] & (1 << np.arange(32))[::-1]) > 0).flatten()[:-self.npads] == 1),
-						1,
-						np.bitwise_xor(m_for_diff, check_negatives)
-					),
-					axis=1
+				differences = np.apply_along_axis(
+					lambda x:np.count_nonzero(x & (1 << np.arange(32))[:, None] != 0),
+					1,
+					np.bitwise_xor(m_for_diff, check_negatives)
 				)
+
+				#differences = np.sum(
+				#	np.apply_along_axis(
+				#		lambda x:(((x[:, None] & (1 << np.arange(32))[::-1]) > 0).flatten()[:-self.npads] == 1),
+				#		1,
+				#		np.bitwise_xor(m_for_diff, check_negatives)
+				#	),
+				#	axis=1
+				#)
 
 				# differences = np.sum(np.bitwise_xor(m_for_diff, check_negatives), axis=1)  # original, ~90s for nodes with missing negatives
 				#differences = np.sum(np.vstack([  # ~250s for nodes with missing negatives
@@ -151,6 +157,17 @@ class EncodedAlignment:
 	def get_rows(self, node, rows):
 		logging.info(f"Unpacking: {node} {len(rows)} rows...")
 		t0 = time.time()
+		#alignment = None #np.array([])
+		#for row in self.alignment.loc[rows, :].to_numpy():
+		#	row = (((row[:,None] & (1 << np.arange(32))[::-1])) > 0).flatten()[:-self.npads]
+		#	if alignment is None:
+		#		alignment = row
+		#	else:
+		#		alignment = np.vstack((alignment, row))
+
+		#logging.info(f"Unpacked {node}: {len(rows)} rows in {time.time() - t0:.3f}s.")
+		#return alignment if alignment is not None else np.array([])
+
 		alignment = list()
 		for row in self.alignment.loc[ rows, : ].to_numpy():
 			alignment.append(
