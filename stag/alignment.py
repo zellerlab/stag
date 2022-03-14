@@ -153,8 +153,21 @@ class EncodedAlignment:
 
 		return [negative_candidates[i] for i in clade_indices]
 
+	def get_rows(self, node, rows):	
+		logging.info(f"Unpacking: {node} {len(rows)} rows...")
+		t0 = time.time()
 
-	def get_rows(self, node, rows):
+		subset = self.alignment.loc[rows, : ].to_numpy()
+		subset = np.apply_along_axis(
+			lambda x: (((x[:, None] & (1 << np.arange(32))[::-1])) > 0).flatten()[:-self.npads],
+			1,
+			subset
+		)
+		logging.info(f"Unpacked {node}: {len(rows)} rows in {time.time() - t0:.3f}s.")
+
+		return subset
+
+	def get_rows_old(self, node, rows):
 		logging.info(f"Unpacking: {node} {len(rows)} rows...")
 		t0 = time.time()
 		#alignment = None #np.array([])
