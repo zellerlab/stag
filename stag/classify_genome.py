@@ -261,7 +261,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
 
-        with h5py.File(path_mg, 'r') as db_in, tempfile.NamedTemporaryFile(delete=False, mode="w") as hmm_file:
+        with h5py.File(path_mg, 'r') as db_in, tempfile.NamedTemporaryFile(delete=False, mode="wb") as hmm_file:
             os.chmod(hmm_file.name, 0o644)
             hmm_file.write(db_in['hmm_file'][0])
             hmm_file.flush()

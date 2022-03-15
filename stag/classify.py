@@ -115,8 +115,12 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
 
     prob_per_level = "/".join(prob_per_level)
     perc_text = "/".join([str(p) for p in perc])
-    assigned_tax_text = ";".join(tax[0:(int(selected_level) + 1)])
-    tax_text = "/".join(tax)
+
+    tax_str = [t.decode() for t in tax if isinstance(t, bytes)]
+    assigned_tax_text = ";".join(tax_str[0:(int(selected_level) + 1)])
+
+    # assigned_tax_text = ";".join(tax[0:(int(selected_level) + 1)])
+    tax_text = "/".join(tax_str)
 
     result = [gene_id, assigned_tax_text, tax_text, selected_level,
               perc_text, prob_per_level, str(n_aligned_characters)]

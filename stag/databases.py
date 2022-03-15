@@ -48,7 +48,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
 
         # check that it is the correct database, for 'classify', we need a single
         # gene
-        if db_in['db_type'][0] != "single_gene":
+        if db_in['db_type'][0].decode() != "single_gene":
             sys.stderr.write("[E::main] Error: this database is not designed to run with stag classify\n")
             sys.exit(1)
         # check if we used proteins
@@ -61,7 +61,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
                 raise ValueError("Missing protein file (the database was constructed aligning proteins).\n")
 
         # first, we save a temporary file with the hmm file ------------------------
-        hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+        hmm_file = tempfile.NamedTemporaryFile(delete=False, mode="wb")
         with hmm_file:
             os.chmod(hmm_file.name, 0o644)
             hmm_file.write(db_in['hmm_file'][0])
@@ -84,7 +84,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
                     print(key, *map(str, values), sep="\t", file=tax_out)
 
         # fourth: tax_function -----------------------------------------------------
-        tax_function = {str(key): np.array(db_in['tax_function/{}'.format(key)], dtype=np.float64) 
+        tax_function = {str(key): np.array(db_in['tax_function/{}'.format(key)], dtype=np.float64)
                         for key in db_in['tax_function']}
         if dir_output:
             tax_func_out = open(os.path.join(dir_output, "taxonomy_function.tsv"), "w")
@@ -98,10 +98,10 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
         with class_out:
             for key in db_in['classifiers']:
                 classifier = db_in['classifiers/{}'.format(key)]
-                if not isinstance(classifier[0], str):
-                    classifiers[key] = np.array(classifier, dtype=np.float64) 
-                else:
+                if isinstance(classifier[0], str) or isinstance(classifier[0], bytes):
                     classifiers[key] = "no_negative_examples"
+                else:
+                    classifiers[key] = np.array(classifier, dtype=np.float64)
                 if dir_output:
                     print(key, *classifiers[key], sep="\t", file=class_out)
 
