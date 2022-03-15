@@ -556,13 +556,15 @@ def main(argv=None):
         else:
             for f in os.listdir(args.dir_input):
                 f = os.path.join(args.dir_input, f)
-                try:
-                    if os.path.isfile(f) and open(f).read(1)[0] == ">":
-                        list_files.append(f)
-                except Exception as e:
-                    if args.verbose > 1:
-                        sys.stderr.write("[W::main] Warning: ")
-                        sys.stderr.write("Cannot open file: {}\n".format(f))
+                if os.path.isfile(f):
+                    try:
+                        with open(f) as _in:
+                            if _in.read(1)[0] == ">":
+                                list_files.append(f)
+                    except Exception as e:
+                        if args.verbose > 1:
+                            sys.stderr.write("[W::main] Warning: ")
+                            sys.stderr.write("Cannot open file: {}\n".format(f))
 
             if not list_files:
                 handle_error("no fasta files found in the directory.", None)
