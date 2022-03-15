@@ -58,33 +58,37 @@ def run_prodigal(genome):
     # we need two files, one for the proteins and one for the genes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    # prodigal command
-    prodigal_cmd = "prodigal -i {genome} -d {gene_file} -a {protein_file}".format(
-        genome=genome, gene_file=genes.name, protein_file=proteins.name
-    )
-    cmd = shlex.split(prodigal_cmd)
-    parse_cmd = subprocess.Popen(cmd, stdout=DEVNULL,stderr=subprocess.PIPE)
-    # we save stderr if necessary
-    all_stderr = ""
-    for line in parse_cmd.stderr:
-        line = line.decode('ascii')
-        all_stderr = all_stderr + line
-    return_code = parse_cmd.wait()
-    if return_code:
-        raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
 
-    # we re-name the header of the fasta files ---------------------------------
-    # we expect to have the same number of genes and proteins, and also that the
-    def copy_fasta(fasta_file, seqid, is_binary=True, head_start=0):
-        with tempfile.NamedTemporaryFile(delete=False, mode="w") as fasta_out, open(fasta_file) as fasta_in:
-            for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary), start=1):
-                print(">{seqid}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
-            fasta_out.flush()
-            os.fsync(fasta_out.fileno())
-            return fasta_out.name, index
+    with genes, proteins:
+        # prodigal command
+        prodigal_cmd = "prodigal -i {genome} -d {gene_file} -a {protein_file}".format(
+            genome=genome, gene_file=genes.name, protein_file=proteins.name
+        )
+        cmd = shlex.split(prodigal_cmd)
+        parse_cmd = subprocess.Popen(cmd, stdout=DEVNULL,stderr=subprocess.PIPE)
 
-    parsed_genes, gene_count = copy_fasta(genes.name, genome, is_binary=False)
-    parsed_proteins, protein_count = copy_fasta(proteins.name, genome, is_binary=False)
+        with parse_cmd:
+            # we save stderr if necessary
+            all_stderr = ""
+            for line in parse_cmd.stderr:
+                line = line.decode('ascii')
+                all_stderr = all_stderr + line
+            return_code = parse_cmd.wait()
+            if return_code:
+                raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
+
+        # we re-name the header of the fasta files ---------------------------------
+        # we expect to have the same number of genes and proteins, and also that the
+        def copy_fasta(fasta_file, seqid, is_binary=True, head_start=0):
+            with tempfile.NamedTemporaryFile(delete=False, mode="w") as fasta_out, open(fasta_file) as fasta_in:
+                for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary), start=1):
+                    print(">{seqid}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
+                fasta_out.flush()
+                os.fsync(fasta_out.fileno())
+                return fasta_out.name, index
+
+        parsed_genes, gene_count = copy_fasta(genes.name, genome, is_binary=False)
+        parsed_proteins, protein_count = copy_fasta(proteins.name, genome, is_binary=False)
 
     os.remove(genes.name)
     os.remove(proteins.name)
@@ -103,36 +107,39 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name
     # INFO: genes_path, proteins_path [where to save the result]
     # we run hmmsearch
     temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    hmm_cmd = "hmmsearch --tblout "+temp_hmm.name+" "+hmm_file+" "+file_to_align
+    with temp_hmm:
 
-    CMD = shlex.split(hmm_cmd)
-    hmm_CMD = subprocess.Popen(CMD, stdout=DEVNULL,stderr=subprocess.PIPE)
-    # we save stderr if necessary
-    all_stderr = ""
-    for line in hmm_CMD.stderr:
-        line = line.decode('ascii')
-        all_stderr = all_stderr + line
-    return_code = hmm_CMD.wait()
-    if return_code:
-        raise ValueError(f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}")
+        hmm_cmd = f"hmmsearch --tblout {temp_hmm.name} {hmm_file} {file_to_align}"
+        CMD = shlex.split(hmm_cmd)
+        hmm_CMD = subprocess.Popen(CMD, stdout=DEVNULL,stderr=subprocess.PIPE)
 
-    # in temp_hmm.name there is the result from hmm ----------------------------
-    # we select which genes/proteins we need to extract from the fasta files
-    # produced by prodigal
-    sel_genes = dict()
-    o = open(temp_hmm.name,"r")
-    for line in o:
-        if not line.startswith("#"):
-            vals = re.sub(" +"," ",line.rstrip()).split(" ")
-            gene_id = vals[0]
-            e_val = vals[4]
-            score = vals[5]
-            if float(score) > float(gene_threshold):
-                sel_genes[gene_id] = score
-    o.close()
+        with hmm_CMD:
+            # we save stderr if necessary
+            all_stderr = ""
+            for line in hmm_CMD.stderr:
+                line = line.decode('ascii')
+                all_stderr = all_stderr + line
+            return_code = hmm_CMD.wait()
+            if return_code:
+                raise ValueError(f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}")
+
+        # in temp_hmm.name there is the result from hmm ----------------------------
+        # we select which genes/proteins we need to extract from the fasta files
+        # produced by prodigal
+        sel_genes = {}
+        with open(temp_hmm.name, "r") as _in:
+            for line in _in:
+                if not line.startswith("#"):
+                    vals = re.sub(" +"," ",line.rstrip()).split(" ")
+                    gene_id = vals[0]
+                    e_val = vals[4]
+                    score = vals[5]
+                    if float(score) > float(gene_threshold):
+                        sel_genes[gene_id] = score
 
     # remove file with the result from the hmm
-    if os.path.isfile(temp_hmm.name): os.remove(temp_hmm.name)
+    if os.path.isfile(temp_hmm.name):
+        os.remove(temp_hmm.name)
 
     return sel_genes
 
@@ -153,7 +160,7 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_thresh
         else:
             file_to_align = genomes_pred[g][0]
         # call function that uses hmmsearch
-        all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name)
+        all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_name)
 
 def select_genes(all_genes_raw, keep_all_genes):
     return_dict = dict()
@@ -320,23 +327,24 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
         if not os.path.isfile(db):
             raise ValueError(f"Error: file for gene database {db} is missing")
 
-    pool = mp.Pool(processes=procs)
+    d = {}
+    with mp.Pool(processes=procs) as pool:
 
-    results = (
-        pool.apply_async(
-            classify,
-            args=(os.path.join(database_base_path,mg),),
-            kwds={"fasta_input": fna, "protein_fasta_input": faa,
-                  "save_ali_to_file": os.path.join(dir_ali, mg),
-                  "internal_call": True}
+        results = (
+            pool.apply_async(
+                classify,
+                args=(os.path.join(database_base_path,mg),),
+                kwds={"fasta_input": fna, "protein_fasta_input": faa,
+                      "save_ali_to_file": os.path.join(dir_ali, mg),
+                      "internal_call": True}
+            )
+            for mg, (fna, faa) in found_marker_genes.items()
         )
-        for mg, (fna, faa) in found_marker_genes.items()
-    )
 
-    d = dict()
-    for p in results:
-        _, predictions = p.get()
-        d.update(predictions)
+        for p in results:
+            _, predictions = p.get()
+            d.update(predictions)
+
     return d
     #return dict(p.get()[1] for p in results)
 
