@@ -35,8 +35,8 @@ class ProdigalWrapper:
             raise ValueError("[E::align] Error: prodigal is not in the path.\n")
     @staticmethod
     def run_prodigal(genome_fasta, gene_file, protein_file):
-        prodigal_cmd = "prodigal -i {genome_fasta} -d {gene_file} -a {protein_file}".format(**locals())
-        parse_cmd = subprocess.Popen(cmd, shell=True, stdout=DEVNULL, stderr=subprocess.PIPE)
+        prodigal_cmd = f"prodigal -i {genome_fasta} -d {gene_file} -a {protein_file}"
+        parse_cmd = subprocess.Popen(prodigal_cmd, shell=True, stdout=DEVNULL, stderr=subprocess.PIPE)
         all_stderr = [line.decode("ascii") for line in parse_cmd.stderr] 
         return_code = parse_cmd.wait()
         if return_code:
@@ -126,7 +126,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
         msg = [
             "[E::align] Error. hmmsearch failed", "",
             "MG: {}".format(mg_name),
-            "CALL: {}".format(hmm_cmd), ""
+            "CALL: {}".format(hmm_CMD), ""
         ] + all_stderr
         raise ValueError("\n".join(msg))
 
@@ -139,8 +139,8 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
         for line in hmm_in:
             if not line.startswith("#"):
                 vals = re.sub(" +", " ", line.rstrip()).split(" ")
-                gene_id, e_val, scor, = vals[0], vals[4], float(vals[5])
-                score > gene_threshold:
+                gene_id, e_val, score, = vals[0], vals[4], float(vals[5])
+                if score > gene_threshold:
                     sel_genes[gene_id] = score
 
     os.remove(temp_hmm.name)
