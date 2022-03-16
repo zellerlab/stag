@@ -12,15 +12,15 @@ import os
 import sys
 import tempfile
 import subprocess
-import shlex
-import errno
 import pkg_resources
 import urllib.request
 import hashlib
-from pathlib import Path
 import shutil
 
-from .helpers import bco, is_tool, is_tool_and_return0
+from pathlib import Path
+
+
+from .helpers import bco, is_tool
 
 TEST_DATA_PATH = pkg_resources.resource_filename("stag", "test")
 
@@ -33,12 +33,13 @@ def md5(fname):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
+
 # download a file if it's not there
 def download_file(url, filename):
     downloaded_correct = True
     try:
         urllib.request.urlretrieve(url, filename)
-    except:
+    except Exception:
         downloaded_correct = False
     if downloaded_correct:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
@@ -79,9 +80,9 @@ def download_and_checkmd5_and_decompress(url, filename, md5_db, destination):
     extract_cmd = "tar -zxvf "+filename+" -C "+destination
     try:
         FNULL = open(os.devnull, 'w')
-        process = subprocess.Popen(extract_cmd.split(),stderr=FNULL,stdout=FNULL)
+        process = subprocess.Popen(extract_cmd.split(), stderr=FNULL, stdout=FNULL)
         output, error = process.communicate()
-    except:
+    except Exception:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} error{bco.ResetAll}\n")
     if process.returncode:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} error{bco.ResetAll}\n")
@@ -91,7 +92,6 @@ def download_and_checkmd5_and_decompress(url, filename, md5_db, destination):
     # we return the reulting directory, which should have the same name as
     # the file downloaded minus ".tar.gz"
     return filename[0:-7]+"/"
-
 
 
 # ------------------------------------------------------------------------------
@@ -110,7 +110,7 @@ def main(argv=None):
     # check python version -----------------------------------------------------
     sys.stderr.write("  ■ python:       ")
     python_version = sys.version_info
-    if(python_version >= (3,0,0)):
+    if python_version >= (3, 0, 0):
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
     else:
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING: python2 is not supported{bco.ResetAll}\n\n")
@@ -141,11 +141,11 @@ def main(argv=None):
         error_found = True
 
     # Python libraries:
-    sys.stderr.write("  ■ (L)numpy:     ") #------------------------------------
+    sys.stderr.write("  ■ (L)numpy:     ")  # ------------------------------------
     library_correct = True
     try:
         import numpy
-    except ImportError as e:
+    except ImportError:
         library_correct = False
     if library_correct:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
@@ -153,11 +153,11 @@ def main(argv=None):
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. numpy is missing{bco.ResetAll}\n\n")
         error_found = True
 
-    sys.stderr.write("  ■ (L)pandas:    ") #------------------------------------
+    sys.stderr.write("  ■ (L)pandas:    ")  # ------------------------------------
     library_correct = True
     try:
         import pandas
-    except ImportError as e:
+    except ImportError:
         library_correct = False
     if library_correct:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
@@ -165,11 +165,11 @@ def main(argv=None):
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. pandas is missing{bco.ResetAll}\n\n")
         error_found = True
 
-    sys.stderr.write("  ■ (L)sklearn:   ") #------------------------------------
+    sys.stderr.write("  ■ (L)sklearn:   ")  # ------------------------------------
     library_correct = True
     try:
         import sklearn
-    except ImportError as e:
+    except ImportError:
         library_correct = False
     if library_correct:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
@@ -177,11 +177,11 @@ def main(argv=None):
         sys.stderr.write(f"{bco.Yellow}{bco.Bold} WARNING. sklearn is missing{bco.ResetAll}\n\n")
         error_found = True
 
-    sys.stderr.write("  ■ (L)h5py:      ") #------------------------------------
+    sys.stderr.write("  ■ (L)h5py:      ")  # ------------------------------------
     library_correct = True
     try:
         import h5py
-    except ImportError as e:
+    except ImportError:
         library_correct = False
     if library_correct:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
@@ -192,7 +192,7 @@ def main(argv=None):
     # TRY TO RUN STAG ==========================================================
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Run stag:{bco.ResetAll}\n")
 
-    sys.stderr.write("  ■ train:      ") #--------------------------------------
+    sys.stderr.write("  ■ train:      ")  # --------------------------------------
     sys.stderr.flush()
     seq_file = os.path.join(TEST_DATA_PATH, "sequences.fasta")
     tax_file = os.path.join(TEST_DATA_PATH, "sequences.taxonomy")
@@ -210,7 +210,7 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
-    sys.stderr.write("  ■ classify:   ") #--------------------------------------
+    sys.stderr.write("  ■ classify:   ")  # --------------------------------------
     sys.stderr.flush()
     temp_file_res = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
@@ -234,15 +234,15 @@ def main(argv=None):
     sys.stderr.write("  ■ taxonomy of classified sequences: ")
     sys.stderr.flush()
 
-    o = open(tax_file,"r")
+    o = open(tax_file, "r")
     correct_tax = dict()
     for i in o:
         vals = i.rstrip().split("\t")
         correct_tax[vals[0]] = vals[1]
     o.close()
 
-    o = open(temp_file_res.name,"r")
-    o.readline() # remove header
+    o = open(temp_file_res.name, "r")
+    o.readline()  # remove header
     pred_tax = dict()
     for i in o:
         vals = i.rstrip().split("\t")
@@ -275,11 +275,8 @@ def main(argv=None):
     if not error_flag:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
 
-
     if error_found or error_flag:
         sys.exit(1)
-
-
 
     ############################################################################
     sys.stderr.write(f"{bco.Blue}{bco.Bold} ------------------------------------------------------------------------------{bco.ResetAll}\n")
@@ -311,10 +308,6 @@ def main(argv=None):
         sys.exit(1)
     else:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
-
-
-
-
 
     # long test part 2: test classify genome -----------------------------------
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}2-- Test genome classification:{bco.ResetAll}\n")
@@ -361,27 +354,22 @@ def main(argv=None):
         all_genomes[vals[0]] = True
         if not vals[0] in correct_classification:
             sys.stderr.write(f"{bco.Red}{bco.Bold} Error, too many lines{bco.ResetAll}\n")
-            sys.stderr.write(f"{bco.Red}{bco.Bold} Check "+ this_dir + f"RESULT_TEMP/genome_annotation {bco.ResetAll}\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold} Check {this_dir}RESULT_TEMP/genome_annotation {bco.ResetAll}\n")
             sys.exit(1)
         else:
             if correct_classification[vals[0]] != vals[1]:
                 sys.stderr.write(f"{bco.Red}{bco.Bold} Error, wrong calssification{bco.ResetAll}\n")
-                sys.stderr.write(f"{bco.Red}{bco.Bold} Check "+ this_dir + f"RESULT_TEMP/genome_annotation {bco.ResetAll}\n")
+                sys.stderr.write(f"{bco.Red}{bco.Bold} Check {this_dir}RESULT_TEMP/genome_annotation {bco.ResetAll}\n")
                 sys.exit(1)
     o.close()
     # check that all the genomes were profiled
     for genome in all_genomes:
         if not all_genomes[genome]:
             sys.stderr.write(f"{bco.Red}{bco.Bold} Error, some genomes are missing{bco.ResetAll}\n")
-            sys.stderr.write(f"{bco.Red}{bco.Bold} Check "+ this_dir + f"RESULT_TEMP/genome_annotation {bco.ResetAll}\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold} Check {this_dir}RESULT_TEMP/genome_annotation {bco.ResetAll}\n")
             sys.exit(1)
     # if we arrive till here, then it's correct
     sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
-
-
-
-
-
 
     # long test part 3: test gene train and classification with real data ------
     sys.stderr.write(f"{bco.Cyan}{bco.Bold}3-- Test real genes:{bco.ResetAll}\n")
@@ -401,7 +389,7 @@ def main(argv=None):
     temp_file_db = tempfile.NamedTemporaryFile(delete=False, mode="w")
 
     t0 = time.time()
-    stag_command = "stag train -f -o "+trained_db+" -i "+seq_file+" -p "+protein_file+" -x "+tax_file+" -a "+hmm_file + " -t 2"
+    stag_command = f"stag train -f -o {trained_db} -i {seq_file} -p {protein_file} -x {tax_file} -a {hmm_file} -t 2"
     process = subprocess.run(stag_command.split())
     runtime = time.time() - t0
 
@@ -411,7 +399,7 @@ def main(argv=None):
     else:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
 
-    sys.stderr.write("  ■ classify:             ") #--------------------------------------
+    sys.stderr.write("  ■ classify:             ")  # --------------------------------------
     sys.stderr.flush()
     res_classification = this_dir + "RES_TEMP"
     seq_file = this_dir + "test.fna"
@@ -427,7 +415,6 @@ def main(argv=None):
         sys.exit(1)
     else:
         sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll} ({runtime:.3f}s)\n")
-
 
     # check result of the classification ---------------------------------------
     sys.stderr.write("  ■ check result:         ")
@@ -449,34 +436,26 @@ def main(argv=None):
         all_genomes[vals[0]] = True
         if not vals[0] in correct_classification:
             sys.stderr.write(f"{bco.Red}{bco.Bold} Error, too many lines{bco.ResetAll}\n")
-            sys.stderr.write(f"{bco.Red}{bco.Bold} Check "+ res_classification + f"{bco.ResetAll}\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold} Check {res_classification}{bco.ResetAll}\n")
             sys.exit(1)
         else:
             if correct_classification[vals[0]] != vals[1]:
-                sys.stderr.write(f"\n{bco.Yellow} Corr: "+correct_classification[vals[0]]+f"{bco.ResetAll}\n")
-                sys.stderr.write(f"{bco.Yellow} Pred: "+vals[1]+f"{bco.ResetAll}\n")
+                sys.stderr.write(f"\n{bco.Yellow} Corr: {correct_classification[vals[0]]}{bco.ResetAll}\n")
+                sys.stderr.write(f"{bco.Yellow} Pred: {vals[1]}{bco.ResetAll}\n")
             else:
-                sys.stderr.write(f"\n{bco.LightGreen} Corr: "+correct_classification[vals[0]]+f"{bco.ResetAll}\n")
-                sys.stderr.write(f"{bco.LightGreen} Pred: "+vals[1]+f"{bco.ResetAll}\n")
+                sys.stderr.write(f"\n{bco.LightGreen} Corr: {correct_classification[vals[0]]}{bco.ResetAll}\n")
+                sys.stderr.write(f"{bco.LightGreen} Pred: {vals[1]}{bco.ResetAll}\n")
     o.close()
     # check that all the genomes were profiled
     for genome in all_genomes:
         if not all_genomes[genome]:
             sys.stderr.write(f"{bco.Red}{bco.Bold} Error, some genomes are missing{bco.ResetAll}\n")
-            sys.stderr.write(f"{bco.Red}{bco.Bold} Check "+ res_classification + f"{bco.ResetAll}\n")
+            sys.stderr.write(f"{bco.Red}{bco.Bold} Check {res_classification}{bco.ResetAll}\n")
             sys.exit(1)
     # if we arrive till here, then it's correct
     sys.stderr.write(f"{bco.Green}{bco.Bold} correct{bco.ResetAll}\n")
     # print(*all_genomes.items(), sep="\n")
 
 
-
-
-
-
-    return None        # success
-
-
-#-------------------------------- run main -------------------------------------
 if __name__ == '__main__':
     main()

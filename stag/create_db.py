@@ -9,28 +9,27 @@
 # Output:
 #  - a database file (hdf5) that can be used by stag classify
 
-import sys
-import random
 import logging
-import os
-import time
-import tempfile
-import shutil
-from collections import Counter
-import random
-import pickle
 import multiprocessing as mp
+import os
+import pickle
+import random
+import shutil
+import sys
+import tempfile
+import time
 
-import warnings
-warnings.filterwarnings("error")
+from collections import Counter
 
 import numpy as np
-import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 from stag.taxonomy3 import Taxonomy
 from stag.databases import save_to_file
-from stag.alignment import load_alignment_from_file, EncodedAlignment
+from stag.alignment import EncodedAlignment
+
+import warnings
+warnings.filterwarnings("error")
 
 
 class BalancingParameters:
@@ -47,7 +46,10 @@ class BalancingParameters:
 
     @staticmethod
     def get_neg_pos_sample_factor(n_siblings):
-        return BalancingParameters.NEG_POS_FACTOR_N_SIBLINGS if n_siblings > 1 else BalancingParameters.NEG_POS_FACTOR_1_SIBLING
+        if n_siblings > 1:
+            return BalancingParameters.NEG_POS_FACTOR_N_SIBLINGS
+
+        return BalancingParameters.NEG_POS_FACTOR_1_SIBLING
 
     @staticmethod
     def get_missing_negatives(n_positives, n_negatives):
@@ -68,10 +70,15 @@ def balance_neg_pos_ratio(positive_examples, negative_examples, alignment, n_sib
     if len(negative_examples) > max_negatives:
         negative_examples = random.sample(negative_examples, max_negatives)
 
-    # i still think there should be an else here, otherwise we downsample, then upsample again in some (hypothetical) cases
-    missing_negatives = BalancingParameters.get_missing_negatives(n_positives, len(negative_examples))
+    # i still think there should be an else here,
+    # otherwise we downsample, then upsample again in some (hypothetical) cases
+    missing_negatives = BalancingParameters.get_missing_negatives(
+        n_positives, len(negative_examples)
+    )
     if missing_negatives:
-        negative_examples += alignment.get_auxiliary_negative_examples(positive_examples, negative_examples, missing_negatives)
+        negative_examples += alignment.get_auxiliary_negative_examples(
+            positive_examples, negative_examples, missing_negatives
+        )
 
     return positive_examples, negative_examples
 
@@ -90,10 +97,15 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
     # if there are negative examples, then balance negative/positive ratio
     if negative_examples:
-        positive_examples, negative_examples = balance_neg_pos_ratio(positive_examples, negative_examples, alignment, len(siblings))
+        positive_examples, negative_examples = balance_neg_pos_ratio(
+            positive_examples, negative_examples, alignment, len(siblings)
+        )
 
     t_total = time.time() - t00
-    logging.info(f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}\t{t_pos:.3f}\t{t_neg:.3f}\t{t_total:.3f}\t{os.getpid()}")
+    logging.info(
+        f"find_training_genes\t{node}\t{len(positive_examples)}\t{len(negative_examples)}"
+        f"\t{t_pos:.3f}\t{t_neg:.3f}\t{t_total:.3f}\t{os.getpid()}"
+    )
 
     return positive_examples, negative_examples
 
@@ -119,33 +131,44 @@ def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v, max_it
         )
         t_train = time.time() - t0
     elif positive_examples:
-        msg, clf = f'      Warning: no negative examples for "{node}"', None  # "no_negative_examples"
+        msg, clf = f'      Warning: no negative examples for "{node}"', None
         logging.info(msg)
     else:
         raise ValueError(f'This literally cannot happen: no positive examples for "{node}"!')
 
     t_total = time.time() - t00
-    logging.info("\t".join(map(str, [node, len(positive_examples), len(negative_examples), f"{t_select:.3f}s", f"{t_train:.3f}s", f"{t_total:.3f}s", os.getpid()])))
+    logging.info(
+        f"{node}\t{len(positive_examples)}\t{len(negative_examples)}"
+        f"{t_select:.3f}s\t{t_train:.3f}s\t{t_total:.3f}s\t{os.getpid()}"
+    )
 
     return node, clf
 
 
 def process_chunk(nodes, taxonomy, alignment, penalty_v, solver_v):
-    return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
+    return [
+        do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v)
+        for node, siblings in nodes
+    ]
 
 
 def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, max_iter=5000, procs=2):
     print(f"train_all_classifiers_mp with {procs} processes.")
-    logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
+    logging.info("\t".join([
+        "                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"
+    ]))
     with mp.Pool(processes=procs) as pool:
         nodes = list(full_taxonomy.get_all_nodes(get_root=False))
-        # try to distribute the load a little (the higher nodes have more data attached)
+        # try to distribute the load a little (the higher nodes have more data attached)
         # but still keep it reproducible, hence reset the seed every time
         random.seed(313)
         random.shuffle(nodes)
         step = len(nodes) // procs + 1
 
-        results = pool.starmap_async(do_training, ((node, siblings, full_taxonomy, alignment, penalty_v, solver_v, max_iter) for node, siblings in nodes), step)
+        results = pool.starmap_async(
+            do_training,
+            [(node, siblings, full_taxonomy, alignment, penalty_v, solver_v, max_iter) for node, siblings in nodes],
+            step)
         return list(results.get())
 
 
@@ -155,13 +178,13 @@ def train_all_classifiers(*args, max_iter=5000, procs=None):
     return train_f(*args, max_iter=5000, procs=procs)
 
 
-#===============================================================================
+# ===============================================================================
 #              FUNCTIONS TO LEARN THE FUNCTION FOR THE TAX. LEVEL
-#===============================================================================
+# ===============================================================================
 def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_so_far):
     if training_tax.is_last_node(arrived_so_far):
         return
-    max_perc, max_perc_taxa  = 0, ""
+    max_perc, max_perc_taxa = 0, ""
     children = training_tax.find_children_node(arrived_so_far)
     if not children:
         print("Error: no child", file=sys.stderr)
@@ -204,7 +227,10 @@ def predict(test_al, training_tax, classifiers_train):
     ]
 
 
-def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, perc_test_set=0.33, gene_level=False, max_iter=5000, procs=None):
+def learn_function(
+    level_to_learn, alignment, full_taxonomy, penalty_v, solver_v,
+    perc_test_set=0.33, gene_level=False, max_iter=5000, procs=None
+):
     # perc_test_set <= 0.5 !
     logging.info(f'  TEST:"{level_to_learn}" taxonomic level')
     # 1. Identify which clades we want to remove (test set) and which to keep (training set)
@@ -282,7 +308,7 @@ def estimate_function(all_calc_functions, max_iter=5000):
         corr_level_this = -1
         for cont, (p, c) in enumerate(zip(predicted, ground_truth)):
             if p == c:
-                corr_level_this = cont # we select to what level to predict
+                corr_level_this = cont  # we select to what level to predict
         correct_level.append(corr_level_this)
 
     # now in correct_level there is to which level to predict to. Example:
@@ -308,7 +334,10 @@ def estimate_function(all_calc_functions, max_iter=5000):
             clf.fit(X, y)
             all_classifiers.append((str(uniq_level), clf))
         else:
-            logging.info(f'Could not train classifier {uniq_level}: neg={len(correct_order[0])} pos={len(correct_order[1])}')
+            logging.info(
+                f'Could not train classifier {uniq_level}: '
+                f'neg={len(correct_order[0])} pos={len(correct_order[1])}'
+            )
 
     return all_classifiers
 
@@ -316,41 +345,60 @@ def estimate_function(all_calc_functions, max_iter=5000):
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
 # level a new gene should be assigned to.
-def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=5000, procs=None):
+def learn_taxonomy_selection_function(
+    alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=5000, procs=None
+):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
 
     # do the cross validation for each level
     all_calc_functions = list()
     for level in range(n_levels):
-        all_calc_functions += learn_function(level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+        all_calc_functions += learn_function(
+            level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs
+        )
     # do the cross val. for the last level (using the genes)
-    all_calc_functions += learn_function(n_levels, alignment, full_taxonomy, penalty_v, solver_v, gene_level=True, procs=procs)
+    all_calc_functions += learn_function(
+        n_levels, alignment, full_taxonomy, penalty_v, solver_v, gene_level=True, procs=procs
+    )
 
     # save all_calc_functions if necessary -------------------------------------
     if save_cross_val_data:
         outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
         with outfile:
             os.chmod(outfile.name, 0o644)
-            print("gene", "predicted", "prob", "ground_truth", "removed_level", sep="\t", file=outfile)
+            print(
+                "gene", "predicted", "prob", "ground_truth", "removed_level",
+                sep="\t", file=outfile
+            )
             for gene, predicted, prob, ground_truth, removed_level in all_calc_functions:
-                predicted, prob, ground_truth = ("/".join(s) for s in (predicted, ["{:.2f}".format(pr) for pr in prob], ground_truth))
+                predicted, prob, ground_truth = (
+                    "/".join(s)
+                    for s in (predicted, [f"{pr:.2f}" for pr in prob], ground_truth)
+                )
                 print(gene, predicted, prob, ground_truth, removed_level, sep="\t", file=outfile)
             try:
                 outfile.flush()
                 os.fsync(outfile.fileno())
-            except:
+            except Exception:
                 print("[E::main] Error: failed to save the cross validation results", file=sys.stderr)
         try:
             shutil.move(outfile.name, save_cross_val_data)
-        except:
-            print("[E::main] Error: failed to save the cross validation results\n" + \
-                  f"[E::main] you can find the file here: \n{outfile.name}\n", file=sys.stderr)
+        except Exception:
+            print(
+                "[E::main] Error: failed to save the cross validation results\n"
+                f"[E::main] you can find the file here: \n{outfile.name}\n",
+                file=sys.stderr
+            )
 
     return estimate_function(all_calc_functions, max_iter=max_iter)
 
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, max_iter=5000, procs=None):
+def create_db(
+    aligned_seq_file, tax_file, verbose, output, use_cmalign,
+    hmm_file_path, save_cross_val_data, protein_fasta_input,
+    penalty_v, solver_v, max_iter=5000, procs=None
+):
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
                         filemode='w',
@@ -376,12 +424,19 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     # 4. build a classifier for each node
     logging.info('MAIN:Training all classifiers')
     classifiers_file = output + ".classifiers.dat"
-    if all((os.path.exists(f) for f in (classifiers_file, classifiers_file + ".ok"))):
-        classifiers = pickle.load(open(classifiers_file, "rb"))
+    if all((
+        os.path.exists(f) for f in (classifiers_file, classifiers_file + ".ok")
+    )):
+        with open(classifiers_file, "rb") as classifiers_in:
+            classifiers = pickle.load(classifiers_in)
     else:
+        classifiers = train_all_classifiers(
+            alignment, full_taxonomy, penalty_v, solver_v,
+            max_iter=max_iter, procs=procs
+        )
         classifiers = [
             (node, np.append(clf.intercept_, clf.coef_) if clf else None)
-            for node, clf in train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, max_iter=max_iter, procs=procs)
+            for node, clf in classifiers
         ]
         with open(classifiers_file, "wb") as clf_out:
             pickle.dump(classifiers, clf_out)
@@ -394,9 +449,13 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     if all((os.path.exists(f) for f in (taxfunc_file, taxfunc_file + ".ok"))):
         tax_function = pickle.load(open(taxfunc_file, "rb"))
     else:
+        learned_function = learn_taxonomy_selection_function(
+            alignment, full_taxonomy, save_cross_val_data, penalty_v,
+            solver_v, max_iter=max_iter, procs=procs
+        )
         tax_function = [
             (node, np.append(clf.intercept_, clf.coef_) if clf else None)
-            for node, clf in learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=max_iter, procs=procs)
+            for node, clf in learned_function
         ]
         with open(taxfunc_file, "wb") as clf_out:
             pickle.dump(tax_function, clf_out)
@@ -406,7 +465,10 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
 
     # 6. save the result
     logging.info('MAIN:Saving database to file')
-    save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input)
+    save_to_file(
+        classifiers, full_taxonomy, tax_function, use_cmalign, output,
+        hmm_file_path=hmm_file_path, protein_fasta_input=protein_fasta_input
+    )
     logging.info('TIME:Finished saving database')
 
     logging.info('MAIN:Finished')

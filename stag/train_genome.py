@@ -4,7 +4,6 @@ import shutil
 import tarfile
 
 from stag.helpers import check_file_exists
-from stag.classify import classify
 
 
 def get_alignment_lengths(f):
@@ -35,24 +34,35 @@ def train_genome(output, list_genes, gene_threshold_file, threads, verbose, conc
             check_file_exists(fn)
             base_fn = os.path.basename(fn)
             if base_fn in core_db_files:
-                raise ValueError(f"[E::main] Error: gene databases cannot be named '{base_fn}'. Please choose another name.")
+                raise ValueError(
+                    f"[E::main] Error: gene databases cannot be named '{base_fn}'. Please choose another name."
+                )
             if "##" in base_fn:
-                raise ValueError(f"Error with: {base_fn}\n[E::main] Error: gene database file names cannot contain '##'. Please choose another name.")
+                raise ValueError(
+                    f"Error with: {base_fn}\n"
+                    f"[E::main] Error: gene database file names cannot contain '##'. Please choose another name."
+                )
             try:
                 genome_tar.add(fn, base_fn)
-            except:
+            except Exception:
                 raise ValueError(f"[E::main] Error: when adding {fn} to the database")
-        for source, target in zip((gene_threshold_file, get_alignment_lengths(gene_threshold_file), concat_stag_db), core_db_files):
+
+        for source, target in zip(
+            (gene_threshold_file, get_alignment_lengths(gene_threshold_file), concat_stag_db),
+            core_db_files
+        ):
             genome_tar.add(source, target)
 
     try:
         outfile.flush()
         os.fsync(outfile.fileno())
         outfile.close()
-    except:
+    except Exception:
         raise ValueError("[E::main] Error: failed to save the result.")
     try:
         shutil.move(outfile.name, output)
-    except:
-        raise ValueError("[E::main] Error: failed to save the resulting database\n" + \
-                         f"[E::main] you can find the file here:\n{outfile.name}")
+    except Exception:
+        raise ValueError(
+            "[E::main] Error: failed to save the resulting database\n"
+            f"[E::main] you can find the file here:\n{outfile.name}"
+        )

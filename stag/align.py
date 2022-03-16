@@ -5,21 +5,17 @@ Scripts to align sequences and transoform them into 1-hot encoding
 # Author: Alessio Milanese <milanese.alessio@gmail.com>
 
 import shutil
-import time
 import subprocess
 import shlex
 import os
-import errno
 import sys
 import tempfile
-import numpy as np
 import re
+
+import numpy as np
 
 from stag.helpers import is_tool, read_fasta
 
-#===============================================================================
-#                                 FUNCTIONS
-#===============================================================================
 
 # ------------------------------------------------------------------------------
 # function to convert the nucleotide alignment into 1-hot encoding.
@@ -34,6 +30,7 @@ encoding_dic = {
     "others": [1, 0, 0, 0, 0]
 }
 
+
 def convert_alignment(alignment, verbose, as_numpy=False):
     n_aligned_characters, n_char = 0, 0
     converted_ali = list()
@@ -46,16 +43,16 @@ def convert_alignment(alignment, verbose, as_numpy=False):
         # hidden state of the HMM.
         if not character.islower():
             n_char += 1
-            encoded_block = encoding_dic.get(character) #, encoding_dic["others"])
-            if encoded_block: #not encoded_block[0]:
-                # others' high bit = 1
+            encoded_block = encoding_dic.get(character)
+            if encoded_block:
+                # others' high bit = 1
                 n_aligned_characters += 1
             else:
                 encoded_block = encoding_dic["others"]
             converted_ali.extend(encoded_block)
-    #if as_numpy:
-    #    converted_ali = np.array(list(map(bool, converted_ali)), dtype=bool)
+
     return np.array(converted_ali, dtype=bool), n_aligned_characters / n_char * 100
+
 
 # function that transform a protein MSA to a nucleotide MSA --------------------
 # if check_length is True, then we check that
@@ -65,7 +62,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
     only_AA_from_ali = re.sub(r'\-', '', protein_alignment)
     if check_length:
         expected_gene_length = len(only_AA_from_ali) * 3
-        # check if lengths of gene and protein sequence match, with or without stop codon
+        # check if lengths of gene and protein sequence match, with or without stop codon
         if len(gene_sequence) != expected_gene_length and len(gene_sequence) - 3 != expected_gene_length:
             sys.stderr.write("Error, length of genes/alignment is not correct")
             sys.stderr.write(" (protein: "+str(len(only_AA_from_ali)*3)+", gene: "+str(len(gene_sequence))+")\n")
@@ -93,8 +90,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
 
     return "".join(al_gene)
 
-# ------------------------------------------------------------------------------
-# main function as a generator
+
 def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, return_numpy, min_perc_state):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
@@ -179,8 +175,7 @@ def align_generator(seq_file, protein_file, hmm_file, use_cmalign, n_threads, ve
         print(f" Number of sequences that pass the filter: {n_pass}", file=sys.stderr)
         print(f" Number of sequences that do not pass the filter: {n_not_pass}", file=sys.stderr)
 
-# ------------------------------------------------------------------------------
-# main function
+
 def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose, res_file, min_perc_state):
     """Align sequences and transform them into 1-hot encoding, ready for
        classification.
@@ -203,25 +198,29 @@ def align_file(seq_file, protein_file, hmm_file, use_cmalign, n_threads, verbose
     os.chmod(temp_file.name, 0o644)
     encoder = None
     with temp_file:
-        for gid, ali in align_generator(seq_file, protein_file, hmm_file, use_cmalign,
-                                        n_threads, verbose, False, min_perc_state):
+        for gid, ali in align_generator(
+            seq_file, protein_file, hmm_file, use_cmalign,
+            n_threads, verbose, False, min_perc_state
+        ):
             if encoder is None:
                 encoder = AlignmentEncoder(ali)
                 print(encoder.ncols, encoder.npads, sep="\t", file=temp_file)
-            #print(gid, *map(int, ali), sep="\t", file=temp_file)
+
             print(gid, *encoder.encode(ali), sep="\t", file=temp_file)
 
         try:
             temp_file.flush()
             os.fsync(temp_file.fileno())
-        except:
+        except Exception:
             raise ValueError("[E::align] Error when saving the resulting file.")
 
     try:
         shutil.move(temp_file.name, res_file)
-    except:
-        raise ValueError(f"[E::align] The resulting file couldn't be saved. You can find the file here:\n{temp_file.name}.")
-
+    except Exception:
+        raise ValueError(
+            "[E::align] The resulting file couldn't be saved. "
+            f"You can find the file here:\n{temp_file.name}."
+        )
 
 
 class AlignmentEncoder:
@@ -233,7 +232,7 @@ class AlignmentEncoder:
         split_row = np.array_split(aln_row > 0, np.arange(32, len(aln_row), 32))
         split_row[-1] = np.append(split_row[-1], np.zeros(self.npads) > 0)
         encoded = np.sum(
-            np.apply_along_axis(lambda x:(x * (1<<np.arange(0,32))[::-1]), 1, split_row),
+            np.apply_along_axis(lambda x:(x * (1 << np.arange(0, 32))[::-1]), 1, split_row),  # noqa: E231
             axis=1
         )
         return encoded

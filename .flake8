@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 120
+
+per-file-ignores =
+     stag/helpers.py: E221
+     stag/handle_args.py: E501,F541
+     stag/stag_test.py: E501,F401

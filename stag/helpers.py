@@ -1,7 +1,9 @@
+import errno
 import os
 import sys
 import shlex
 import subprocess
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -12,6 +14,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
 
 # colors for the shell ---------------------------------------------------------
 class bco:
@@ -31,16 +34,18 @@ class bco:
     LightMagenta = "\033[95m"
     LightCyan    = "\033[96m"
 
+
 def print_error():
     try:
         sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-    except Exception as e:
+    except Exception:
         sys.stderr.write("[E::main] Error: ")
 
+
 # function that checks if a file exists ----------------------------------------
-def check_file_exists(file_name, isfasta = False):
+def check_file_exists(file_name, isfasta=False):
     try:
-        o = open(file_name,"r")
+        o = open(file_name, "r")
         # if fasta file, then check that it starts with ">"
         if isfasta:
             if not(o.readline().startswith(">")):
@@ -56,6 +61,7 @@ def check_file_exists(file_name, isfasta = False):
         sys.stderr.write(str(e)+"\n")
         sys.exit(1)
 
+
 # function that checks if a file exists already, and give an error -------------
 def check_file_doesnt_exists(file_name):
     if os.path.exists(file_name):
@@ -63,8 +69,7 @@ def check_file_doesnt_exists(file_name):
         sys.stderr.write("Output file exists already: "+file_name+"\n")
         sys.exit(1)
 
-# ------------------------------------------------------------------------------
-# function to check if a specific tool exists
+
 def is_tool(name):
     with open(os.devnull) as devnull:
         try:
@@ -74,13 +79,14 @@ def is_tool(name):
 
     return True
 
+
 def is_tool_and_return0(name):
     with open(os.devnull) as devnull:
         try:
             devnull = open(os.devnull)
             popenCMD = shlex.split(name)
             child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
-            streamdata = child.communicate()
+            _ = child.communicate()
             rc = child.wait()
             return rc == 0
         except OSError as e:
@@ -96,14 +102,17 @@ def is_tool_and_return0(name):
 # ATTGCGATTTCT
 # CGGTATCGGTAT
 # CGGTTA
-### TO:
+# TO:
 # >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
+
+
 def linearise_fasta(fasta_stream, head_start=0, is_binary=True):
     for sid, seq in read_fasta(fasta_stream, head_start=head_start):
         yield "\t".join((sid, seq))
 
+
 def read_fasta(fasta, head_start=0, is_binary=True):
-    sid, seq = None, [] 
+    sid, seq = None, []
     fasta_stream = open(fasta) if isinstance(fasta, str) else fasta
     with fasta_stream:
         for line in fasta_stream:

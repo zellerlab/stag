@@ -8,19 +8,12 @@ Scripts that saves the database to a directory
 # - numpy
 # - h5py
 
-import numpy as np
 import sys
-import time
 import os
-import h5py
-import tempfile
-import shutil
 
 from stag.databases import load_db
 
-#===============================================================================
-#                                      MAIN
-#===============================================================================
+
 def unzip_db(database, verbose, dir_output):
     # check if the output dir exists already
     if os.path.isdir(dir_output):

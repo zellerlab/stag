@@ -106,13 +106,13 @@ def run_train(args):
         # check that output is set
         handle_error("missing <output_DB> (-o)", print_menu_train)
 
-    check_file_exists(args.fasta_input, isfasta = True)
-    check_file_exists(args.template_al, isfasta = False)
+    check_file_exists(args.fasta_input, isfasta=True)
+    check_file_exists(args.template_al, isfasta=False)
 
     if args.protein_fasta_input:
-        check_file_exists(args.protein_fasta_input, isfasta = True)
+        check_file_exists(args.protein_fasta_input, isfasta=True)
 
-    check_file_exists(args.taxonomy, isfasta = False)
+    check_file_exists(args.taxonomy, isfasta=False)
 
     if not args.force_rewrite:
         check_file_doesnt_exists(args.output)
@@ -152,21 +152,21 @@ def run_classify(args):
         handle_error("missing <database> (-d)", print_menu_classify)
 
     check_file_exists(args.database, isfasta=False)
-    
+
     if args.fasta_input:
         check_file_exists(args.fasta_input, isfasta=True)
-    
+
     if args.protein_fasta_input:
-        check_file_exists(args.protein_fasta_input, isfasta = True)
-    
+        check_file_exists(args.protein_fasta_input, isfasta=True)
+
     # if -S is provided, we remove the file if it exists, since in the
     # function it appends only
     if args.intermediate_al and os.path.isfile(args.intermediate_al):
         os.remove(args.intermediate_al)
 
     classify.classify(
-        args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input, 
-        verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out, 
+        args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input,
+        verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out,
         current_tool_version=tool_version, aligned_sequences=args.aligned_sequences,
         save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state
     )
@@ -196,8 +196,8 @@ def run_correct_seq(args):
     if not args.template_al:
         handle_error("missing <hmmfile>/<cmfile> (-a)", print_menu_correct_seq)
 
-    check_file_exists(args.fasta_input, isfasta = True)
-    check_file_exists(args.template_al, isfasta = False)
+    check_file_exists(args.fasta_input, isfasta=True)
+    check_file_exists(args.template_al, isfasta=False)
 
     correct_seq.correct_seq(
         args.fasta_input, args.template_al, args.use_cm_align, args.threads, args.verbose,
@@ -212,13 +212,13 @@ def run_convert_ali(args):
     if not args.output:
         handle_error("missing <file_out> (-o)", print_menu_convert_ali)
 
-    check_file_exists(args.fasta_input, isfasta = False)
+    check_file_exists(args.fasta_input, isfasta=False)
 
     convert_ali.convert_ali(args.fasta_input, args.output, args.verbose)
 
 
 def run_unzip_db(args):
-     # check that '-d' and '-o' have been provided
+    # check that '-d' and '-o' have been provided
     if not args.database:
         error = "missing <database> (-d)"
     if not args.output:
@@ -228,7 +228,7 @@ def run_unzip_db(args):
         handle_error(error, print_menu_unzip_db)
 
     # check that '-d' is a file
-    check_file_exists(args.database, isfasta = False)
+    check_file_exists(args.database, isfasta=False)
 
     # call function
     unzip_db.unzip_db(args.database, args.verbose, args.output)
@@ -283,7 +283,7 @@ def run_classify_genome(args):
                     with open(f) as _in:
                         if _in.read(1)[0] == ">":
                             list_files.append(f)
-                except Exception as e:
+                except Exception:
                     if args.verbose > 1:
                         sys.stderr.write("[W::main] Warning: ")
                         sys.stderr.write("Cannot open file: {}\n".format(f))
@@ -301,7 +301,7 @@ def run_classify_genome(args):
     # create output dir
     try:
         pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
-    except:
+    except Exception:
         handle_error("creating the output directory (-o {}).".format(args.output), None)
 
     if list_files:
@@ -317,7 +317,7 @@ def run_classify_genome(args):
 def main(argv=None):
 
     args = get_args()
-   
+
     if args.command == 'test':
         run_test()
     else:
@@ -338,7 +338,7 @@ def main(argv=None):
         # set defaults for the parameters
         if args.min_perc_state is None:
             args.min_perc_state = 5 if args.command == "correct_seq" else 0
-        
+
         if args.threads < 1:
             handle_error("number of threads (-t) is less than 1", None)
         if args.min_perc_state < 0 or args.min_perc_state > 100:
@@ -348,9 +348,9 @@ def main(argv=None):
         run_routine = routines.get(args.command)
         if run_routine is None:
             raise ValueError(f"Subroutine {args.command} is unknown.")
-        
+
         run_routine(args)
-    
+
 
 if __name__ == '__main__':
     main()

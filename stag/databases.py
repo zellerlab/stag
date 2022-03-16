@@ -1,5 +1,3 @@
-import sys
-import time
 import os
 import tempfile
 import shutil
@@ -9,7 +7,6 @@ import numpy as np
 import h5py
 
 from . import __version__ as tool_version
-import stag.align as align
 
 
 def load_genome_DB(database, tool_version, verbose):
@@ -30,7 +27,10 @@ def load_genome_DB(database, tool_version, verbose):
     list_files.remove("threshold_file.tsv")
     list_files.remove("hmm_lengths_file.tsv")
     list_files.remove("concatenated_genes_STAG_database.HDF5")
-    return list_files, dirpath, gene_thresholds, gene_order, ali_lengths, os.path.join(dirpath, "concatenated_genes_STAG_database.HDF5")
+
+    dbfile = os.path.join(dirpath, "concatenated_genes_STAG_database.HDF5")
+
+    return list_files, dirpath, gene_thresholds, gene_order, ali_lengths, dbfile
 
 
 def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_output=None):
@@ -39,8 +39,8 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
         with params_out:
             # zero: tool version -------------------------------------------------------
             db_tool_version = db_in['tool_version'][0]
-            use_proteins = db_in['align_protein'][0] # bool
-            use_cmalign = db_in['use_cmalign'][0] # bool
+            use_proteins = db_in['align_protein'][0]  # bool
+            use_cmalign = db_in['use_cmalign'][0]  # bool
             if dir_output:
                 params_out.write("Tool version: "+str(db_tool_version)+"\n")
                 params_out.write("Use proteins for the alignment: "+str(use_proteins)+"\n")
@@ -71,7 +71,7 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
             shutil.move(hmm_file.name, os.path.join(dir_output, "hmmfile.hmm"))
 
         # second if we need to use cm_align ----------------------------------------
-        use_cmalign = db_in['use_cmalign'][0] # bool
+        use_cmalign = db_in['use_cmalign'][0]  # bool
 
         # third: taxonomy ----------------------------------------------------------
         taxonomy = {key: [s.decode() for s in db_in[f'taxonomy/{key}']] for key in db_in['taxonomy']}
@@ -92,8 +92,9 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
                     print(key, value, sep="\t", file=tax_func_out)
 
         # fifth: the classifiers ---------------------------------------------------
-        classifiers = dict()
-        class_out = open(os.path.join(dir_output, "classifiers_weights.tsv"), "w") if dir_output else contextlib.nullcontext()
+        classifiers = {}
+        cweights_file = os.path.join(dir_output, "classifiers_weights.tsv")
+        class_out = open(cweights_file, "w") if dir_output else contextlib.nullcontext()
         with class_out:
             for key in db_in['classifiers']:
                 classifier = db_in[f'classifiers/{key}']
@@ -107,7 +108,10 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
     return hmm_file.name, use_cmalign, taxonomy, tax_function, classifiers, db_tool_version
 
 
-def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, hmm_file_path=None, protein_fasta_input=None):
+def save_to_file(
+    classifiers, full_taxonomy, tax_function, use_cmalign, output,
+    hmm_file_path=None, protein_fasta_input=None
+):
 
     string_dt = h5py.special_dtype(vlen=str)
     with h5py.File(output, "w") as h5p_out:
@@ -122,20 +126,30 @@ def save_to_file(classifiers, full_taxonomy, tax_function, use_cmalign, output, 
         if hmm_file_path:
             with open(hmm_file_path) as hmm_in:
                 hmm_string = "".join(line for line in hmm_in)
-        h5p_out.create_dataset('hmm_file', data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)), dtype=string_dt, compression="gzip")
+        h5p_out.create_dataset(
+            'hmm_file',
+            data=np.array([hmm_string], "S" + str(len(hmm_string) + 100)),
+            dtype=string_dt,
+            compression="gzip"
+        )
         # second, save the use_cmalign info ----------------------------------------
         h5p_out.create_dataset('use_cmalign', data=np.array([use_cmalign]), dtype=bool)
         # third, we save the taxonomy ---------------------------------------------
         h5p_out.create_group("taxonomy")
         for node, _ in full_taxonomy.get_all_nodes(get_root=True):
-            h5p_out.create_dataset(f"taxonomy/{node}", data=np.array(list(full_taxonomy[node].children.keys()), "S10000"), dtype=string_dt, compression="gzip")
+            h5p_out.create_dataset(
+                f"taxonomy/{node}",
+                data=np.array(list(full_taxonomy[node].children.keys()), "S10000"),
+                dtype=string_dt,
+                compression="gzip"
+            )
         # fourth, the taxonomy function --------------------------------------------
         h5p_out.create_group("tax_function")
         for node, clf in tax_function:
             h5p_out.create_dataset(f"tax_function/{node}", data=clf, dtype=np.float64, compression="gzip")
         # fifth, save the classifiers ----------------------------------------------
         h5p_out.create_group("classifiers")
-        for node, clf in classifiers: #.items():
+        for node, clf in classifiers:
             if clf is None:
                 # in this case, it always predict 1, we save it as an array of
                 # with the string "no_negative_examples"

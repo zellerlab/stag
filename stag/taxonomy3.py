@@ -1,6 +1,7 @@
 import csv
 import logging
 
+
 class Taxon:
     def __init__(self, level=0, parent=None, label=None):
         self.level = level
@@ -9,18 +10,23 @@ class Taxon:
         self.genes = set()
         self.species_nodes = set()
         self.parent = parent
+
     def add_child(self, child):
         self.children.setdefault(child.label, child)
+
     def add_species_descendant(self, node):
         self.species_nodes.add(node)
+
     def add_gene(self, gene):
         self.genes.add(gene)
+
     def is_leaf(self):
         return not self.children
 
 
 class Taxonomy(dict):
     TREE_ROOT = "tree_root"
+
     def __init__(self, fn=None):
         self[self.TREE_ROOT] = Taxon()
         self.n_taxlevels = 0
@@ -30,9 +36,12 @@ class Taxonomy(dict):
             self._load_taxonomy()
 
     def _check_lineage_depth(self, lineage, line_no):
-        lineage = lineage.replace("/", "-").split(";") # issue10
+        lineage = lineage.replace("/", "-").split(";")  # issue10
         if len(lineage) < self.n_taxlevels:
-            raise ValueError(f"Line {line_no}: Taxonomy record does not have the expected number of taxonomic levels\n{lineage}")
+            raise ValueError(
+                f"Line {line_no}: "
+                f"Taxonomy record does not have the expected number of taxonomic levels\n{lineage}"
+            )
         self.n_taxlevels = len(lineage)
         return lineage
 
@@ -103,7 +112,7 @@ class Taxonomy(dict):
         return list(genes)
 
     def remove_clades(self, nodes):
-        removed_genes = set()   
+        removed_genes = set()
         for node in nodes:
             stack = [node]
             while stack:
@@ -125,7 +134,7 @@ class Taxonomy(dict):
             try:
                 self.pop(node.label)
                 node.parent.children.pop(node.label)
-            except:
+            except Exception:
                 pass
             node = node.parent
 
@@ -193,9 +202,9 @@ class Taxonomy(dict):
             self.remove_genes(drop_genes)
         logging.info(f"   CHECK: check genes that we need to remove from the taxonomy: {len(drop_genes)}")
 
-        # verify number of genes is consistent between set and taxonomy tree
+        # verify number of genes is consistent between set and taxonomy tree
         genes_in_tree = self.find_gene_ids()
         if len(genes_in_tree) != len(genes):
             msg = "Even after correction, the genes in the taxonomy and the alignment do not agree."
             logging.info(f" Error: {msg.lower()}")
-            raise ValueError(msg) 
+            raise ValueError(msg)

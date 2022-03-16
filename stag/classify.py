@@ -6,18 +6,19 @@ import shutil
 import contextlib
 
 import numpy as np
-import h5py
 
 from . import __version__ as tool_version
 from stag.taxonomy3 import Taxonomy
 from stag.databases import load_db
 import stag.align as align
 
+
 def alignment_reader(aligned_sequences):
-    with open(aligned_sequences,"r") as align_in:
+    with open(aligned_sequences, "r") as align_in:
         for ali_line in align_in:
             gene_id, *aligned_seq = ali_line.rstrip().split("\t")
             yield gene_id, np.array(list(map(int, aligned_seq)), dtype=bool)
+
 
 def run_logistic_prediction(seq, coeff_raw):
     # the first value of the coeff is the intercept
@@ -25,6 +26,7 @@ def run_logistic_prediction(seq, coeff_raw):
     sm = coeff * seq
     np_sum = (sm).sum() + intercept
     return 1 / (1 + np.exp(-np_sum))
+
 
 # given many taxa (all siblings) and a sequence, it finds taxa with the highest
 # score. Returns the taxa name and the score
@@ -42,6 +44,7 @@ def find_best_score(test_seq, siblings, classifiers):
                 best_score, best_taxa = this_score, sibling
     return best_taxa, best_score
 
+
 def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
     # last iterative step
     if taxonomy.get(arrived_so_far) is not None:
@@ -52,9 +55,9 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
         predict_iter(test_seq, taxonomy, classifiers, tax, perc, t)
 
 
-#===============================================================================
+# ===============================================================================
 #                    FIND TO WHICH TAXONOMIC LEVEL TO STOP
-#===============================================================================
+# ===============================================================================
 def find_correct_level(perc, tax_function):
     prob_per_level = list()
     max_probability = 0
@@ -71,9 +74,10 @@ def find_correct_level(perc, tax_function):
     # predict 0,1,2. If it is "-1", then we cannot predict anything
     return selected_level, prob_per_level
 
-#===============================================================================
+
+# ===============================================================================
 #              FIND THE NUMBER OF MATCH FROM AN ALIGNED SEQUENCE
-#===============================================================================
+# ===============================================================================
 # test_seq is a numpy array, example:
 # [False,  True, False,  True, False,  True, False,  True, False]
 def find_n_aligned_characters(test_seq):
@@ -87,13 +91,9 @@ def find_n_aligned_characters(test_seq):
     return n_False
 
 
-#===============================================================================
-#                             CLASSIFY ONE SEQUENCE
-#===============================================================================
-
 def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads, verbose):
     # test_seq is a boolean numpy array corresponding to the encoded aligned sequence
-    #print("TAX", taxonomy)
+    # print("TAX", taxonomy)
     # number of characters that map to the internal states of the HMM
     n_aligned_characters = find_n_aligned_characters(test_seq)
 
@@ -123,10 +123,6 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
 
     return result
 
-
-#===============================================================================
-#                                      MAIN
-#===============================================================================
 
 def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, threads=1, output=None,
              long_out=False, current_tool_version=tool_version,
@@ -163,7 +159,9 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
 
     if verbose > 2:
         time_after_classification = time.time()
-        sys.stderr.write("Classify sequences: " + str("{0:.2f}".format(time_after_classification - time_after_loading))+" sec\n")
+        sys.stderr.write(
+            f"Classify sequences: {time_after_classification - time_after_loading:.2f} sec\n"
+        )
 
     # delete the hmm temp file that was created --------------------------------
     os.remove(hmm_file_path)
@@ -174,7 +172,6 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
         os.chmod(outfile.name, 0o644)
     else:
         outfile = sys.stdout
-
 
     out_header = ["sequence", "taxonomy", "full_taxonomy", "selected_level",
                   "prob_from_classifiers", "prob_per_level", "n_aligned_characters"]
@@ -193,13 +190,12 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
                 try:
                     outfile.flush()
                     os.fsync(outfile.fileno())
-                except:
+                except Exception:
                     sys.stderr.write("[E::main] Error: failed to save the result\n")
                     sys.exit(1)
                 try:
-                    #os.rename(outfile.name,output) # atomic operation
-                    shutil.move(outfile.name, output) #It is not atomic if the files are on different filsystems.
-                except:
+                    shutil.move(outfile.name, output)  # It is not atomic if the files are on different filsystems.
+                except Exception:
                     sys.stderr.write("[E::main] Error: failed to save the profile\n")
                     sys.stderr.write("[E::main] you can find the file here:\n" + outfile.name + "\n")
                     sys.exit(1)

@@ -1,3 +1,5 @@
+# flake8: noqa
+
 """
 Scripts that classify a genome
 """
@@ -444,8 +446,8 @@ def classify_genome(database, genomes_file_list, verbose, threads, output_dir, l
         shutil.rmtree(temp_dir)
         cleanup_prodigal(genomes_pred.values())
         raise ValueError("[W::main] Warning: no marker genes identified. Stopping annotation.")
-    
-    save_marker_genes(marker_genes, outdir)
+
+    save_marker_genes(marker_genes, output_dir)
 
     # FOURTH: classify the marker genes ----------------------------------------
     if verbose > 2:
@@ -464,11 +466,13 @@ def classify_genome(database, genomes_file_list, verbose, threads, output_dir, l
     # '/Users/alex/Dropbox/genomeBB_1853##COG0012': "Bacteria;Bacteroidetes;Bacteroidia;Bacteroidales"
     # '/Users/alex/Dropbox/genomeBB_862##COG0172': "Bacteria;Bacteroidetes;Bacteroidia"
 
-
     # join prediction ----------------------------------------------------------
     prediction_dir = os.path.join(output_dir, "genes_predictions")
     pathlib.Path(prediction_dir).mkdir(exist_ok=True, parents=True)
-    merge_genes_predictions(genomes_file_list, list(database_files), all_classifications, verbose, threads, output_dir, long_out, keep_all_genes)
+    merge_genes_predictions(
+        genomes_file_list, list(database_files), all_classifications,
+        verbose, threads, output_dir, long_out, keep_all_genes
+    )
 
     # FIFTH: classify the concatenation of the MGs, which represents the -------
     #         annotation for the genome ----------------------------------------

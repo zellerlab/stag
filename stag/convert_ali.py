@@ -5,45 +5,38 @@ Scripts to convert between alignments
 # Author: Alessio Milanese <milanese.alessio@gmail.com>
 
 import shutil
-import time
-import subprocess
-import shlex
 import os
-import errno
 import sys
 import tempfile
-import numpy as np
-import re
 
 from stag.helpers import linearise_fasta
 
-#===============================================================================
-#                                 FUNCTIONS
-#===============================================================================
 
 # ------------------------------------------------------------------------------
 # function to convert the nucleotide alignment into 1-hot encoding.
 # Note that we select only the nucleotides that corresponds to the inner state
 # of the HMM.
 encoding_dic = {
-               "A":"0\t0\t0\t0\t1",
-               "C":"0\t0\t0\t1\t0",
-               "G":"0\t0\t1\t0\t0",
-               "T":"0\t1\t0\t0\t0",
-               "U":"0\t1\t0\t0\t0",
-               "others":"1\t0\t0\t0\t0"
-               }
-decoding_dic = {
-               '00001':"A",
-               '00010':"C",
-               '00100':"G",
-               '01000':"T",
-               '10000':"-",
-               }
+    "A": "0\t0\t0\t0\t1",
+    "C": "0\t0\t0\t1\t0",
+    "G": "0\t0\t1\t0\t0",
+    "T": "0\t1\t0\t0\t0",
+    "U": "0\t1\t0\t0\t0",
+    "others": "1\t0\t0\t0\t0"
+}
 
-def convert_alignment(merged_fasta,verbose):
+decoding_dic = {
+    '00001': "A",
+    '00010': "C",
+    '00100': "G",
+    '01000': "T",
+    '10000': "-",
+}
+
+
+def convert_alignment(merged_fasta, verbose):
     n_aligned_characters = 0
-    converted_ali = merged_fasta.split("\t")[0] # first value is the gene_id
+    converted_ali = merged_fasta.split("\t")[0]  # first value is the gene_id
     for character in merged_fasta.split("\t")[1]:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
@@ -64,20 +57,20 @@ def convert_alignment(merged_fasta,verbose):
         converted_ali = converted_ali + five_vals
     return converted_ali, n_aligned_characters
 
+
 # function that identify the type of input -------------------------------------
 # either 1-hot encoding or fasta
 # return either "1-hot" or "fasta"
 def find_input_type(file_in, verbose):
-    o = open(file_in,"r")
-    line1 = o.readline()
+    o = open(file_in, "r")
+    _ = o.readline()
     line2 = o.readline()
     o.close()
 
     last_val = line2.rstrip().split("\t")[-1]
-    if last_val == "1" or  last_val == "0":
-        return "1-hot"
-    else:
-        return "fasta"
+
+    return "1-hot" if last_val in "01" else "fasta"
+
 
 # function to convert to 1-hot encoding ----------------------------------------
 # given an aligned fasta input
@@ -86,10 +79,10 @@ def convert_to_1_hot(file_in, file_out, verbose):
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
     # go through the input file
-    o = open(file_in,"r")
+    o = open(file_in, "r")
     for line in linearise_fasta(o, head_start=1):
-        converted_line, n_aligned_characters = convert_alignment(line,verbose)
-        temp_file.write(converted_line+"\n")
+        converted_line, _ = convert_alignment(line, verbose)
+        temp_file.write(converted_line + "\n")
     o.close()
 
     # we saved the result to a temp file, then we close it now
@@ -97,18 +90,19 @@ def convert_to_1_hot(file_in, file_out, verbose):
         temp_file.flush()
         os.fsync(temp_file.fileno())
         temp_file.close()
-    except:
-        if verbose>4: sys.stderr.write("[E::align] Error when saving the resulting file\n")
+    except Exception:
+        if verbose > 4:
+            sys.stderr.write("[E::align] Error when saving the resulting file\n")
         sys.exit(1)
     # move temp file to the final destination
     try:
-        #os.rename(bam_temp_file.name,args.profile_bam_file) # atomic operation
-        shutil.move(temp_file.name,file_out) #It is not atomic if the files are on different filsystems.
-    except:
-        sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
+        shutil.move(temp_file.name, file_out)  # It is not atomic if the files are on different filsystems.
+    except Exception:
+        sys.stderr.write(
+            "[E::align] The resulting file couldn't be save in the final destination. "
+            f"You can find the file here:\n{temp_file.name}\n"
+        )
         sys.exit(1)
-
-
 
 
 # function to convert 1 single line of 1-hot encoding to a fasta ---------------
@@ -119,7 +113,7 @@ def back_to_fasta(line):
     fasta_res = ">" + vals[0] + "\n"
     # now we parse the values
     vals = vals[1:]
-    for pos in range(0,len(vals),5):
+    for pos in range(0, len(vals), 5):
         this_val = "".join(vals[pos:pos+5])
         fasta_res = fasta_res + decoding_dic[this_val]
     fasta_res = fasta_res + "\n"
@@ -133,7 +127,7 @@ def convert_to_fasta(file_in, file_out, verbose):
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
     # go through the input file
-    o = open(file_in,"r")
+    o = open(file_in, "r")
     for line in o:
         fasta_line = back_to_fasta(line)
         temp_file.write(fasta_line)
@@ -144,21 +138,21 @@ def convert_to_fasta(file_in, file_out, verbose):
         temp_file.flush()
         os.fsync(temp_file.fileno())
         temp_file.close()
-    except:
-        if verbose>4: sys.stderr.write("[E::align] Error when saving the resulting file\n")
+    except Exception:
+        if verbose > 4:
+            sys.stderr.write("[E::align] Error when saving the resulting file\n")
         sys.exit(1)
     # move temp file to the final destination
     try:
-        #os.rename(bam_temp_file.name,args.profile_bam_file) # atomic operation
-        shutil.move(temp_file.name,file_out) #It is not atomic if the files are on different filsystems.
-    except:
-        sys.stderr.write("[E::align] The resulting file couldn't be save in the final destination. You can find the file here:\n"+temp_file.name+"\n")
+        shutil.move(temp_file.name, file_out)  # It is not atomic if the files are on different filsystems.
+    except Exception:
+        sys.stderr.write(
+            "[E::align] The resulting file couldn't be save in the final destination. "
+            f"You can find the file here:\n{temp_file.name}\n"
+        )
         sys.exit(1)
 
 
-
-# ------------------------------------------------------------------------------
-# main function
 def convert_ali(file_in, file_out, verbose):
     # First, we need to understand the type of input
     input_type = find_input_type(file_in, verbose)

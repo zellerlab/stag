@@ -10,6 +10,7 @@ import shlex
 
 from stag.helpers import is_tool, linearise_fasta, bcolors
 
+
 # there are two input files to check:
 # - the taxonomy file
 # - the fasta file
@@ -19,8 +20,8 @@ from stag.helpers import is_tool, linearise_fasta, bcolors
 def check_taxonomy(tax_path):
     # 0. check that file exists
     try:
-        o = open(tax_path,"r")
-    except:
+        o = open(tax_path, "r")
+    except Exception:
         sys.stderr.write(f"{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR.{bcolors.ENDC} ")
         sys.stderr.write("Couldn't open taxonomy file\n")
         return True
@@ -54,12 +55,15 @@ def check_taxonomy(tax_path):
 
     sys.stderr.write("Check number of taxonomy levels.......................")
     found_error1 = False
-    for i in o:
-        vals = i.rstrip().replace("/","-").split("\t")
-        vals = [vals[0]]+vals[1].split(";")
+    for line in o:
+        vals = line.rstrip().replace("/", "-").split("\t")
+        vals = [vals[0]] + vals[1].split(";")
         if len(vals) != number_of_taxonomic_levels:
             sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
-            sys.stderr.write("Line with different number of tax levels ("+str(len(vals))+" instead of "+str(number_of_taxonomic_levels)+"): "+i)
+            sys.stderr.write(
+                f"Line with different number of tax levels ({len(vals)} "
+                f"instead of {number_of_taxonomic_levels}): {line}"
+            )
             found_error1 = True
         else:
             # save taxonomy
@@ -67,12 +71,12 @@ def check_taxonomy(tax_path):
             # set up for test 4
             gene_ids.append(vals[0])
             # set up for test 2
-            for l in range(number_of_taxonomic_levels-1):
-                tax_ids[l].add(vals[l+1])
+            for level in range(number_of_taxonomic_levels - 1):
+                tax_ids[level].add(vals[level + 1])
             # set up for test 3
-            for l in range(number_of_taxonomic_levels-2):
-                current_n = vals[l+2]
-                parent_n = vals[l+1]
+            for level in range(number_of_taxonomic_levels - 2):
+                current_n = vals[level + 2]
+                parent_n = vals[level + 1]
                 if current_n not in parent:
                     parent[current_n] = set()
                 parent[current_n].add(parent_n)
@@ -85,7 +89,7 @@ def check_taxonomy(tax_path):
     sys.stderr.write("\nCheck if the names are unique across levels...........")
     found_error2 = False
     for i in range(number_of_taxonomic_levels-2):
-        for j in range(i+1,number_of_taxonomic_levels-1):
+        for j in range(i + 1, number_of_taxonomic_levels - 1):
             intersect_s = tax_ids[i].intersection(tax_ids[j])
             if len(intersect_s) != 0:
                 for v in intersect_s:
@@ -117,15 +121,16 @@ def check_taxonomy(tax_path):
         sys.stderr.write("There are only "+str(len(gene_ids_unique))+" unique gene ids\n")
 
     # if there is any error, return True
-    return (found_error1 or found_error2 or found_error3 or found_error4),gene_ids_unique,full_taxonomy
+    return (found_error1 or found_error2 or found_error3 or found_error4), gene_ids_unique, full_taxonomy
+
 
 # ------------------------------------------------------------------------------
 # 2. check sequences
 def check_sequences(file_name):
     sys.stderr.write("Check that the sequences are in fasta format..........")
     try:
-        o = open(file_name,"r")
-    except:
+        o = open(file_name, "r")
+    except Exception:
         sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
         sys.stderr.write("cannot open file\n")
         return True
@@ -137,7 +142,7 @@ def check_sequences(file_name):
             sys.stderr.write("Not a fasta file\n")
             o.close()
             return True
-    except:
+    except Exception:
         o.close()
         sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
         sys.stderr.write("Not a fasta file\n")
@@ -146,22 +151,23 @@ def check_sequences(file_name):
     sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
 
     # check duplicates ---------------------------------------------------------
-    duplicates_info = dict()
-    o = open(file_name,"r")
+    duplicates_info = {}
+    o = open(file_name, "r")
     gene_id = ""
     n_genes = 0
+    seq = ""
     for i in o:
         if i.startswith(">"):
             if gene_id != "":
-                if not seq in duplicates_info:
-                    duplicates_info[seq] = list()
+                if seq not in duplicates_info:
+                    duplicates_info[seq] = []
                 duplicates_info[seq].append(gene_id)
             gene_id = i.rstrip()
             seq = ""
             n_genes = n_genes + 1
         else:
             seq = seq + i.rstrip()
-    if not seq in duplicates_info:
+    if seq not in duplicates_info:
         duplicates_info[seq] = list()
     duplicates_info[seq].append(gene_id)
     o.close()
@@ -169,7 +175,8 @@ def check_sequences(file_name):
     sys.stderr.write("Number of genes: "+str(n_genes) + "\n")
     sys.stderr.write("Number of unique genes: "+str(len(duplicates_info)) + "\n")
 
-    return False, duplicates_info # if we arrive here, there were no errors (False means no error)
+    return False, duplicates_info  # if we arrive here, there were no errors (False means no error)
+
 
 # ------------------------------------------------------------------------------
 # 2.b if there is a protein file, then we check that it is correct and that it
@@ -178,8 +185,8 @@ def check_protein_file(seq_file, protein_file):
     # general check of the protein file
     sys.stderr.write("Check that the protein sequences are in fasta format..")
     try:
-        o = open(protein_file,"r")
-    except:
+        o = open(protein_file, "r")
+    except Exception:
         sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
         sys.stderr.write("cannot open file\n")
         return True
@@ -190,7 +197,7 @@ def check_protein_file(seq_file, protein_file):
             sys.stderr.write("Not a fasta file\n")
             o.close()
             return True
-    except:
+    except Exception:
         o.close()
         sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
         sys.stderr.write("Not a fasta file\n")
@@ -202,7 +209,7 @@ def check_protein_file(seq_file, protein_file):
     sys.stderr.write("Load gene file: ")
     gene_lengths = list()
     gene_ids = list()
-    o = open(seq_file,"r")
+    o = open(seq_file, "r")
     cont = -1
     for i in o:
         if i.startswith(">"):
@@ -218,7 +225,7 @@ def check_protein_file(seq_file, protein_file):
     sys.stderr.write("Load protein file: ")
     protein_lengths = list()
     protein_ids = list()
-    o = open(protein_file,"r")
+    o = open(protein_file, "r")
     cont = -1
     for i in o:
         if i.startswith(">"):
@@ -236,7 +243,6 @@ def check_protein_file(seq_file, protein_file):
         sys.stderr.write("different number of sequences\n")
         return True
 
-
     # check that the lengths make sense
     sys.stderr.write("Check the gene/protein match lengths..................")
     found_error = False
@@ -253,13 +259,14 @@ def check_protein_file(seq_file, protein_file):
         sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
     return found_error
 
+
 # ------------------------------------------------------------------------------
 # 3. check correspondence between fasta file and sequence file
 def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_taxonomy, warning_file_check_input):
     sys.stderr.write("Check correspondences of gene ids to the tax ids......")
     try:
-        o = open(file_name,"r")
-    except:
+        o = open(file_name, "r")
+    except Exception:
         sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
         sys.stderr.write("cannot open file\n")
         return True
@@ -274,7 +281,7 @@ def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_tax
                     sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
                     sys.stderr.write("'"+gene_id+"' not in the taxonomy\n")
         o.close()
-    except:
+    except Exception:
         o.close()
         sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
         sys.stderr.write("Not a fasta file\n")
@@ -283,10 +290,9 @@ def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_tax
     if not found_error:
         sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
 
-
     # check that genes with same sequence have the same taxonomy ---------------
-    if warning_file_check_input != None:
-        warning_f = open(warning_file_check_input,"w")
+    if warning_file_check_input is not None:
+        warning_f = open(warning_file_check_input, "w")
         warning_f.write("-- Check taxonomy of genes with same sequence --\n")
 
     sys.stderr.write("Check taxonomy of genes with same sequence............")
@@ -297,13 +303,15 @@ def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_tax
             for j in duplicates_info[i]:
                 if full_taxonomy[j[1:]] != species_0:
                     found_error2 = True
-                    if warning_file_check_input != None:
+                    if warning_file_check_input is not None:
                         warning_f.write(str(duplicates_info[i])+"\n")
                     else:
-                        sys.stderr.write(f"\n{bcolors.WARNING}{bcolors.BOLD}{bcolors.UNDERLINE}   WARNING:{bcolors.ENDC} ")
+                        sys.stderr.write(
+                            f"\n{bcolors.WARNING}{bcolors.BOLD}{bcolors.UNDERLINE}   WARNING:{bcolors.ENDC} "
+                        )
                         sys.stderr.write(str(duplicates_info[i])+"\n")
 
-    if warning_file_check_input != None:
+    if warning_file_check_input is not None:
         warning_f.close()
 
     if not found_error2:
@@ -316,7 +324,7 @@ def check_correspondence(file_name, gene_ids_from_tax, duplicates_info, full_tax
 
 # ------------------------------------------------------------------------------
 # 4. check that the tool is in the path and check the alignment
-def check_tool(seq_file, hmm_file, use_cmalign):
+def check_tool(seq_file, hmm_file, use_cmalign, verbose=4):
     if use_cmalign:
         sys.stderr.write("Check that 'cmalign' is in the path...................")
         if not is_tool("cmalign"):
@@ -341,8 +349,6 @@ def check_tool(seq_file, hmm_file, use_cmalign):
     # if we arrive here, then the tool is in the path:
     sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
 
-
-
     # check that the file is correct -------------------------------------------
     # we create a temporary file with the first tree fasta sequences:
     sys.stderr.write("Try to run alignment tool.............................")
@@ -350,7 +356,7 @@ def check_tool(seq_file, hmm_file, use_cmalign):
     temp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
     os.chmod(temp_file.name, 0o644)
 
-    o = open(seq_file,"r")
+    o = open(seq_file, "r")
     count = 0
     for line in o:
         if line.startswith(">"):
@@ -362,8 +368,8 @@ def check_tool(seq_file, hmm_file, use_cmalign):
         temp_file.flush()
         os.fsync(temp_file.fileno())
         temp_file.close()
-    except:
-        if verbose>4:
+    except Exception:
+        if verbose > 4:
             sys.stderr.write(f"\n{bcolors.FAIL}{bcolors.BOLD}{bcolors.UNDERLINE} ERROR:{bcolors.ENDC} ")
             sys.stderr.write("Error when saving the temp file\n")
         sys.exit(1)
@@ -373,16 +379,16 @@ def check_tool(seq_file, hmm_file, use_cmalign):
     if use_cmalign:
         cmd = "cmalign "
 
-    cmd = cmd + hmm_file +" "+ temp_file.name
+    cmd = f"{cmd} {hmm_file} {temp_file.name}"
 
     # we call the command
     CMD = shlex.split(cmd)
-    align_cmd = subprocess.Popen(CMD,stdout=subprocess.PIPE,)
+    align_cmd = subprocess.Popen(CMD, stdout=subprocess.PIPE)
 
     # parse the alignment
     cmd2 = "esl-reformat a2m -"
     CMD2 = shlex.split(cmd2)
-    parse_cmd = subprocess.Popen(CMD2,stdin=align_cmd.stdout,stdout=subprocess.PIPE,)
+    parse_cmd = subprocess.Popen(CMD2, stdin=align_cmd.stdout, stdout=subprocess.PIPE)
 
     all_lines = list()
     for line in linearise_fasta(parse_cmd.stdout, head_start=1):
@@ -405,9 +411,6 @@ def check_tool(seq_file, hmm_file, use_cmalign):
     # if we arrive here, then the tool is in the path:
     sys.stderr.write(f"{bcolors.OKGREEN}{bcolors.BOLD}{bcolors.UNDERLINE}correct{bcolors.ENDC}\n")
 
-
-
-
     # check alignment quality --------------------------------------------------
     sys.stderr.write("\nCheck alignment quality:\n")
 
@@ -428,9 +431,9 @@ def check_tool(seq_file, hmm_file, use_cmalign):
         count = count + 1
         sys.stderr.write("\n Sequence "+str(count)+":\n")
         # count occurences
-        mat_i_s = 0 # internal states that match (even mismatch is counted I guess), they are upper case letters
-        deletions = 0 # number of deletions (they are "-")
-        insetions = 0 # insertions are lower case letters
+        mat_i_s = 0  # internal states that match (even mismatch is counted I guess), they are upper case letters
+        deletions = 0  # number of deletions (they are "-")
+        insetions = 0  # insertions are lower case letters
         for i in all_lines[count-1].split("\t")[1]:
             if i == "-":
                 deletions = deletions + 1
@@ -440,17 +443,14 @@ def check_tool(seq_file, hmm_file, use_cmalign):
                 if i.islower():
                     insetions = insetions + 1
         # print
-        sys.stderr.write("   Internal states matches: "+str(mat_i_s)+" ("+str(round(mat_i_s/n_internal_states * 100))+"%)\n")
-        sys.stderr.write("   Deletions: "+str(deletions)+" ("+str(round(deletions/n_internal_states * 100))+"%)\n")
-        sys.stderr.write("   Insertions: "+str(insetions)+"\n")
+        sys.stderr.write(f"   Internal states matches: {mat_i_s} ({round(mat_i_s / n_internal_states * 100)}%)\n")
+        sys.stderr.write(f"   Deletions: {deletions} ({round(deletions / n_internal_states * 100)}%)\n")
+        sys.stderr.write(f"   Insertions: {insetions}\n")
 
 
-
-#===============================================================================
-#                                      MAIN
-#===============================================================================
-
-def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign, warning_file_check_input):
+def check_input_files(
+    seq_file, protein_file, tax_file, hmm_file, cmalign, warning_file_check_input
+):
     # 1. check taxonomy alone
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK TAXONOMY FILE:{bcolors.ENDC}\n")
     found_error_tax, gene_ids, full_taxonomy = check_taxonomy(tax_file)
@@ -461,17 +461,19 @@ def check_input_files(seq_file, protein_file, tax_file, hmm_file, cmalign, warni
 
     # 2.b check correspondence between protein and gene file
     found_error_prot = False
-    if protein_file != None:
+    if protein_file is not None:
         sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK PROTEIN AND GENE FILE:{bcolors.ENDC}\n")
         found_error_prot = check_protein_file(seq_file, protein_file)
 
     # 3. check correspondences between tax and fasta file
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK CORRESPONDENCES:{bcolors.ENDC}\n")
-    found_error_corr = check_correspondence(seq_file, gene_ids, duplicates_info, full_taxonomy, warning_file_check_input)
+    found_error_corr = check_correspondence(
+        seq_file, gene_ids, duplicates_info, full_taxonomy, warning_file_check_input
+    )
 
     # 4. test tool and alignment
     sys.stderr.write(f"{bcolors.OKBLUE}{bcolors.BOLD}------ CHECK TOOL:{bcolors.ENDC}\n")
-    if protein_file != None:
+    if protein_file is not None:
         found_error_tool = check_tool(protein_file, hmm_file, cmalign)
     else:
         found_error_tool = check_tool(seq_file, hmm_file, cmalign)
