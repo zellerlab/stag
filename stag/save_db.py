@@ -51,14 +51,15 @@ def main():
     logging.info('MAIN:Loading trained data and estimating learn function')
     tax_function = []
     for f in sorted(args.levels):
-        tax_function += pickle.load(open(f, "rb"))
+        with open(f, "rb") as _in:
+            tax_function += pickle.load(_in)
 
     with open(f"{output}.cross_val", "w") as outfile:
         print("gene", "predicted", "prob", "ground_truth", "removed_level", sep="\t", file=outfile)
         for gene, predicted, prob, ground_truth, removed_level in tax_function:
             predicted, prob, ground_truth = (
                 "/".join(s)
-                for s in (predicted, ["{:.2f}".format(pr) for pr in prob], ground_truth)
+                for s in (predicted, [f"{pr:.2f}" for pr in prob], ground_truth)
             )
             print(gene, predicted, prob, ground_truth, removed_level, sep="\t", file=outfile)
 
@@ -67,7 +68,8 @@ def main():
         for node, clf in estimate_function(tax_function)
     ]
 
-    classifiers = pickle.load(open(args.classifiers, "rb"))
+    with open(args.classifiers, "rb") as _in:
+        classifiers = pickle.load(_in)
     logging.info('TIME:Finished loading/estimating')
 
     # 4. save the result

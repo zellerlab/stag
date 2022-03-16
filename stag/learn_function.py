@@ -1,3 +1,5 @@
+# pylint: disable=C0103
+
 import argparse
 import logging
 import os

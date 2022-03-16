@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+# pylint: disable=R0912
+
 import os
 import pathlib
 import shutil
@@ -6,20 +9,17 @@ import subprocess
 import sys
 import tempfile
 
-from . import __version__ as tool_version
+from stag import align
+from stag import create_db
+from stag import classify
+from stag import check_create_db_input_files
+from stag import correct_seq
+from stag import unzip_db
+from stag import classify_genome
+from stag import train_genome
+from stag import convert_ali
 
-import stag.align as align
-import stag.create_db as create_db
-import stag.classify as classify
-import stag.check_create_db_input_files as check_create_db_input_files
-import stag.correct_seq as correct_seq
-import stag.unzip_db as unzip_db
-import stag.classify_genome as classify_genome
-import stag.train_genome as train_genome
-import stag.convert_ali as convert_ali
-
-from .helpers import check_file_exists, check_file_doesnt_exists
-
+from stag.helpers import check_file_exists, check_file_doesnt_exists
 from stag.classify_genome import validate_genome_files
 
 from stag.handle_args import (
@@ -29,13 +29,13 @@ from stag.handle_args import (
     print_menu_classify_genome
     )
 
+from stag import __version__ as tool_version
+
 
 def run_test():
-    popenCMD = "stag_test"
-    child = subprocess.Popen(popenCMD)
-    child.communicate()
-    rc = child.wait()
-    return(rc)
+    with subprocess.Popen("stag_test") as child:
+        child.communicate()
+        return child.wait()
 
 
 def run_align(args):
@@ -276,33 +276,33 @@ def run_classify_genome(args):
     elif args.marker_genes:
         marker_genes.append(args.marker_genes)
     else:
-        for f in os.listdir(args.dir_input):
-            f = os.path.join(args.dir_input, f)
-            if os.path.isfile(f):
+        for genome_file in os.listdir(args.dir_input):
+            genome_file = os.path.join(args.dir_input, genome_file)
+            if os.path.isfile(genome_file):
                 try:
-                    with open(f) as _in:
+                    with open(genome_file) as _in:
                         if _in.read(1)[0] == ">":
-                            list_files.append(f)
+                            list_files.append(genome_file)
                 except Exception:
                     if args.verbose > 1:
                         sys.stderr.write("[W::main] Warning: ")
-                        sys.stderr.write("Cannot open file: {}\n".format(f))
+                        sys.stderr.write(f"Cannot open file: {genome_file}\n")
 
         if not list_files:
-            handle_error("no fasta files found in the directory.", None)
-        sys.stderr.write(" Found "+str(len(list_files))+" fasta files\n")
+            handle_error("no fasta files found in the directory.")
+        sys.stderr.write(f" Found {len(list_files)} fasta files\n")
 
     if os.path.isdir(args.output):
         if args.force_rewrite:
             shutil.rmtree(args.output)
         else:
-            handle_error("output directory (-o {}) exists already.".format(args.output), None)
+            handle_error(f"output directory (-o {args.output}) exists already.")
 
     # create output dir
     try:
         pathlib.Path(args.output).mkdir(exist_ok=True, parents=True)
     except Exception:
-        handle_error("creating the output directory (-o {}).".format(args.output), None)
+        handle_error(f"creating the output directory (-o {args.output}).")
 
     if list_files:
         validate_genome_files(list_files)
@@ -314,7 +314,7 @@ def run_classify_genome(args):
     )
 
 
-def main(argv=None):
+def main():
 
     args = get_args()
 

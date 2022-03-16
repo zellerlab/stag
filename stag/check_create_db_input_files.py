@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import shlex
 
-from stag.helpers import is_tool, linearise_fasta, bcolors
+from stag.helpers import is_tool, read_fasta, bcolors
 
 
 # there are two input files to check:
@@ -390,10 +390,8 @@ def check_tool(seq_file, hmm_file, use_cmalign, verbose=4):
     CMD2 = shlex.split(cmd2)
     parse_cmd = subprocess.Popen(CMD2, stdin=align_cmd.stdout, stdout=subprocess.PIPE)
 
-    all_lines = []
-    for line in linearise_fasta(parse_cmd.stdout, head_start=1):
-        all_lines.append(line)
-
+    all_lines = list(read_fasta(parse_cmd.stdout, head_start=1))
+        
     align_cmd.stdout.close()
     return_code = align_cmd.wait()
     if return_code:
@@ -415,37 +413,31 @@ def check_tool(seq_file, hmm_file, use_cmalign, verbose=4):
     sys.stderr.write("\nCheck alignment quality:\n")
 
     # number of internal HMM states
-    n_internal_states = 0
-    for i in all_lines[0].split("\t")[1]:
-        # gap (deletions) are counted
-        if i == "-":
-            n_internal_states = n_internal_states + 1
-        else:
-            # and capital letters
-            if i.isupper():
-                n_internal_states = n_internal_states + 1
-    sys.stderr.write(" Internal states: "+str(n_internal_states)+"\n")
+    # gap (deletions) are counted
+    # and capital letters
+    n_internal_states = sum(
+        1 for c in all_lines[0][1]
+        if c == "-" or c.isupper()
+    )
+    sys.stderr.write(f" Internal states: {n_internal_states}\n")
 
-    count = 0
-    for al in all_lines:
-        count = count + 1
-        sys.stderr.write("\n Sequence "+str(count)+":\n")
-        # count occurences
+    # count occurences
+    for i, (_, seq) in enumerate(all_lines, start=1):
+        sys.stderr.write(f"\n Sequence {i}:\n")
         mat_i_s = 0  # internal states that match (even mismatch is counted I guess), they are upper case letters
         deletions = 0  # number of deletions (they are "-")
-        insetions = 0  # insertions are lower case letters
-        for i in all_lines[count-1].split("\t")[1]:
-            if i == "-":
-                deletions = deletions + 1
-            else:
-                if i.isupper():
-                    mat_i_s = mat_i_s + 1
-                if i.islower():
-                    insetions = insetions + 1
-        # print
+        insertions = 0  # insertions are lower case letters
+        for c in seq:
+            if c == "-":
+                deletions += 1
+            elif c.isupper():
+                mat_i_s += 1
+            elif c.islower():
+                insertions += 1
+
         sys.stderr.write(f"   Internal states matches: {mat_i_s} ({round(mat_i_s / n_internal_states * 100)}%)\n")
         sys.stderr.write(f"   Deletions: {deletions} ({round(deletions / n_internal_states * 100)}%)\n")
-        sys.stderr.write(f"   Insertions: {insetions}\n")
+        sys.stderr.write(f"   Insertions: {insertions}\n")
 
 
 def check_input_files(

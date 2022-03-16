@@ -45,20 +45,18 @@ def print_error():
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta=False):
     try:
-        o = open(file_name, "r")
-        # if fasta file, then check that it starts with ">"
-        if isfasta:
-            if not(o.readline().startswith(">")):
-                sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-                sys.stderr.write("Not a fasta file: "+file_name+"\n")
-                sys.stderr.write("          Fasta file is expected to start with '>'\n")
-                o.close()
-                sys.exit(1)
-        o.close()
+        with open(file_name, "r") as _in:
+            # if fasta file, then check that it starts with ">"
+            if isfasta:
+                if _in.readline()[0] != ">":
+                    sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+                    sys.stderr.write(f"Not a fasta file: {file_name}\n")
+                    sys.stderr.write("          Fasta file is expected to start with '>'\n")
+                    sys.exit(1)
     except Exception as e:
         sys.stderr.write(f"{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-        sys.stderr.write("Cannot open file: "+file_name+"\n")
-        sys.stderr.write(str(e)+"\n")
+        sys.stderr.write(f"Cannot open file: {file_name}\n")
+        sys.stderr.write(f"{e}\n")
         sys.exit(1)
 
 
@@ -73,7 +71,8 @@ def check_file_doesnt_exists(file_name):
 def is_tool(name):
     with open(os.devnull) as devnull:
         try:
-            subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+            with subprocess.Popen([name], stdout=devnull, stderr=devnull) as proc:
+                proc.communicate()
         except OSError as e:
             return e.errno != errno.ENOENT
 
@@ -83,32 +82,15 @@ def is_tool(name):
 def is_tool_and_return0(name):
     with open(os.devnull) as devnull:
         try:
-            devnull = open(os.devnull)
-            popenCMD = shlex.split(name)
-            child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
-            _ = child.communicate()
-            rc = child.wait()
-            return rc == 0
+            with open(os.devnull) as devnull:
+                with subprocess.Popen(shlex.split(name), stdout=devnull, stderr=devnull) as child:
+                    _ = child.communicate()
+                    rc = child.wait()
+                    return rc == 0
         except OSError as e:
             return e.errno != errno.ENOENT
 
     return True
-
-# ------------------------------------------------------------------------------
-# function to convert a fasta file with multiple lines into a one line separated
-# by a "\t"
-# Example:
-# >test_fasta_header
-# ATTGCGATTTCT
-# CGGTATCGGTAT
-# CGGTTA
-# TO:
-# >test_fasta_header\tATTGCGATTTCTCGGTATCGGTATCGGTTA
-
-
-def linearise_fasta(fasta_stream, head_start=0, is_binary=True):
-    for sid, seq in read_fasta(fasta_stream, head_start=head_start):
-        yield "\t".join((sid, seq))
 
 
 def read_fasta(fasta, head_start=0, is_binary=True):

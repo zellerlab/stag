@@ -11,7 +11,7 @@ import os
 import sys
 import tempfile
 
-from stag.helpers import is_tool, linearise_fasta
+from stag.helpers import is_tool, read_fasta
 
 
 # ------------------------------------------------------------------------------
@@ -28,9 +28,8 @@ def rev_complement(seq_file, verbose):
     cmd = f"seqtk seq -r {seq_file}"
     if verbose > 4:
         sys.stderr.write(f"\nCommand used to reverse complement: {cmd} > {rev_file.name}\n")
-    CMD = shlex.split(cmd)
-
-    parse_cmd = subprocess.Popen(CMD, stdout=rev_file)
+    
+    parse_cmd = subprocess.Popen(shlex.split(cmd), stdout=rev_file)
     rev_file.flush()
     os.fsync(rev_file.fileno())
     rev_file.close()
@@ -79,22 +78,20 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
     parse_cmd = subprocess.Popen(CMD2, stdin=align_cmd.stdout, stdout=subprocess.PIPE)
 
     all_lines = {}
-    for line in linearise_fasta(parse_cmd.stdout, head_start=0):
-        id = line.split("\t")[0]
+    for sid, seq in read_fasta(parse_cmd.stdout, head_start=0):
         # calculate the number of internal state covered
         mat_i_s = 0  # internal states that match (even mismatch is counted I guess), they are upper case letters
         deletions = 0  # number of deletions (they are "-")
         insertions = 0  # insertions are lower case letters
-        for i in line.split("\t")[1]:
-            if i == "-":
-                deletions = deletions + 1
-            else:
-                if i.isupper():
-                    mat_i_s = mat_i_s + 1
-                if i.islower():
-                    insertions = insertions + 1
+        for c in seq:
+            if c == "-":
+                deletions += 1
+            elif c.isupper():
+                mat_i_s += 1
+            elif c.islower():
+                insertions += 1
 
-        all_lines[id] = (mat_i_s / (mat_i_s + deletions)) * 100
+        all_lines[sid] = (mat_i_s / (mat_i_s + deletions)) * 100
 
     # check that hmmalign/cmalign finished correctly
     align_cmd.stdout.close()
@@ -116,7 +113,7 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
 # find the one that align the best and save the result
 def save_best_seq(seq_al, rev_al, seq_file, rev_file, min_perc_state, output, verbose):
     # prepare output
-    if not(output is None):
+    if output is not None:
         outfile = tempfile.NamedTemporaryFile(delete=False, mode="w")
         os.chmod(outfile.name, 0o644)
     else:
@@ -128,50 +125,39 @@ def save_best_seq(seq_al, rev_al, seq_file, rev_file, min_perc_state, output, ve
     rotated_seq_count = 0  # sequenced that need to be reverse complement
     original_seq_count = 0
 
-    # original sequences + count different types
-    with open(seq_file, "r") as _in:
-        for line in _in:
-            line = line.rstrip()
-            if line[0] == ">":
-                if seq_al[line] < min_perc_state and rev_al[line] < min_perc_state:
-                    removed_seq_count += 1
-                    print_this = False
-                else:
-                    if seq_al[line] >= rev_al[line]:
-                        original_seq_count += 1
-                        print_this = True
-                    else:
-                        rotated_seq_count += 1
-                        print_this = False
-            if print_this:
-                print(line, file=outfile)
+    with outfile:
+        # original sequences + count different types
+        for sid, seq in read_fasta(seq_file, head_start=0, is_binary=False):
+            if seq_al[sid] < min_perc_state and rev_al[sid] < min_perc_state:
+                removed_seq_count += 1
+            elif seq_al[sid] >= rev_al[sid]:
+                original_seq_count += 1
+                print(sid, seq, sep="\n", file=outfile)
+            else:
+                rotated_seq_count += 1
 
-    # reversed sequences
-    with open(rev_file, "r") as _in:
-        for line in _in:
-            line = line.rstrip()
-            if line[0] == ">":
-                print_this = rev_al[line] > seq_al[line] and rev_al[line] > min_perc_state
+        # reversed sequences
+        for sid, seq in read_fasta(rev_file, head_start=0, is_binary=False):
+            if rev_al[sid] > seq_al[sid] and rev_al[sid] > min_perc_state:
+                print(sid, seq, sep="\n", file=outfile)
 
-            if print_this:
-                print(line, file=outfile)
+        # write info
+        if verbose > 2:
+            sys.stderr.write("done\n")
+            sys.stderr.write(f"Sequences in correct orientation: {original_seq_count}\n")
+            sys.stderr.write(f"Reverse-complemented sequences: {rotated_seq_count}\n")
+            sys.stderr.write(f"Dropped sequences (below threshold): {removed_seq_count}\n")
 
-    # write info
-    if verbose > 2:
-        sys.stderr.write("done\n")
-        sys.stderr.write(f"Sequences in correct orientation: {original_seq_count}\n")
-        sys.stderr.write(f"Reverse-complemented sequences: {rotated_seq_count}\n")
-        sys.stderr.write(f"Dropped sequences (below threshold): {removed_seq_count}\n")
+        if output is not None:
+            try:
+                outfile.flush()
+                os.fsync(outfile.fileno())
+            except Exception:
+                sys.stderr.write("[E::main] Error: failed to save the result\n")
+                sys.exit(1)
 
     # close file with result
     if output is not None:
-        try:
-            outfile.flush()
-            os.fsync(outfile.fileno())
-            outfile.close()
-        except Exception:
-            sys.stderr.write("[E::main] Error: failed to save the result\n")
-            sys.exit(1)
         try:
             shutil.move(outfile.name, output)  # It is not atomic if the files are on different filesystems.
         except Exception:

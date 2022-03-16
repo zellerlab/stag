@@ -18,6 +18,7 @@ import shutil
 import sys
 import tempfile
 import time
+import pathlib
 
 from collections import Counter
 
@@ -28,6 +29,7 @@ from stag.taxonomy3 import Taxonomy
 from stag.databases import save_to_file
 from stag.alignment import EncodedAlignment
 
+# pylint: disable=C0411
 import warnings
 warnings.filterwarnings("error")
 
@@ -109,13 +111,13 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
 
     return positive_examples, negative_examples
 
-
+# pylint: disable=W0613
 def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, max_iter=5000, procs=None):
-    return list(
+    return [
         do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v, max_iter)
         for node, siblings in taxonomy.get_all_nodes(get_root=False)
-    )
-
+    ]
+# pylint: enable=W0613
 
 def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v, max_iter=5000):
     t00 = time.time()
@@ -175,7 +177,7 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, max_
 def train_all_classifiers(*args, max_iter=5000, procs=None):
     train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
 
-    return train_f(*args, max_iter=5000, procs=procs)
+    return train_f(*args, max_iter=max_iter, procs=procs)
 
 
 # ===============================================================================
@@ -206,16 +208,15 @@ def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_s
 
 
 def predict_one_gene(test_seq, training_tax, classifiers_train):
-    tax = []
-    perc = []
+    tax, perc = [], []
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, training_tax.get_root())
     # we change the predictions that came from having only one sibling --------
     if perc[0] == 2:
         perc[0] = 1
-    for i in range(len(perc)):
+    for i, _ in enumerate(perc):
         if perc[i] == 2:
-            perc[i] = perc[i-1]
+            perc[i] = perc[i - 1]
 
     return tax, perc
 
@@ -393,7 +394,7 @@ def learn_taxonomy_selection_function(
 
     return estimate_function(all_calc_functions, max_iter=max_iter)
 
-
+# pylint: disable=W0613
 def create_db(
     aligned_seq_file, tax_file, verbose, output, use_cmalign,
     hmm_file_path, save_cross_val_data, protein_fasta_input,
@@ -440,14 +441,15 @@ def create_db(
         ]
         with open(classifiers_file, "wb") as clf_out:
             pickle.dump(classifiers, clf_out)
-        open(classifiers_file + ".ok", "w").close()
+        pathlib.Path(classifiers_file + ".ok").touch(exist_ok=True)
     logging.info('TIME:Finished training all classifiers')
 
     # 5. learn the function to identify the correct taxonomy level
     logging.info('MAIN:Learning taxonomy selection function')
     taxfunc_file = output + ".taxfunc.dat"
     if all((os.path.exists(f) for f in (taxfunc_file, taxfunc_file + ".ok"))):
-        tax_function = pickle.load(open(taxfunc_file, "rb"))
+        with open(taxfunc_file, "rb") as tax_in:
+            tax_function = pickle.load(tax_in)
     else:
         learned_function = learn_taxonomy_selection_function(
             alignment, full_taxonomy, save_cross_val_data, penalty_v,
@@ -459,7 +461,7 @@ def create_db(
         ]
         with open(taxfunc_file, "wb") as clf_out:
             pickle.dump(tax_function, clf_out)
-        open(taxfunc_file + ".ok", "w").close()
+        pathlib.Path(taxfunc_file + ".ok").touch(exist_ok=True)
 
     logging.info('TIME:Finished learning taxonomy selection function')
 

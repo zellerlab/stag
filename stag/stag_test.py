@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# pylint: disable=C0301,W0611
+
 # ============================================================================ #
 # stag_test Run stag tests
 #
@@ -12,13 +14,13 @@ import os
 import sys
 import tempfile
 import subprocess
-import pkg_resources
 import urllib.request
 import hashlib
 import shutil
 
 from pathlib import Path
 
+import pkg_resources
 
 from .helpers import bco, is_tool
 
@@ -97,7 +99,7 @@ def download_and_checkmd5_and_decompress(url, filename, md5_db, destination):
 # ------------------------------------------------------------------------------
 # MAIN
 # ------------------------------------------------------------------------------
-def main(argv=None):
+def main():
     sys.stderr.write(f"{bco.Blue}{bco.Bold} ------------------------------------------------------------------------------{bco.ResetAll}\n")
     sys.stderr.write(f"{bco.Blue}{bco.Bold}|{bco.Green}                                    TEST STAG                                 {bco.Blue}|{bco.ResetAll}\n")
     sys.stderr.write(f"{bco.Blue}{bco.Bold} ------------------------------------------------------------------------------{bco.ResetAll}\n")

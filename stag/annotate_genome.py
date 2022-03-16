@@ -1,4 +1,5 @@
 # flake8: noqa
+# pylint: skip-file
 
 """
 Scripts that classify a genome

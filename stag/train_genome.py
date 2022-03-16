@@ -9,10 +9,11 @@ from stag.helpers import check_file_exists
 def get_alignment_lengths(f):
     with tempfile.NamedTemporaryFile(delete=False, mode="w") as length_file:
         os.chmod(length_file.name, 0o644)
-        for line in open(f):
-            cog, _, length = line.strip().split("\t")
-            if length != "-":
-                print(cog, length, sep="\t", flush=True, file=length_file)
+        with open(f) as _in:
+            for line in _in:
+                cog, _, length = line.strip().split("\t")
+                if length != "-":
+                    print(cog, length, sep="\t", flush=True, file=length_file)
         return length_file.name
 
 

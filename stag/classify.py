@@ -7,10 +7,11 @@ import contextlib
 
 import numpy as np
 
-from . import __version__ as tool_version
 from stag.taxonomy3 import Taxonomy
 from stag.databases import load_db
-import stag.align as align
+from stag import align
+
+from . import __version__ as tool_version
 
 
 def alignment_reader(aligned_sequences):
