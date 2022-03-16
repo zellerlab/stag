@@ -235,7 +235,7 @@ def main(argv=None):
     sys.stderr.flush()
 
     o = open(tax_file, "r")
-    correct_tax = dict()
+    correct_tax = {}
     for i in o:
         vals = i.rstrip().split("\t")
         correct_tax[vals[0]] = vals[1]
@@ -243,7 +243,7 @@ def main(argv=None):
 
     o = open(temp_file_res.name, "r")
     o.readline()  # remove header
-    pred_tax = dict()
+    pred_tax = {}
     for i in o:
         vals = i.rstrip().split("\t")
         if len(vals) < 2:
@@ -338,8 +338,8 @@ def main(argv=None):
     # correct annotation
     o = open(this_dir + "CORRECT_ASSIGNMENT/genome_annotation")
     o.readline()
-    correct_classification = dict()
-    all_genomes = dict()
+    correct_classification = {}
+    all_genomes = {}
     for line in o:
         vals = line.rstrip().split("\t")
         correct_classification[vals[0]] = vals[1]
@@ -421,8 +421,8 @@ def main(argv=None):
     # correct annotation
     o = open(this_dir + "test.CORRECT_ASSIGNMENT")
     o.readline()
-    correct_classification = dict()
-    all_genomes = dict()
+    correct_classification = {}
+    all_genomes = {}
     for line in o:
         vals = line.rstrip().split("\t")
         correct_classification[vals[0]] = vals[1]

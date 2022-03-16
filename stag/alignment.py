@@ -8,7 +8,7 @@ import numpy as np
 
 # Function to identify the rownames and number of columns in an alignment
 def find_raw_names_ncol(file_name):
-    gene_names = list()
+    gene_names = []
     with open(file_name) as f:
         for line in f:
             gene_names.append(line[:line.find("\t")].replace("/", "-"))
@@ -116,7 +116,7 @@ class EncodedAlignment:
             # choose n random positive clades for comparison
             check_positives = positives[random.sample(range(len(positives)), min_positives), ]
 
-            random_clades = list()
+            random_clades = []
             for clade in range(min_positives):
 
                 m_for_diff = np.tile(check_positives[clade, ], (n_negatives, 1))

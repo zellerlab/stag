@@ -28,7 +28,7 @@ def main():
 
     encoder = None
     for gene in sorted(common_index):
-        bin_row = list()
+        bin_row = []
         for _, aln in enumerate(alignments.values()):
             try:
                 aln_row = aln.get_rows(gene, (gene,))

@@ -40,18 +40,18 @@ def check_taxonomy(tax_path):
         return True
 
     # variable to save all levels ids (for test 2)
-    tax_ids = dict()
+    tax_ids = {}
     for i in range(number_of_taxonomic_levels-1):
         tax_ids[i] = set()
 
     # variable to test that there is only one pssible parent for a given id (test 3)
-    parent = dict()
+    parent = {}
 
     # variable with gene ids (test4)
-    gene_ids = list()
+    gene_ids = []
 
     # full tax per gene
-    full_taxonomy = dict()
+    full_taxonomy = {}
 
     sys.stderr.write("Check number of taxonomy levels.......................")
     found_error1 = False
@@ -168,7 +168,7 @@ def check_sequences(file_name):
         else:
             seq = seq + i.rstrip()
     if seq not in duplicates_info:
-        duplicates_info[seq] = list()
+        duplicates_info[seq] = []
     duplicates_info[seq].append(gene_id)
     o.close()
 
@@ -207,8 +207,8 @@ def check_protein_file(seq_file, protein_file):
 
     # find length of genes
     sys.stderr.write("Load gene file: ")
-    gene_lengths = list()
-    gene_ids = list()
+    gene_lengths = []
+    gene_ids = []
     o = open(seq_file, "r")
     cont = -1
     for i in o:
@@ -223,8 +223,8 @@ def check_protein_file(seq_file, protein_file):
 
     # find length of proteins
     sys.stderr.write("Load protein file: ")
-    protein_lengths = list()
-    protein_ids = list()
+    protein_lengths = []
+    protein_ids = []
     o = open(protein_file, "r")
     cont = -1
     for i in o:
@@ -390,7 +390,7 @@ def check_tool(seq_file, hmm_file, use_cmalign, verbose=4):
     CMD2 = shlex.split(cmd2)
     parse_cmd = subprocess.Popen(CMD2, stdin=align_cmd.stdout, stdout=subprocess.PIPE)
 
-    all_lines = list()
+    all_lines = []
     for line in linearise_fasta(parse_cmd.stdout, head_start=1):
         all_lines.append(line)
 

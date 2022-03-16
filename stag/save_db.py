@@ -49,7 +49,7 @@ def main():
     logging.info(f'TIME:Finished check-up - {len(full_taxonomy)} nodes in taxonomy')
 
     logging.info('MAIN:Loading trained data and estimating learn function')
-    tax_function = list()
+    tax_function = []
     for f in sorted(args.levels):
         tax_function += pickle.load(open(f, "rb"))
 

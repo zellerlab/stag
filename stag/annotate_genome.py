@@ -136,7 +136,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
     # we select which genes/proteins we need to extract from the fasta files
     # produced by prodigal
     gene_threshold = float(gene_threshold) # should be float before!
-    sel_genes = dict()
+    sel_genes = {}
     with open(temp_hmm.name, "r") as hmm_in:
         for line in hmm_in:
             if not line.startswith("#"):
@@ -150,7 +150,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
 
 
 def select_genes(all_genes_raw, keep_all_genes):
-    selected_genes = dict()
+    selected_genes = {}
     # all_genes_raw: genome1: MG1: geneA: 276
     #                              geneB: 243
     #                         MG2: geneC: 589
@@ -160,7 +160,7 @@ def select_genes(all_genes_raw, keep_all_genes):
     #                              geneY: 543
     for genome, (marker_candidates, _) in all_genes_raw.items():
         # we first check if there is any gene that is in multiple mgs:
-        best_score = dict()
+        best_score = {}
         for mg, genes in marker_candidates.items():
             for gene, score in genes.items():
                 score = genes[gene] = float(score) # this should be float before!
@@ -170,7 +170,7 @@ def select_genes(all_genes_raw, keep_all_genes):
 
         # now we select the correct genes and decide if keep one or many
         for mg, genes in marker_candidates.items():
-            selected_genes.setdefault(genome, dict())[mg] = list()
+            selected_genes.setdefault(genome, {})[mg] = []
             
             best_genes = [
                 (score, gene) for gene, score in marker_candidates.items()
@@ -205,7 +205,7 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
 
     with genes, proteins:
         for genome, marker_genes in selected_genes.items():
-            mg_genes = set(marker_genes.get(mg, list()))
+            mg_genes = set(marker_genes.get(mg, []))
             if not mg_genes:
                 sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")        
             else:
@@ -251,7 +251,7 @@ def write_hmm(db_in):
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
 def extract_marker_genes(database_files, database_path, genomes_pred, gene_thresholds):
-    all_genes_raw = dict()
+    all_genes_raw = {}
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
@@ -263,7 +263,7 @@ def extract_marker_genes(database_files, database_path, genomes_pred, gene_thres
         # the result is saved in all_genes_raw (passed as input)
         # extract_genes(mg, hmm_file, mg_info_use_protein[mg], genomes_pred, gene_thresholds[mg], all_genes_raw)
         for genome, genes_proteins in genomes_pred.items():
-            mg_present = all_genes_raw.setdefault(genome, dict()).get(mg)
+            mg_present = all_genes_raw.setdefault(genome, {}).get(mg)
             if mg_present:
                 sys.stderr.write("Error. gene already present\n")
             extracted = extract_gene_from_one_genome(
@@ -299,7 +299,7 @@ def filter_marker_genes(all_genes_raw, keep_all_genes, genomes_pred, verbose):
     #                          MG2:          (geneY)       (geneZ,geneY)
     #                     dict dict          list
 
-    all_predicted = dict()
+    all_predicted = {}
     for mg, (extracted, use_proteins) in all_genes_raw.items():
         fna_path, faa_path = extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_proteins)
         all_predicted[mg] = [fna_path, faa_path]
@@ -314,7 +314,7 @@ def filter_marker_genes(all_genes_raw, keep_all_genes, genomes_pred, verbose):
 # ==============================================================================
 
 def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
-    all_classifications = dict()
+    all_classifications = {}
     for mg, (fna, faa) in MGS.items():
         if fna:
             db = os.path.join(database_base_path, mg)
@@ -335,7 +335,7 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali):
 # ==============================================================================
 def merge_genes_predictions(genomes_file_list, mgs_list, all_classifications, verbose, threads, output, long_out, keep_all_genes):
     # we parse "all_classifications"
-    to_print = dict()
+    to_print = {}
     for i in all_classifications:
         vals = i.rstrip().split("##")
         genome = "_".join(vals[0].split("_")[0:-1])
@@ -367,9 +367,9 @@ def concat_alis(genomes_file_list, ali_dir, gene_order, ali_lengths):
     #  - length of the alignments
 
     # we create the base
-    all_genes = dict()
+    all_genes = {}
     for ge in genomes_file_list:
-        all_genes[ge] = list()
+        all_genes[ge] = []
         for mg in gene_order:
             all_genes[ge].append("\t".join(['0'] * int(ali_lengths[mg])))
 

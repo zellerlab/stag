@@ -59,7 +59,7 @@ def predict_iter(test_seq, taxonomy, classifiers, tax, perc, arrived_so_far):
 #                    FIND TO WHICH TAXONOMIC LEVEL TO STOP
 # ===============================================================================
 def find_correct_level(perc, tax_function):
-    prob_per_level = list()
+    prob_per_level = []
     max_probability = 0
     selected_level = -1
     for level in sorted(list(tax_function)):
@@ -98,7 +98,7 @@ def classify_seq(gene_id, test_seq, taxonomy, tax_function, classifiers, threads
     n_aligned_characters = find_n_aligned_characters(test_seq)
 
     # now we evaluate across the taxonomy --------------------------------------
-    tax, perc = list(), list()
+    tax, perc = [], []
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, taxonomy, classifiers, tax, perc, Taxonomy.TREE_ROOT)
 
@@ -136,7 +136,7 @@ def classify(database, fasta_input=None, protein_fasta_input=None, verbose=3, th
 
     alignment_length = None
     # align the sequences and classify them
-    list_to_print = list()
+    list_to_print = []
 
     alignment_out, write_alignments = contextlib.nullcontext(), False
     if aligned_sequences:

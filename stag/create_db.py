@@ -90,7 +90,7 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     positive_examples = full_taxonomy.find_gene_ids(node)
     t_pos = time.time() - t00
     t0 = time.time()
-    negative_examples = list()
+    negative_examples = []
     for s in siblings:
         negative_examples += full_taxonomy.find_gene_ids(s)
     t_neg = time.time() - t0
@@ -206,8 +206,8 @@ def predict_iter(test_seq, training_tax, classifiers_train, tax, perc, arrived_s
 
 
 def predict_one_gene(test_seq, training_tax, classifiers_train):
-    tax = list()
-    perc = list()
+    tax = []
+    perc = []
     # we arrived at the root, and now we classify from there
     predict_iter(test_seq, training_tax, classifiers_train, tax, perc, training_tax.get_root())
     # we change the predictions that came from having only one sibling --------
@@ -303,7 +303,7 @@ def estimate_function(all_calc_functions, max_iter=5000):
     all_uniq = {tuple(round(v, 2) for v in item[2]): item for item in all_calc_functions}
     logging.info(f'   LEARN_FUNCTION:Number of lines: {len(all_uniq)}/{len(all_calc_functions)}')
 
-    correct_level = list()
+    correct_level = []
     for _, predicted, _, ground_truth, _ in all_uniq.values():
         corr_level_this = -1
         for cont, (p, c) in enumerate(zip(predicted, ground_truth)):
@@ -320,7 +320,7 @@ def estimate_function(all_calc_functions, max_iter=5000):
     for level, count in sorted(level_counter.items()):
         logging.info(f'   LEARN_FUNCTION:Number of lines: level {level}: {count}')
 
-    all_classifiers = list()
+    all_classifiers = []
     for uniq_level in sorted(level_counter):
         # NOTE: we always need the negative class to be first
         correct_order = [[], []]
@@ -352,7 +352,7 @@ def learn_taxonomy_selection_function(
     n_levels = full_taxonomy.get_n_levels()
 
     # do the cross validation for each level
-    all_calc_functions = list()
+    all_calc_functions = []
     for level in range(n_levels):
         all_calc_functions += learn_function(
             level, alignment, full_taxonomy, penalty_v, solver_v, procs=procs

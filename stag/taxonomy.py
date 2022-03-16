@@ -10,10 +10,10 @@ class Taxonomy:
         self.file_name = file_name
         self.child_nodes = {Taxonomy.TREE_ROOT: set()}
         self.tree_root = Taxonomy.TREE_ROOT
-        self.last_level_to_genes = dict()
-        self.all_gene_ids = list()
+        self.last_level_to_genes = {}
+        self.all_gene_ids = []
         self.number_of_taxonomic_levels = 0
-        self.annotation_per_gene = dict()
+        self.annotation_per_gene = {}
 
     def _add_child(self, parent, child):
         self.child_nodes.setdefault(parent, set()).add(child)
@@ -65,7 +65,7 @@ class Taxonomy:
 
     # find children of a node --------------------------------------------------
     def find_children_node(self, node):
-        return list(self.child_nodes.get(node, list()))
+        return list(self.child_nodes.get(node, []))
 
     # return the last level to genes -------------------------------------------
     def get_last_level_to_genes(self):
@@ -78,7 +78,7 @@ class Taxonomy:
     # find all genes under a given node ----------------------------------------
     # return a list of all genes
     def find_gene_ids(self, node=None):
-        all_leaves = list()
+        all_leaves = []
         self.find_leaves_recoursive(node if node else self.get_root(), all_leaves)
         return all_leaves
     def find_leaves_recoursive(self, node, all_leaves):
@@ -93,7 +93,7 @@ class Taxonomy:
     # it returns the gene ids that were removed
     def remove_clades(self, node_list):
         # remove all clades under
-        list_removed_genes = list()
+        list_removed_genes = []
         for n in node_list:
             self.remove_clade_iter(n, list_removed_genes)
         # remove all clades on top
@@ -127,7 +127,7 @@ class Taxonomy:
     def remove_unused_branches(self):
         removed_any = False # this becomes True if we remove any node from
                             # child_nodes, in which case we re-run remove_unused_branches
-        list_to_remove = list()
+        list_to_remove = []
         for i in self.child_nodes:
             if len(self.child_nodes[i]) == 0:
                 removed_any = True
@@ -152,7 +152,7 @@ class Taxonomy:
                 self.last_level_to_genes[node].discard(g)
         # Check if all the genes from one clade are removed, and hence we should
         # remove that clade
-        list_to_remove = list()
+        list_to_remove = []
         for node in self.last_level_to_genes:
             if len(self.last_level_to_genes[node]) == 0:
                 list_to_remove.append(node)
@@ -167,11 +167,11 @@ class Taxonomy:
                 self.find_tax_level_iter(n, current_level+1, result)
     def find_node_level(self, tax_level_find):
         # find tax level for each node
-        tax_level = dict()
+        tax_level = {}
         tax_level[self.tree_root] = 0
         self.find_tax_level_iter(self.tree_root,0,tax_level)
         # select only the one from the correct level
-        res = dict()
+        res = {}
         for n in self.child_nodes:
             if tax_level[n] == tax_level_find:
                 res[n] = set(self.child_nodes[n])

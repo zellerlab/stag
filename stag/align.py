@@ -33,7 +33,7 @@ encoding_dic = {
 
 def convert_alignment(alignment, verbose, as_numpy=False):
     n_aligned_characters, n_char = 0, 0
-    converted_ali = list()
+    converted_ali = []
     for character in alignment:
         # 1-hot encoding
         # the ACGTU are converted, everything else that is upper case, is considered
@@ -70,7 +70,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
             return None
 
     # convert alignment
-    pos_gene, al_gene = 0, list()
+    pos_gene, al_gene = 0, []
     for res in protein_alignment:
         found = False
         if res == "-":

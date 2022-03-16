@@ -78,7 +78,7 @@ def calc_al(fasta_file, hmm_file, use_cmalign, n_threads, verbose):
     CMD2 = shlex.split(cmd2)
     parse_cmd = subprocess.Popen(CMD2, stdin=align_cmd.stdout, stdout=subprocess.PIPE)
 
-    all_lines = dict()
+    all_lines = {}
     for line in linearise_fasta(parse_cmd.stdout, head_start=0):
         id = line.split("\t")[0]
         # calculate the number of internal state covered

@@ -119,7 +119,7 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
     # in temp_hmm.name there is the result from hmm ----------------------------
     # we select which genes/proteins we need to extract from the fasta files
     # produced by prodigal
-    sel_genes = dict()
+    sel_genes = {}
     o = open(temp_hmm.name, "r")
     for line in o:
         if not line.startswith("#"):
@@ -143,7 +143,7 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_thresh
     # we go through the genome and find the genes that pass the filter
     for g in genomes_pred:
         if not (g in all_genes_raw):
-            all_genes_raw[g] = dict()
+            all_genes_raw[g] = {}
         if mg_name in all_genes_raw[g]:
             sys.stderr.write(f"Error. gene {mg_name} already present\n")
         # which file do we use for the hmmsearch?
@@ -156,7 +156,7 @@ def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_thresh
 
 
 def select_genes(all_genes_raw, keep_all_genes):
-    return_dict = dict()
+    return_dict = {}
     # all_genes_raw: genome1: MG1: geneA: 276
     #                              geneB: 243
     #                         MG2: geneC: 589
@@ -165,9 +165,9 @@ def select_genes(all_genes_raw, keep_all_genes):
     #                         MG2: geneZ: 459
     #                              geneY: 543
     for genome in all_genes_raw:
-        return_dict[genome] = dict()
+        return_dict[genome] = {}
         # we first check if there is any gene that is in multiple mgs:
-        gene_sel = dict()
+        gene_sel = {}
         for mg in all_genes_raw[genome]:
             for g in all_genes_raw[genome][mg]:
                 if not (g in gene_sel):
@@ -180,7 +180,7 @@ def select_genes(all_genes_raw, keep_all_genes):
 
         # now we select the correct genes and decide if keep one or many
         for mg in all_genes_raw[genome]:
-            return_dict[genome][mg] = list()
+            return_dict[genome][mg] = []
             # if we keep all genes
             if keep_all_genes:
                 for g in all_genes_raw[genome][mg]:
@@ -256,8 +256,8 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
 # extract the marker genes from the genes/proteins produced from prodigal
 # for multiple genomes and multiple MGs
 def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_thresholds, verbose):
-    all_genes_raw = dict()
-    mg_info_use_protein = dict()
+    all_genes_raw = {}
+    mg_info_use_protein = {}
     for mg in database_files:
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
@@ -298,7 +298,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
     #                          MG2:          (geneY)       (geneZ,geneY)
     #                     dict dict          list
 
-    all_predicted = dict()
+    all_predicted = {}
     for mg in database_files:
         fna_path, faa_path = extract_genes_from_fasta(
             mg, selected_genes, genomes_pred, verbose, mg_info_use_protein[mg]
@@ -360,13 +360,13 @@ def merge_gene_predictions(
     print(*all_classifications, sep="\n")
     print("**********")
     # we parse "all_classifications"
-    merged_predictions = dict()
+    merged_predictions = {}
     for marker_gene, lineage in all_classifications:
         genome, mg_id = marker_gene.rstrip().split("##")
         sep = "_" if "_" in genome else "."
         genome = genome.split(sep)
         genome = sep.join(genome[:-1] if len(genome) > 1 else genome)
-        merged_predictions.setdefault(genome, list()).append("\t".join([marker_gene.rstrip(), mg_id, lineage]))
+        merged_predictions.setdefault(genome, []).append("\t".join([marker_gene.rstrip(), mg_id, lineage]))
     print(*merged_predictions.items(), sep="\n")
 
     for genome, predictions in merged_predictions.items():
@@ -376,7 +376,7 @@ def merge_gene_predictions(
 
 
 def concat_alignments(genome_files, ali_dir, gene_order, ali_lengths, full_genomes=True):
-    all_genes = dict()
+    all_genes = {}
     for pos, mg in enumerate(gene_order):
         mg_alignment_file = os.path.join(ali_dir, mg)
         if os.path.exists(mg_alignment_file):

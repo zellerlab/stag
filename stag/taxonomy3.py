@@ -6,7 +6,7 @@ class Taxon:
     def __init__(self, level=0, parent=None, label=None):
         self.level = level
         self.label = label if label else Taxonomy.TREE_ROOT
-        self.children = dict()
+        self.children = {}
         self.genes = set()
         self.species_nodes = set()
         self.parent = parent
@@ -30,7 +30,7 @@ class Taxonomy(dict):
     def __init__(self, fn=None):
         self[self.TREE_ROOT] = Taxon()
         self.n_taxlevels = 0
-        self.gene_lineages = dict()
+        self.gene_lineages = {}
         self.fn = fn
         if self.fn:
             self._load_taxonomy()
@@ -154,7 +154,7 @@ class Taxonomy(dict):
             if node.level == tax_level
         }
         """
-        nodes = dict()
+        nodes = {}
         # queue = [(self[self.TREE_ROOT], -1)]
         queue = [(child, 1) for child in self[self.TREE_ROOT].children]
         while queue:
