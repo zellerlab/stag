@@ -15,27 +15,27 @@ class bcolors:
 
 # colors for the shell ---------------------------------------------------------
 class bco:
-	ResetAll = "\033[0m"
-	Bold       = "\033[1m"
-	Underlined = "\033[4m"
-	Green        = "\033[32m"
-	Yellow       = "\033[33m"
-	Blue         = "\033[34m"
-	Red          = "\033[31m"
-	Magenta      = "\033[35m"
-	Cyan         = "\033[36m"
-	LightRed     = "\033[91m"
-	LightGreen   = "\033[92m"
-	LightYellow  = "\033[93m"
-	LightBlue    = "\033[94m"
-	LightMagenta = "\033[95m"
-	LightCyan    = "\033[96m"
+    ResetAll = "\033[0m"
+    Bold       = "\033[1m"
+    Underlined = "\033[4m"
+    Green        = "\033[32m"
+    Yellow       = "\033[33m"
+    Blue         = "\033[34m"
+    Red          = "\033[31m"
+    Magenta      = "\033[35m"
+    Cyan         = "\033[36m"
+    LightRed     = "\033[91m"
+    LightGreen   = "\033[92m"
+    LightYellow  = "\033[93m"
+    LightBlue    = "\033[94m"
+    LightMagenta = "\033[95m"
+    LightCyan    = "\033[96m"
 
 def print_error():
-	try:
-		sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
-	except Exception as e:
-		sys.stderr.write("[E::main] Error: ")
+    try:
+        sys.stderr.write(f"\n{bco.Red}{bco.Bold}[E::main] Error: {bco.ResetAll}")
+    except Exception as e:
+        sys.stderr.write("[E::main] Error: ")
 
 # function that checks if a file exists ----------------------------------------
 def check_file_exists(file_name, isfasta = False):
@@ -58,36 +58,34 @@ def check_file_exists(file_name, isfasta = False):
 
 # function that checks if a file exists already, and give an error -------------
 def check_file_doesnt_exists(file_name):
-	if os.path.exists(file_name):
-		print_error()
-		sys.stderr.write("Output file exists already: "+file_name+"\n")
-		sys.exit(1)
+    if os.path.exists(file_name):
+        print_error()
+        sys.stderr.write("Output file exists already: "+file_name+"\n")
+        sys.exit(1)
 
 # ------------------------------------------------------------------------------
 # function to check if a specific tool exists
 def is_tool(name):
-    try:
-        devnull = open(os.devnull)
-        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
+    with open(os.devnull) as devnull:
+        try:
+            subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+        except OSError as e:
+            return e.errno != errno.ENOENT
+
     return True
 
 def is_tool_and_return0(name):
-    try:
-        devnull = open(os.devnull)
-        popenCMD = shlex.split(name)
-        child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
-        streamdata = child.communicate()
-        rc = child.wait()
-        if rc == 0:
-            return True
-        else:
-            return False
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            return False
+    with open(os.devnull) as devnull:
+        try:
+            devnull = open(os.devnull)
+            popenCMD = shlex.split(name)
+            child = subprocess.Popen(popenCMD, stdout=devnull, stderr=devnull)
+            streamdata = child.communicate()
+            rc = child.wait()
+            return rc == 0
+        except OSError as e:
+            return e.errno != errno.ENOENT
+
     return True
 
 # ------------------------------------------------------------------------------
@@ -104,18 +102,20 @@ def linearise_fasta(fasta_stream, head_start=0, is_binary=True):
     for sid, seq in read_fasta(fasta_stream, head_start=head_start):
         yield "\t".join((sid, seq))
 
-def read_fasta(fasta_stream, head_start=0, is_binary=True):
-    sid, seq = None, list()
-    for line in fasta_stream:
-        if is_binary:
-            line = line.decode("utf-8")
-        line = line.rstrip()
-        if line.startswith(">"):
-            if seq:
-                yield sid, "".join(seq)
-            sid = line[head_start:]
-            seq.clear()
-        else:
-            seq.append(line)
-    if seq:
-        yield sid, "".join(seq)
+def read_fasta(fasta, head_start=0, is_binary=True):
+    sid, seq = None, [] 
+    fasta_stream = open(fasta) if isinstance(fasta, str) else fasta
+    with fasta_stream:
+        for line in fasta_stream:
+            if is_binary:
+                line = line.decode("utf-8")
+            line = line.rstrip()
+            if line.startswith(">"):
+                if seq:
+                    yield sid, "".join(seq)
+                sid = line[head_start:]
+                seq.clear()
+            else:
+                seq.append(line)
+        if seq:
+            yield sid, "".join(seq)

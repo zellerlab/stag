@@ -59,14 +59,16 @@ def run_prodigal(genome):
     )
     cmd = shlex.split(prodigal_cmd)
     parse_cmd = subprocess.Popen(cmd, stdout=DEVNULL,stderr=subprocess.PIPE)
-    # we save stderr if necessary
-    all_stderr = ""
-    for line in parse_cmd.stderr:
-        line = line.decode('ascii')
-        all_stderr = all_stderr + line
-    return_code = parse_cmd.wait()
-    if return_code:
-        raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
+
+    with parse_cmd:
+        # we save stderr if necessary
+        all_stderr = ""
+        for line in parse_cmd.stderr:
+            line = line.decode('ascii')
+            all_stderr = all_stderr + line
+        return_code = parse_cmd.wait()
+        if return_code:
+            raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
 
     # we re-name the header of the fasta files ---------------------------------
     # we expect to have the same number of genes and proteins, and also that the
@@ -104,14 +106,16 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold,mg_name
 
     CMD = shlex.split(hmm_cmd)
     hmm_CMD = subprocess.Popen(CMD, stdout=DEVNULL,stderr=subprocess.PIPE)
-    # we save stderr if necessary
-    all_stderr = ""
-    for line in hmm_CMD.stderr:
-        line = line.decode('ascii')
-        all_stderr = all_stderr + line
-    return_code = hmm_CMD.wait()
-    if return_code:
-        raise ValueError(f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}")
+
+    with hmm_CMD:
+        # we save stderr if necessary
+        all_stderr = ""
+        for line in hmm_CMD.stderr:
+            line = line.decode('ascii')
+            all_stderr = all_stderr + line
+        return_code = hmm_CMD.wait()
+        if return_code:
+            raise ValueError(f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}")
 
     # in temp_hmm.name there is the result from hmm ----------------------------
     # we select which genes/proteins we need to extract from the fasta files
@@ -259,7 +263,7 @@ def fetch_MGs(database_files, database_path, genomes_pred, keep_all_genes, gene_
         # for each MG, we extract the hmm and if using proteins or not ---------
         path_mg = os.path.join(database_path, mg)
 
-        with h5py.File(path_mg, 'r') as db_in, tempfile.NamedTemporaryFile(delete=False, mode="w") as hmm_file:
+        with h5py.File(path_mg, 'r') as db_in, tempfile.NamedTemporaryFile(delete=False, mode="wb") as hmm_file:
             os.chmod(hmm_file.name, 0o644)
             hmm_file.write(db_in['hmm_file'][0])
             hmm_file.flush()
@@ -314,30 +318,33 @@ def annotate_MGs(MGS, database_files, database_base_path, dir_ali, procs=2):
     if not found_marker_genes:
         raise ValueError("No marker genes found!")
 
+    found_marker_dbs = {}
+
     for mg in found_marker_genes:
         db = os.path.join(database_base_path, mg)
         if not os.path.isfile(db):
             db = db + ".stagDB"
             if not os.path.isfile(db):
                 raise ValueError(f"Error: file for gene database {db} is missing")
+        found_marker_dbs[mg] = db
 
-    pool = mp.Pool(processes=procs)
+    dlist = []
+    with mp.Pool(processes=procs) as pool:
 
-    results = [
-        pool.apply_async(
-            classify,
-            args=(os.path.join(database_base_path, mg + ".stagDB" if db.endswith(".stagDB") else ""), ),
-            kwds={"fasta_input": fna, "protein_fasta_input": faa,
-                  "save_ali_to_file": os.path.join(dir_ali, mg),
-                  "internal_call": True}
-        )
-        for mg, (fna, faa) in found_marker_genes.items()
-    ]
+        results = [
+            pool.apply_async(
+                classify,
+                args=(found_marker_dbs[mg], ),
+                kwds={"fasta_input": fna, "protein_fasta_input": faa,
+                      "save_ali_to_file": os.path.join(dir_ali, mg),
+                      "internal_call": True}
+            )
+            for mg, (fna, faa) in found_marker_genes.items()
+        ]
 
-    dlist = list()
-    for p in results:
-        _, predictions = p.get()
-        dlist += predictions
+        for p in results:
+            _, predictions = p.get()
+            dlist += predictions
 
     return dlist
 
@@ -346,7 +353,7 @@ def merge_gene_predictions(genome_files, mgs_list, all_classifications, verbose,
     outdir = os.path.join(output, "genes_predictions")
     pathlib.Path(outdir).mkdir(exist_ok=True, parents=True)
 
-    print(*all_classifications.items(), sep="\n")
+    print(*all_classifications, sep="\n")
     print("**********")
     # we parse "all_classifications"
     merged_predictions = dict()

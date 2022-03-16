@@ -21,6 +21,9 @@ import random
 import pickle
 import multiprocessing as mp
 
+import warnings
+warnings.filterwarnings("error")
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -95,21 +98,21 @@ def find_training_genes(node, siblings, full_taxonomy, alignment):
     return positive_examples, negative_examples
 
 
-def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, procs=None):
+def train_all_classifiers_nonmp(alignment, taxonomy, penalty_v, solver_v, max_iter=5000, procs=None):
     return list(
-        do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v)
+        do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v, max_iter)
         for node, siblings in taxonomy.get_all_nodes(get_root=False)
     )
 
 
-def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v):
+def do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v, max_iter=5000):
     t00 = time.time()
     positive_examples, negative_examples = find_training_genes(node, siblings, taxonomy, alignment)
     t_select, t_train = time.time() - t00, 0
 
     if positive_examples and negative_examples:
         t0 = time.time()
-        clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v)
+        clf = LogisticRegression(random_state=0, penalty=penalty_v, solver=solver_v, max_iter=max_iter)
         clf.fit(
             alignment.get_rows(node, negative_examples + positive_examples),
             np.asarray(["no"] * len(negative_examples) + ["yes"] * len(positive_examples))
@@ -131,7 +134,7 @@ def process_chunk(nodes, taxonomy, alignment, penalty_v, solver_v):
     return [do_training(node, siblings, taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes]
 
 
-def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, procs=2):
+def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, max_iter=5000, procs=2):
     print(f"train_all_classifiers_mp with {procs} processes.")
     logging.info("\t".join(["                  node", "positive", "negative", "t_select", "t_train", "t_total", "pid"]))
     with mp.Pool(processes=procs) as pool:
@@ -142,14 +145,14 @@ def train_all_classifiers_mp(alignment, full_taxonomy, penalty_v, solver_v, proc
         random.shuffle(nodes)
         step = len(nodes) // procs + 1
 
-        results = pool.starmap_async(do_training, ((node, siblings, full_taxonomy, alignment, penalty_v, solver_v) for node, siblings in nodes), step)
+        results = pool.starmap_async(do_training, ((node, siblings, full_taxonomy, alignment, penalty_v, solver_v, max_iter) for node, siblings in nodes), step)
         return list(results.get())
 
 
-def train_all_classifiers(*args, procs=None):
+def train_all_classifiers(*args, max_iter=5000, procs=None):
     train_f = train_all_classifiers_mp if (procs and procs > 1) else train_all_classifiers_nonmp
 
-    return train_f(*args, procs=procs)
+    return train_f(*args, max_iter=5000, procs=procs)
 
 
 #===============================================================================
@@ -201,7 +204,7 @@ def predict(test_al, training_tax, classifiers_train):
     ]
 
 
-def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, perc_test_set=0.33, gene_level=False, procs=None):
+def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v, perc_test_set=0.33, gene_level=False, max_iter=5000, procs=None):
     # perc_test_set <= 0.5 !
     logging.info(f'  TEST:"{level_to_learn}" taxonomic level')
     # 1. Identify which clades we want to remove (test set) and which to keep (training set)
@@ -233,7 +236,7 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
         train_all_classifiers(
             alignment.filter_alignment(training_filter),
             training_tax,
-            penalty_v, solver_v, procs=procs
+            penalty_v, solver_v, max_iter=max_iter, procs=procs
         )
     )
 
@@ -243,6 +246,7 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
         training_tax,
         classifiers_train
     )
+
     for g in pr:
         # g is:
         # ["geneB",["A","B","D","species8"],[0.99,0.96,0.96,0.07]]
@@ -256,7 +260,8 @@ def learn_function(level_to_learn, alignment, full_taxonomy, penalty_v, solver_v
     #  ["geneB",["A","B","D","species8"],[0.99,0.96,0.10,0.07],["A","B","U","speciesZ"],2]
     # .....                                                                               ]
 
-def estimate_function(all_calc_functions):
+
+def estimate_function(all_calc_functions, max_iter=5000):
     # The all_calc_functions looks like:
     #    GENE_ID         PREDICTED             PROB_PREDICTED        CORRECT        REMOVED_LEVEL
     # [["geneA",["A","B","C","species2"],[0.98,0.97,0.23,0.02],["A","B","Y","speciesX"],2]
@@ -299,7 +304,7 @@ def estimate_function(all_calc_functions):
         if correct_order[0] and correct_order[1]:
             X = np.array([np.array(xi) for xi in correct_order[0] + correct_order[1]])
             y = np.asarray([0] * len(correct_order[0]) + [1] * len(correct_order[1]))
-            clf = LogisticRegression(random_state=0, penalty = "none", solver='saga', max_iter = 5000)
+            clf = LogisticRegression(random_state=0, penalty="none", solver='saga', max_iter=max_iter)
             clf.fit(X, y)
             all_classifiers.append((str(uniq_level), clf))
         else:
@@ -311,7 +316,7 @@ def estimate_function(all_calc_functions):
 # create taxonomy selection function ===========================================
 # This function define a function that is able to identify to which taxonomic
 # level a new gene should be assigned to.
-def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=None):
+def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=5000, procs=None):
     # find number of levels
     n_levels = full_taxonomy.get_n_levels()
 
@@ -342,10 +347,10 @@ def learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_d
             print("[E::main] Error: failed to save the cross validation results\n" + \
                   f"[E::main] you can find the file here: \n{outfile.name}\n", file=sys.stderr)
 
-    return estimate_function(all_calc_functions)
+    return estimate_function(all_calc_functions, max_iter=max_iter)
 
 
-def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, procs=None):
+def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file_path, save_cross_val_data, protein_fasta_input, penalty_v, solver_v, max_iter=5000, procs=None):
     filename_log = os.path.realpath(output)+'.log'
     logging.basicConfig(filename=filename_log,
                         filemode='w',
@@ -376,7 +381,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     else:
         classifiers = [
             (node, np.append(clf.intercept_, clf.coef_) if clf else None)
-            for node, clf in train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, procs=procs)
+            for node, clf in train_all_classifiers(alignment, full_taxonomy, penalty_v, solver_v, max_iter=max_iter, procs=procs)
         ]
         with open(classifiers_file, "wb") as clf_out:
             pickle.dump(classifiers, clf_out)
@@ -391,7 +396,7 @@ def create_db(aligned_seq_file, tax_file, verbose, output, use_cmalign, hmm_file
     else:
         tax_function = [
             (node, np.append(clf.intercept_, clf.coef_) if clf else None)
-            for node, clf in learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, procs=procs)
+            for node, clf in learn_taxonomy_selection_function(alignment, full_taxonomy, save_cross_val_data, penalty_v, solver_v, max_iter=max_iter, procs=procs)
         ]
         with open(taxfunc_file, "wb") as clf_out:
             pickle.dump(tax_function, clf_out)

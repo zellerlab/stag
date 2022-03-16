@@ -21,7 +21,6 @@ process align_marker_genes {
 	tuple val(gene), path(seqs)
 
 	output:
-	stdout
 	tuple val(gene), path("${gene}/${gene}.ali"), emit: alignment
 
 	script:
@@ -50,7 +49,6 @@ process concat_alignments {
 	path(alignments)
 
 	output:
-	stdout
 	tuple val("genome"), path("concat_alignment.txt"), emit: alignment
 
 	script:
@@ -68,7 +66,6 @@ process learn_function {
 	tuple val(gene), path(alignment), val(level)
 
 	output:
-	stdout
 	tuple val(gene), path("${gene}.${level}.lfunc.dat"), emit: lfunc
 
 	script:
@@ -84,7 +81,6 @@ process train_classifiers {
 	tuple val(gene), path(alignment)
 
 	output:
-	stdout
 	tuple val(gene), path("${gene}.classifiers.dat"), emit: classifiers
 
 	script:
@@ -95,24 +91,61 @@ process train_classifiers {
 
 
 process save_db {
-	publishDir "${output_dir}/databases" 
+	publishDir "${output_dir}/gene_databases", mode: params.publish_mode
+	label "save_db"
 
 	input:
 	tuple val(gene), path(lfunc), path(classifiers), path(alignment)
 	
 	output:
-	stdout
 	tuple val(gene), path("${gene}.stagDB"), emit: db
 	path("${gene}.cross_val")
 
 	script:
-	def hmm_file = ($gene == "genome") ? "hmm_dummy.txt" : ${params.hmmlib}/${gene}.hmm;
+	def hmm_file = ("${gene}" == "genome") ? "dummy_hmm.txt" : "${params.hmmlib}/${gene}.hmm";
 	"""
-	touch hmm_dummy.txt
+	touch dummy_hmm.txt
 	touch protein_stuff.txt
 	save_db ${params.taxonomy} ${alignment} ${classifiers} ${hmm_file} protein_stuff.txt \$(ls *.lfunc.dat) -o ${gene}
 	"""
 }
+
+
+process save_genome_db {
+	publishDir "${output_dir}", mode: params.publish_mode
+	label "save_db"
+
+	input:
+	val(dbname)
+	path(databases)
+	path(thresholds)
+	path(lengths)
+
+	output:
+	tuple val(dbname), path("db/${dbname}.stagDB"), emit: db
+
+	script:
+	"""
+	mkdir -p db/
+	join -1 1 -2 1 <(sort -k1,1 ${thresholds}) <(sort -k1,1 ${lengths}) | tr " " "\\t" > threshold_lengths.txt
+	stag train_genome -i \$(ls ${databases} | grep -v '^genome' | tr "\\n" ',' | sed "s/,\$//") -T threshold_lengths.txt -C genome.stagDB -o db/${dbname}.stagDB
+	"""
+}
+
+
+process extract_alignment_lengths {
+	input:
+	path(alignments)
+
+	output:
+	path("alignment_lengths.txt"), emit: align_lengths
+
+	script:
+	"""
+	awk -F '\t' -v OFS='\t' '{ print FILENAME,\$1; nextfile }' \$(ls ${alignments}) | sed 's/\\.ali/.stagDB/' > alignment_lengths.txt
+	"""
+}
+
 
 
 workflow {
@@ -151,6 +184,8 @@ workflow {
 
 	concat_alignments(all_aln_ch)
 
+	extract_alignment_lengths(all_aln_ch)
+
 	/*
 		4. Train the classifiers on the individual marker gene alignments as well as on the genome alignment.
 	*/	
@@ -177,9 +212,22 @@ workflow {
 	*/
 
 	lf_clf_combine_ch = lf_combine_ch.join(train_classifiers.out.classifiers.join(clf_input_ch))
+	//		.filter { it[0] != "genome" }
 	lf_clf_combine_ch.view()
 
 	save_db(lf_clf_combine_ch)
 	save_db.out.db.view()
 
+
+	db_ch = save_db.out.db
+		.map { gene, db -> return db }
+		.collect()
+	db_ch.view()
+
+	save_genome_db(
+		params.dbname,
+		db_ch,
+		params.thresholds,
+		extract_alignment_lengths.out.align_lengths
+	)
 }

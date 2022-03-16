@@ -57,12 +57,12 @@ class EncodedAlignment:
 	# https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding
 	# https://stackoverflow.com/questions/45604688/apply-function-on-each-row-row-wise-of-a-numpy-array
 	# https://pypi.org/project/bitarray/ <- another possibility
-	def __init__(self, fn=None, other_aln=None, ncols=None, npads=None):
+	def __init__(self, fn=None, other_aln=None, ncols=None, npads=None, drop_duplicates=True):
 		self.alignment = None
 		self.ncols = None
 		self.npads = None
 		if fn:
-			self._load_alignment(fn)
+			self._load_alignment(fn, drop_duplicates=drop_duplicates)
 		elif other_aln is not None:
 			self.alignment = other_aln
 			self.ncols = ncols
@@ -70,18 +70,19 @@ class EncodedAlignment:
 
 	def filter_alignment(self, rows):
 		return EncodedAlignment(
-			other_aln=self.alignment.loc[ rows, : ],
+			other_aln=self.alignment.loc[ list(rows), : ],
 			ncols=self.ncols,
 			npads=self.npads
 		)
 
-	def _load_alignment(self, fn):
+	def _load_alignment(self, fn, drop_duplicates=True):
 		with open(fn) as _in:
 			self.ncols, self.npads = map(int, next(_in).strip().split("\t"))
 			self.alignment = pd.read_csv(_in, header=None, index_col=0, sep="\t")
 			logging.info(f'   LOAD_AL: Number of genes: {len(list(self.alignment.index.values))}')
-			self.alignment = self.alignment.drop_duplicates()
-			logging.info(f'   LOAD_AL: Number of genes, after removing duplicates: {len(list(self.alignment.index.values))}')
+			if drop_duplicates:
+				self.alignment = self.alignment.drop_duplicates()
+				logging.info(f'   LOAD_AL: Number of genes, after removing duplicates: {len(list(self.alignment.index.values))}')
 
 	def get_index(self):
 		return list(self.alignment.index.values)
@@ -112,14 +113,20 @@ class EncodedAlignment:
 
 				m_for_diff = np.tile(check_positives[clade,], (n_negatives, 1))
 
-				differences = np.sum(
-					np.apply_along_axis(
-						lambda x:(((x[:, None] & (1 << np.arange(32))[::-1]) > 0).flatten()[:-self.npads] == 1),
-						1,
-						np.bitwise_xor(m_for_diff, check_negatives)
-					),
-					axis=1
+				differences = np.apply_along_axis(
+					lambda x:np.count_nonzero(x & (1 << np.arange(32))[:, None] != 0),
+					1,
+					np.bitwise_xor(m_for_diff, check_negatives)
 				)
+
+				#differences = np.sum(
+				#	np.apply_along_axis(
+				#		lambda x:(((x[:, None] & (1 << np.arange(32))[::-1]) > 0).flatten()[:-self.npads] == 1),
+				#		1,
+				#		np.bitwise_xor(m_for_diff, check_negatives)
+				#	),
+				#	axis=1
+				#)
 
 				# differences = np.sum(np.bitwise_xor(m_for_diff, check_negatives), axis=1)  # original, ~90s for nodes with missing negatives
 				#differences = np.sum(np.vstack([  # ~250s for nodes with missing negatives
@@ -147,10 +154,34 @@ class EncodedAlignment:
 
 		return [negative_candidates[i] for i in clade_indices]
 
+	def get_rows(self, node, rows):	
+		# logging.info(f"Unpacking: {node} {len(rows)} rows...")
+		# t0 = time.time()
 
-	def get_rows(self, node, rows):
+		# subset = self.alignment.loc[rows, : ].to_numpy()
+		subset = np.apply_along_axis(
+			lambda x: (((x[:, None] & (1 << np.arange(32))[::-1])) > 0).flatten()[:-self.npads],
+			1,
+			self.alignment.loc[rows, : ].to_numpy()
+		)
+		# logging.info(f"Unpacked {node}: {len(rows)} rows in {time.time() - t0:.3f}s.")
+
+		return subset
+
+	def get_rows_old(self, node, rows):
 		logging.info(f"Unpacking: {node} {len(rows)} rows...")
 		t0 = time.time()
+		#alignment = None #np.array([])
+		#for row in self.alignment.loc[rows, :].to_numpy():
+		#	row = (((row[:,None] & (1 << np.arange(32))[::-1])) > 0).flatten()[:-self.npads]
+		#	if alignment is None:
+		#		alignment = row
+		#	else:
+		#		alignment = np.vstack((alignment, row))
+
+		#logging.info(f"Unpacked {node}: {len(rows)} rows in {time.time() - t0:.3f}s.")
+		#return alignment if alignment is not None else np.array([])
+
 		alignment = list()
 		for row in self.alignment.loc[ rows, : ].to_numpy():
 			alignment.append(

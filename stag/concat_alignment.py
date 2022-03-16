@@ -19,7 +19,7 @@ def main():
 
 
 	alignments = {
-		os.path.basename(aln).replace(args.suffix, ""): EncodedAlignment(aln)
+		os.path.basename(aln).replace(args.suffix, ""): EncodedAlignment(aln, drop_duplicates=False)
 		for aln in args.alignments
 	}
 	
