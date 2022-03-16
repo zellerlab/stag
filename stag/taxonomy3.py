@@ -107,18 +107,18 @@ class Taxonomy(dict):
         nodes = [self[node if node else self.TREE_ROOT]]
         while nodes:
             node = nodes.pop(0)
-            nodes.extend(node.children.values())
+            nodes += node.children.values()
             genes.update(node.genes)
         return list(genes)
 
     def remove_clades(self, nodes):
         removed_genes = set()
         for node in nodes:
-            stack = [node]
+            stack = [node]  # TODO: -> deque
             while stack:
                 node2 = self[stack.pop()]
                 removed_genes.update(node2.genes)
-                stack.extend(node2.children)
+                stack += node2.children
                 if node2.parent:
                     node2.parent.children.pop(node2.label, None)
                     self._clean_branch(node2.parent)
@@ -163,7 +163,7 @@ class Taxonomy(dict):
                 for child in node.children.values():
                     nodes[child.label] = set(child.children)
             else:
-                queue.extend((child, level + 1) for child in node.children.values())
+                queue += ((child, level + 1) for child in node.children.values())
         return nodes
         """
 

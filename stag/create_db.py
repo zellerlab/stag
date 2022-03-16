@@ -277,7 +277,7 @@ def learn_function(
         # g is:
         # ["geneB",["A","B","D","species8"],[0.99,0.96,0.96,0.07]]
         correct_tax = full_taxonomy.extract_full_tax_from_gene(g[0])
-        g.extend([correct_tax, level_to_learn])
+        g += [correct_tax, level_to_learn]
 
     return pr
     # return:

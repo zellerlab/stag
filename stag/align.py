@@ -49,7 +49,7 @@ def convert_alignment(alignment, verbose, as_numpy=False):
                 n_aligned_characters += 1
             else:
                 encoded_block = encoding_dic["others"]
-            converted_ali.extend(encoded_block)
+            converted_ali += encoded_block
 
     return np.array(converted_ali, dtype=bool), n_aligned_characters / n_char * 100
 
@@ -77,7 +77,7 @@ def protein2gene_alignment(gene_id, protein_alignment, gene_sequence, check_leng
             al_gene.append("---")
             found = True
         elif res.isupper():
-            al_gene.extend(gene_sequence[pos_gene:pos_gene + 3])
+            al_gene += gene_sequence[pos_gene:pos_gene + 3]
             pos_gene += 3
             found = True
         elif res.islower():

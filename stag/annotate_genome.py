@@ -178,7 +178,7 @@ def select_genes(all_genes_raw, keep_all_genes):
             ]
             
             if keep_all_genes:
-                selected_genes[genome][mg].extend(gene for gene, _ in best_genes)
+                selected_genes[genome][mg] += (gene for gene, _ in best_genes)
             else:
                 selected_genes[genome][mg].append(sorted(best_genes, key=lambda x:x[0], reverse=True)[0][1])
                     

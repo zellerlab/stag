@@ -84,7 +84,7 @@ class Taxonomy:
     def find_leaves_recoursive(self, node, all_leaves):
         genes = self.last_level_to_genes.get(node)
         if genes:
-            all_leaves.extend(genes)
+            all_leaves += genes
         else:
             for c in self.child_nodes[node]:
                 self.find_leaves_recoursive(c, all_leaves)
@@ -109,7 +109,7 @@ class Taxonomy:
         if node in self.last_level_to_genes:
             # we arrived at the end of the tree, we remove the genes, but first:
             # add to the set of removed genes
-            list_removed_genes.extend(self.last_level_to_genes[node])
+            list_removed_genes += self.last_level_to_genes[node]
             # remove the genes from the gene list
             self.all_gene_ids = [e for e in self.all_gene_ids if e not in self.last_level_to_genes[node]]
             # and, finally, remove the node from the last_level_to_genes dict
@@ -180,11 +180,11 @@ class Taxonomy:
     # print the values in the taxonomy class -----------------------------------
     def __str__(self):
         string = ["NODES:"]
-        string.extend(f"   (N):{node}: {children}" for node, children in self.child_nodes.items())
-        string.extend(("", "GENES:"))
-        string.extend(f"   (G):{node}: {genes}" for node, genes in self.last_level_to_genes.items()) 
-        string.extend(("", "LIST GENES:", str(self.all_gene_ids)))
-        string.extend(("", f"N LEVELS: {self.number_of_taxonomic_levels}", ""))
+        string += (f"   (N):{node}: {children}" for node, children in self.child_nodes.items())
+        string += (("", "GENES:"))
+        string += (f"   (G):{node}: {genes}" for node, genes in self.last_level_to_genes.items()) 
+        string += (("", "LIST GENES:", str(self.all_gene_ids)))
+        string += (("", f"N LEVELS: {self.number_of_taxonomic_levels}", ""))
         return "\n".join(string)
 
     def get_all_nodes(self, mode="dfs"):
@@ -195,11 +195,11 @@ class Taxonomy:
             if mode == "bfs":
                 node, siblings = dq.popleft()
                 children = set(self.find_children_node(node))
-                dq.extend((child, children.difference({child})) for child in children)
+                dq += ((child, children.difference({child})) for child in children)
             else:
                 node, siblings = dq.pop()
                 children = set(self.find_children_node(node))
-                dq.extend((child, children.difference({child})) for child in children)
+                dq += ((child, children.difference({child})) for child in children)
             if node != self.get_root():
                 yield node, siblings
 
