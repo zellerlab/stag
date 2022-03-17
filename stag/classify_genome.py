@@ -10,7 +10,6 @@ import tempfile
 import shutil
 import subprocess
 import shlex
-import h5py
 import re
 import json
 import pathlib
@@ -18,6 +17,8 @@ import pickle
 
 import contextlib
 import multiprocessing as mp
+
+import h5py
 
 from stag.helpers import is_tool, read_fasta
 from stag.classify import classify
@@ -33,7 +34,7 @@ except ImportError:
 def validate_genome_files(files):
     if any("##" in f for f in files):
         offender = [f for f in files if "##" in f][0]
-        err = "Error with: {}\n".format(offender)
+        err = f"Error with: {offender}\n"
         raise ValueError(f"{err}[E::main] Error: file cannot have in the name '##'. Please, choose another name.\n")
 
 
@@ -52,35 +53,35 @@ def run_prodigal(genome):
     # we need two files, one for the proteins and one for the genes
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     proteins = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    # prodigal command
-    prodigal_cmd = "prodigal -i {genome} -d {gene_file} -a {protein_file}".format(
-        genome=genome, gene_file=genes.name, protein_file=proteins.name
-    )
-    cmd = shlex.split(prodigal_cmd)
-    parse_cmd = subprocess.Popen(cmd, stdout=DEVNULL, stderr=subprocess.PIPE)
 
-    with parse_cmd:
-        # we save stderr if necessary
-        all_stderr = ""
-        for line in parse_cmd.stderr:
-            line = line.decode('ascii')
-            all_stderr = all_stderr + line
-        return_code = parse_cmd.wait()
-        if return_code:
-            raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
+    with genes, proteins:
+        prodigal_cmd = f"prodigal -i {genome} -d {genes.name} -a {proteins.name}"
+        parse_cmd = subprocess.Popen(shlex.split(prodigal_cmd), stdout=DEVNULL, stderr=subprocess.PIPE)
 
-    # we re-name the header of the fasta files ---------------------------------
-    # we expect to have the same number of genes and proteins, and also that the
-    def copy_fasta(fasta_file, seqid, is_binary=True, head_start=0):
-        with tempfile.NamedTemporaryFile(delete=False, mode="w") as fasta_out, open(fasta_file) as fasta_in:
-            for index, (sid, seq) in enumerate(read_fasta(fasta_in, is_binary=is_binary), start=1):
-                print(">{seqid}_{index}".format(**locals()), seq, sep="\n", file=fasta_out)
-            fasta_out.flush()
-            os.fsync(fasta_out.fileno())
-            return fasta_out.name, index
+        with parse_cmd:
+            # we save stderr if necessary
+            all_stderr = ""
+            for line in parse_cmd.stderr:
+                line = line.decode('ascii')
+                all_stderr = all_stderr + line
+            return_code = parse_cmd.wait()
+            if return_code:
+                raise ValueError(f"[E::align] Error. prodigal failed\n\n{all_stderr}")
 
-    parsed_genes, gene_count = copy_fasta(genes.name, genome, is_binary=False)
-    parsed_proteins, protein_count = copy_fasta(proteins.name, genome, is_binary=False)
+        # we re-name the header of the fasta files ---------------------------------
+        # we expect to have the same number of genes and proteins, and also that the
+        def copy_fasta(fasta_file, seqid, is_binary=True, head_start=0):
+            with tempfile.NamedTemporaryFile(delete=False, mode="w") as fasta_out, open(fasta_file) as fasta_in:
+                for index, (_, seq) in enumerate(
+                    read_fasta(fasta_in, is_binary=is_binary, head_start=head_start), start=1
+                ):
+                    print(f">{seqid}_{index}", seq, sep="\n", file=fasta_out)
+                fasta_out.flush()
+                os.fsync(fasta_out.fileno())
+                return fasta_out.name
+
+        parsed_genes = copy_fasta(genes.name, genome, is_binary=False)
+        parsed_proteins  = copy_fasta(proteins.name, genome, is_binary=False)
 
     os.remove(genes.name)
     os.remove(proteins.name)
@@ -101,35 +102,34 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
     # INFO: genes_path, proteins_path [where to save the result]
     # we run hmmsearch
     temp_hmm = tempfile.NamedTemporaryFile(delete=False, mode="w")
-    hmm_cmd = "hmmsearch --tblout "+temp_hmm.name+" "+hmm_file+" "+file_to_align
+    with temp_hmm:
+        hmm_cmd = f"hmmsearch --tblout {temp_hmm.name} {hmm_file} {file_to_align}"
 
-    CMD = shlex.split(hmm_cmd)
-    hmm_CMD = subprocess.Popen(CMD, stdout=DEVNULL, stderr=subprocess.PIPE)
+        with subprocess.Popen(shlex.split(hmm_cmd), stdout=DEVNULL, stderr=subprocess.PIPE) as hmm_proc:
+            # we save stderr if necessary
+            all_stderr = [
+                line.decode("ascii") for line in hmm_proc.stderr
+            ]
+            return_code = hmm_proc.wait()
+            if return_code:
+                all_stderr = ''.join(all_stderr)
+                raise ValueError(
+                    f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}"
+                )
 
-    with hmm_CMD:
-        # we save stderr if necessary
-        all_stderr = ""
-        for line in hmm_CMD.stderr:
-            line = line.decode('ascii')
-            all_stderr = all_stderr + line
-        return_code = hmm_CMD.wait()
-        if return_code:
-            raise ValueError(f"[E::align] Error. hmmsearch failed\n\nMG: {mg_name}\nCALL: {hmm_cmd}\n\n{all_stderr}")
-
-    # in temp_hmm.name there is the result from hmm ----------------------------
-    # we select which genes/proteins we need to extract from the fasta files
-    # produced by prodigal
-    sel_genes = {}
-    o = open(temp_hmm.name, "r")
-    for line in o:
-        if not line.startswith("#"):
-            vals = re.sub(" +", " ", line.rstrip()).split(" ")
-            gene_id = vals[0]
-            # e_val = vals[4]  # currently not used.
-            score = vals[5]
-            if float(score) > float(gene_threshold):
-                sel_genes[gene_id] = score
-    o.close()
+        # in temp_hmm.name there is the result from hmm ----------------------------
+        # we select which genes/proteins we need to extract from the fasta files
+        # produced by prodigal
+        sel_genes = {}
+        with open(temp_hmm.name, "r") as _in:
+            for line in _in:
+                if line[0] != "#":
+                    vals = re.sub(" +", " ", line.rstrip()).split(" ")
+                    gene_id = vals[0]
+                    # e_val = vals[4]  # currently not used.
+                    score = vals[5]
+                    if float(score) > float(gene_threshold):
+                        sel_genes[gene_id] = score
 
     # remove file with the result from the hmm
     if os.path.isfile(temp_hmm.name):
@@ -141,18 +141,17 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
 # for one marker gene, we extract all the genes/proteins from all genomes
 def extract_genes(mg_name, hmm_file, use_protein_file, genomes_pred, gene_threshold, all_genes_raw):
     # we go through the genome and find the genes that pass the filter
-    for g in genomes_pred:
-        if not (g in all_genes_raw):
-            all_genes_raw[g] = {}
-        if mg_name in all_genes_raw[g]:
+    for genome, annotation_files in genomes_pred.items():
+        gene_seen = all_genes_raw.setdefault(genome, {}).get(mg_name)
+        if gene_seen is not None:
             sys.stderr.write(f"Error. gene {mg_name} already present\n")
         # which file do we use for the hmmsearch?
-        if use_protein_file:
-            file_to_align = genomes_pred[g][1]
-        else:
-            file_to_align = genomes_pred[g][0]
+        file_to_align = annotation_files[1 if use_protein_file else 0]
+
         # call function that uses hmmsearch
-        all_genes_raw[g][mg_name] = extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_name)
+        all_genes_raw[genome][mg_name] = extract_gene_from_one_genome(
+            file_to_align, hmm_file, gene_threshold, mg_name
+        )
 
 
 def select_genes(all_genes_raw, keep_all_genes):
@@ -164,45 +163,42 @@ def select_genes(all_genes_raw, keep_all_genes):
     #                              geneY: 212
     #                         MG2: geneZ: 459
     #                              geneY: 543
-    for genome in all_genes_raw:
-        return_dict[genome] = {}
-        # we first check if there is any gene that is in multiple mgs:
-        gene_sel = {}
-        for mg in all_genes_raw[genome]:
-            for g in all_genes_raw[genome][mg]:
-                if not (g in gene_sel):
-                    gene_sel[g] = float(all_genes_raw[genome][mg][g])
-                else:
-                    if float(all_genes_raw[genome][mg][g]) > float(gene_sel[g]):
-                        gene_sel[g] = float(all_genes_raw[genome][mg][g])
+    for genome, marker_genes in all_genes_raw.items():
+        # we first check if there is any gene that is in multiple mgs
         # in gene_sel there is the gene id -> highest score
         # example: geneX->267; geneY->543; geneZ->459
+        gene_sel = {}
+        for candidates in marker_genes.values():
+            for gene, score in candidates.items():
+                score = float(score)
+                current_score = gene_sel.get(gene)
+                if current_score is None or score >= current_score:
+                    gene_sel[gene] = current_score
 
         # now we select the correct genes and decide if keep one or many
-        for mg in all_genes_raw[genome]:
-            return_dict[genome][mg] = []
-            # if we keep all genes
-            if keep_all_genes:
-                for g in all_genes_raw[genome][mg]:
-                    if float(all_genes_raw[genome][mg][g]) == float(gene_sel[g]):
-                        return_dict[genome][mg].append(g)
-            # if we keep only one gene per marker gene
-            if not keep_all_genes:
-                max_v = 0
-                sel_gene = ""
-                for g in all_genes_raw[genome][mg]:
-                    if float(all_genes_raw[genome][mg][g]) == float(gene_sel[g]):
-                        if float(all_genes_raw[genome][mg][g]) > max_v:
-                            max_v = float(all_genes_raw[genome][mg][g])
-                            sel_gene = g
-                if max_v != 0:
-                    return_dict[genome][mg].append(sel_gene)
+        for marker_gene, candidates in marker_genes.items():
+            for gene, score in candidates.items():
+                score = float(score)
+                if gene_sel[gene] == score:
+                    return_dict.setdefault(genome, {}).setdefault(marker_gene, [])
+                    if not return_dict[genome][marker_gene] or keep_all_genes:
+                        return_dict[genome][marker_gene].append(gene)
+
     return return_dict
 
 
 # function that extract the genes and proteins based on the IDs from
 # "selected_genes", only for one marker gene
-def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_protein_file):
+def extract_genes_from_fasta(marker_gene, selected_genes, genomes_pred, verbose, use_protein_file):
+
+    def filter_sequences(fasta_in, fasta_out, whitelist, marker_gene):
+        n_written = 0
+        for sid, seq in read_fasta(fasta_in, head_start=1, is_binary=False):
+            if sid in whitelist:
+                n_written += 1
+                print(f">{sid}##{marker_gene}", seq, sep="\n", file=fasta_out)
+        return n_written
+
     n_genes, n_proteins = 0, 0
     genes = tempfile.NamedTemporaryFile(delete=False, mode="w")
     if use_protein_file:
@@ -210,27 +206,21 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
     else:
         proteins = contextlib.nullcontext()
 
-    def filter_sequences(fasta_in, fasta_out, whitelist, mg):
-        n_written = 0
-        for sid, seq in read_fasta(fasta_in, head_start=1, is_binary=False):
-            if sid in whitelist:
-                n_written += 1
-                print(">{sid}##{mg}".format(sid=sid, mg=mg), seq, sep="\n", file=fasta_out)
-        return n_written
-
     with genes, proteins:
         for genome in selected_genes:
-            if mg not in selected_genes[genome]:
-                sys.stderr.write("Warning: missing marker gene in genome "+genome+"\n")
+            if marker_gene not in selected_genes[genome]:
+                sys.stderr.write(f"Warning: missing marker gene in genome {genome}.\n")
             else:
                 with open(genomes_pred[genome][0]) as fna_in:
-                    n_genes += filter_sequences(fna_in, genes, selected_genes[genome][mg], mg)
+                    n_genes += filter_sequences(fna_in, genes, selected_genes[genome][marker_gene], marker_gene)
                 if use_protein_file:
                     with open(genomes_pred[genome][1]) as faa_in:
-                        n_proteins += filter_sequences(faa_in, proteins, selected_genes[genome][mg], mg)
+                        n_proteins += filter_sequences(
+                            faa_in, proteins, selected_genes[genome][marker_gene], marker_gene
+                        )
 
     if verbose > 3:
-        sys.stderr.write(" Found "+str(n_genes)+" genes\n")
+        sys.stderr.write(f" Found {n_genes} genes\n")
     if use_protein_file:
         if n_genes != n_proteins:
             sys.stderr.write("Error: Number of genes and proteins is different")
@@ -242,7 +232,6 @@ def extract_genes_from_fasta(mg, selected_genes, genomes_pred, verbose, use_prot
         protein_file_name = None
         if use_protein_file:
             os.remove(proteins.name)
-
     else:
         gene_file_name = genes.name
         if use_protein_file:
@@ -438,8 +427,10 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
     genomes_pred = {}
     print(*ali_lengths.items(), sep="\n")
 
+    MGS = {}
     if marker_genes:
-        MGS = json.load(open(marker_genes[0]))
+        with open(marker_genes[0]) as _in:
+            MGS = json.load(_in)
     elif genome_files:
         # SECOND: run prodigal on the fasta genome ---------------------------------
         if verbose > 2:
@@ -497,7 +488,7 @@ def classify_genome(database, genome_files=None, marker_genes=None, verbose=None
         all_classifications = annotate_MGs(MGS, database_files, temp_dir, align_dir, procs=threads)
         with open(os.path.join(output, "classifications.dat"), "wb") as ac_out:
             pickle.dump(all_classifications, ac_out)
-        open(os.path.join(output, "classifications.dat.ok"), "wb").close()
+        pathlib.Path(os.path.join(output, "classifications.dat.ok")).touch(exist_ok=True)
     # all_classifications is a dict: 'genome_id_NUMBER##cog_id': taxonomy
     #
     # Example:
