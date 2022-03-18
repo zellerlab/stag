@@ -78,7 +78,7 @@ def balance_neg_pos_ratio(positive_examples, negative_examples, alignment, n_sib
         n_positives, len(negative_examples)
     )
     if missing_negatives:
-        negative_examples += alignment.get_auxiliary_negative_examples(
+        negative_examples += alignment.get_additional_negative_examples(
             positive_examples, negative_examples, missing_negatives
         )
 
