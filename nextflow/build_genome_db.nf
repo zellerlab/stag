@@ -212,7 +212,6 @@ workflow {
 	*/
 
 	lf_clf_combine_ch = lf_combine_ch.join(train_classifiers.out.classifiers.join(clf_input_ch))
-	//		.filter { it[0] != "genome" }
 	lf_clf_combine_ch.view()
 
 	save_db(lf_clf_combine_ch)
