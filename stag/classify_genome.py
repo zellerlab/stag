@@ -127,8 +127,8 @@ def extract_gene_from_one_genome(file_to_align, hmm_file, gene_threshold, mg_nam
                     vals = re.sub(" +", " ", line.rstrip()).split(" ")
                     gene_id = vals[0]
                     # e_val = vals[4]  # currently not used.
-                    score = vals[5]
-                    if float(score) > float(gene_threshold):
+                    score = float(vals[5])
+                    if score > float(gene_threshold):
                         sel_genes[gene_id] = score
 
     # remove file with the result from the hmm
@@ -170,15 +170,13 @@ def select_genes(all_genes_raw, keep_all_genes):
         gene_sel = {}
         for candidates in marker_genes.values():
             for gene, score in candidates.items():
-                score = float(score)
                 current_score = gene_sel.get(gene)
                 if current_score is None or score >= current_score:
-                    gene_sel[gene] = current_score
+                    gene_sel[gene] = score
 
         # now we select the correct genes and decide if keep one or many
         for marker_gene, candidates in marker_genes.items():
             for gene, score in candidates.items():
-                score = float(score)
                 if gene_sel[gene] == score:
                     return_dict.setdefault(genome, {}).setdefault(marker_gene, [])
                     if not return_dict[genome][marker_gene] or keep_all_genes:
