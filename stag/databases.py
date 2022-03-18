@@ -93,8 +93,8 @@ def load_db(hdf5_DB_path, protein_fasta_input=None, aligned_sequences=None, dir_
 
         # fifth: the classifiers ---------------------------------------------------
         classifiers = {}
-        cweights_file = os.path.join(dir_output, "classifiers_weights.tsv")
-        class_out = open(cweights_file, "w") if dir_output else contextlib.nullcontext()
+        cweights_file = os.path.join(dir_output, "classifiers_weights.tsv") if dir_output is not None else None
+        class_out = open(cweights_file, "w") if cweights_file else contextlib.nullcontext()
         with class_out:
             for key in db_in['classifiers']:
                 classifier = db_in[f'classifiers/{key}']
