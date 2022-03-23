@@ -33,16 +33,17 @@ class Taxonomy(dict):
         return lineage
 
     def _read_taxonomy(self, fn):
-        for line_no, (gene, lineage) in enumerate(csv.reader(open(fn), delimiter="\t"), start=1):
-            parent = self[self.TREE_ROOT]
-            lineage = self._check_lineage_depth(lineage, line_no)
-            for i, taxon in enumerate(lineage):
-                if i > 0:
-                    parent = node
-                node = self.setdefault(taxon, Taxon(parent=parent, label=taxon))
-                parent.add_child(node)
-            node.add_gene(gene)
-            self.gene_lineages[gene] = lineage
+        with open(fn) as _in:
+            for line_no, (gene, lineage) in enumerate(csv.reader(_in, delimiter="\t"), start=1):
+                parent = self[self.TREE_ROOT]
+                lineage = self._check_lineage_depth(lineage, line_no)
+                for i, taxon in enumerate(lineage):
+                    if i > 0:
+                        parent = node
+                    node = self.setdefault(taxon, Taxon(parent=parent, label=taxon))
+                    parent.add_child(node)
+                node.add_gene(gene)
+                self.gene_lineages[gene] = lineage
 
     def copy(self):
         from copy import deepcopy

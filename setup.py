@@ -8,6 +8,7 @@ import glob
 import re
 import sys
 
+from stag import __version__ as stag_version
 
 here = path.abspath(path.dirname("__file__"))
 
@@ -15,7 +16,7 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 	description = long_description = description.read()
 
 	name="stag"
-	version = [line.strip().split(" ")[-1] for line in open("stag/__init__.py") if line.startswith("__version__")][0]
+	version = stag_version
 
 	if sys.version_info.major != 3:
 		raise EnvironmentError("""{toolname} is a python module that requires python3, and is not compatible with python2.""".format(toolname=name))

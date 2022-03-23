@@ -99,6 +99,7 @@ def print_menu_create_db():
     sys.stderr.write(f"  {bco.LightBlue}-p{bco.ResetAll}  FILE  protein sequences, if they were used for the alignment {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-N{bco.ResetAll}  INT   solver_iterations: increase this parameter if the output displays a ConvergenceWarning. (default=5000)\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
 # ------------------------------------------------------------------------------
@@ -142,9 +143,10 @@ def print_menu_train():
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  save intermediate cross validation results {bco.LightMagenta}[None]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-m{bco.ResetAll}  INT   threshold for the number of features per sequence (percentage) {bco.LightMagenta}[0]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-e{bco.ResetAll}  STR   penalty for the logistic regression {bco.LightMagenta}[\"l1\"]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-E{bco.ResetAll}  STR   solver for the logistic regression {bco.LightMagenta}[\"liblinear\"]{bco.ResetAll}\n")
+    sys.stderr.write(f"  {bco.LightBlue}-N{bco.ResetAll}  INT   solver_iterations: increase this parameter if the output displays a ConvergenceWarning. (default=5000)\n\n")
     sys.stderr.write(f"{bco.Cyan}Note:{bco.ResetAll} if -p is provided, then the alignment will be done at the level\nof the proteins and then converted to gene alignment (from -i input).\nThe order of the sequences in -i and -p should be the same.\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_correct_seq():
@@ -166,7 +168,8 @@ def print_menu_train_genome():
     sys.stderr.write(f"  {bco.LightBlue}-C{bco.ResetAll}  FILE  stag database for the concatenated genes{bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-o{bco.ResetAll}  FILE  output file name (HDF5 format) {bco.LightMagenta}[required]{bco.ResetAll}\n")
     sys.stderr.write(f"  {bco.LightBlue}-t{bco.ResetAll}  INT   number of threads {bco.LightMagenta}[1]{bco.ResetAll}\n")
-    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}\n\n")
+    sys.stderr.write(f"  {bco.LightBlue}-v{bco.ResetAll}  INT   verbose level: 1=error, 2=warning, 3=message, 4+=debugging {bco.LightMagenta}[3]{bco.ResetAll}")
+    sys.stderr.write(f"  {bco.LightBlue}-N{bco.ResetAll}  INT   solver_iterations: increase this parameter if the output displays a ConvergenceWarning. (default=5000)\n\n")
 # ------------------------------------------------------------------------------
 def print_menu_classify_genome():
     sys.stderr.write("\n")
@@ -230,6 +233,7 @@ def main(argv=None):
     parser.add_argument('-e', action="store", default="l1", dest='penalty_logistic', help='penalty for the logistic regression',choices=['l1','l2','none'])
     parser.add_argument('-E', action="store", default="liblinear", dest='solver_logistic', help='solver for the logistic regression',choices=['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
     parser.add_argument('-G', action="store", dest="marker_genes", default=None, help="Set of identified marker genes in lieu of a genomic sequence")
+    parser.add_argument('-N', action="store", dest="solver_iterations", default=5000, type=int, help="Increase this parameter if the output displays a ConvergenceWarning.")
 
     parser.add_argument('--version', action='version', version='%(prog)s {0} on python {1}'.format(tool_version, sys.version.split()[0]))
 
@@ -323,7 +327,8 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(args.aligned_sequences, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, max_iter=args.solver_iterations,
+                            procs=args.threads)
 
     # --------------------------------------------------------------------------
     # TRAIN routine
@@ -369,7 +374,8 @@ def main(argv=None):
         # call the function to create the database
         create_db.create_db(al_file.name, args.taxonomy, args.verbose, args.output, args.use_cm_align,
                             args.template_al, args.intermediate_cross_val, args.protein_fasta_input,
-                            args.penalty_logistic, args.solver_logistic, procs=args.threads)
+                            args.penalty_logistic, args.solver_logistic, max_iter=args.solver_iterations,
+                            procs=args.threads)
 
         # what to do with intermediate alignment -------------------------------
         if not args.intermediate_al:
@@ -550,13 +556,15 @@ def main(argv=None):
         else:
             for f in os.listdir(args.dir_input):
                 f = os.path.join(args.dir_input, f)
-                try:
-                    if os.path.isfile(f) and open(f).read(1)[0] == ">":
-                        list_files.append(f)
-                except Exception as e:
-                    if args.verbose > 1:
-                        sys.stderr.write("[W::main] Warning: ")
-                        sys.stderr.write("Cannot open file: {}\n".format(f))
+                if os.path.isfile(f):
+                    try:
+                        with open(f) as _in:
+                            if _in.read(1)[0] == ">":
+                                list_files.append(f)
+                    except Exception as e:
+                        if args.verbose > 1:
+                            sys.stderr.write("[W::main] Warning: ")
+                            sys.stderr.write("Cannot open file: {}\n".format(f))
 
             if not list_files:
                 handle_error("no fasta files found in the directory.", None)
