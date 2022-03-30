@@ -418,8 +418,9 @@ def find_thresholds_from_dist(distances):
                 #
                 thresholds_start = find_possible_thresholds(negative_vals,positive_vals)
                 thresholds_start_F1 = measureF1(negative_vals,positive_vals,thresholds_start)
-                best_threshold,best_f1 = find_max(thresholds_start,thresholds_start_F1,negative_vals,positive_vals)
-                res[i] = best_threshold
+                if len(thresholds_start_F1) > 0:
+                    best_threshold,best_f1 = find_max(thresholds_start,thresholds_start_F1,negative_vals,positive_vals)
+                    res[i] = best_threshold
     return res
 
 
