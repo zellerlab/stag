@@ -1,4 +1,4 @@
-name: stag_0.8.1_tax3
+name: stag_0.8.3
 channels:
   - bioconda
   - defaults
@@ -9,10 +9,10 @@ dependencies:
   - hmmer
   - infernal
   - easel
-  - numpy
+  - numpy=1.19
   - pandas
   - scikit-learn<0.24
-  - h5py
+  - h5py=2.10.0
   - seqtk
   - regex
   - prodigal
