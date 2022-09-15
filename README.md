@@ -20,7 +20,7 @@ The stag classifier requires:
   * numpy
   * pandas
   * sklearn
-  * h5py
+  * h5py = 2.10.0
 
 If you have [conda](https://conda.io/docs/), you can install all the dependencies in `conda_env_stag.yaml`.
 See [Installation wiki](https://github.com/zellerlab/stag/wiki/Installation) for more info.
