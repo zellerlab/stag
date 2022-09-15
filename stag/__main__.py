@@ -207,7 +207,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(usage=msg(), formatter_class=CapitalisedHelpFormatter,add_help=False)
     parser.add_argument('command', action="store", default=None, help='mode to run stag',
                         choices=['align','train','classify','create_db','check_input','correct_seq','train_genome',
-                                 'classify_genome','test','convert_ali',"unzip_db"])
+                                 'classify_genome','test','convert_ali',"unzip_db","test_short"])
     parser.add_argument('-o', action="store", dest='output', default=None, help='name of output file')
     parser.add_argument('-t', type=int, action="store", dest='threads', default=1, help='Number of threads to be used.')
     parser.add_argument('-v', action='store', type=int, default=3, dest='verbose', help='Verbose levels', choices=list(range(1,5)))
@@ -240,6 +240,13 @@ def main(argv=None):
     # --------------------------------------------------------------------------
     if args.command == 'test':
         popenCMD = "stag_test"
+        child = subprocess.Popen(popenCMD)
+        child.communicate()
+        rc = child.wait()
+        return(rc)
+
+    if args.command == 'test_short':
+        popenCMD = "stag_test_short"
         child = subprocess.Popen(popenCMD)
         child.communicate()
         rc = child.wait()
@@ -409,8 +416,8 @@ def main(argv=None):
 
 
         # call the function
-        classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input, 
-                          verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out, 
+        classify.classify(args.database, fasta_input=args.fasta_input, protein_fasta_input=args.protein_fasta_input,
+                          verbose=args.verbose, threads=args.threads, output=args.output, long_out=args.long_out,
                           current_tool_version=tool_version, aligned_sequences=args.aligned_sequences,
                           save_ali_to_file=args.intermediate_al, min_perc_state=args.min_perc_state)
 

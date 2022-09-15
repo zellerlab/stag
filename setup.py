@@ -23,7 +23,7 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 	setup(
 		name=name,
 		version=version,
-		description="stag - Supervised Taxonomic Assignment of marker Genes", 
+		description="stag - Supervised Taxonomic Assignment of marker Genes",
 		long_description=long_description,
 		url="https://github.com/zellerlab/stag",
 		author="Alessio Milanese",
@@ -49,7 +49,8 @@ with open(path.join(here, "DESCRIPTION.md"), encoding="utf-8") as description:
 		entry_points={
 			"console_scripts": [
 				"stag=stag.__main__:main",
-				"stag_test=stag.stag_test:main"
+				"stag_test=stag.stag_test:main",
+                "stag_test_short=stag.stag_test_short:main"
 			],
 		},
 		scripts=[],
