@@ -92,3 +92,26 @@ stag classify_genome -D all/genomes/dir -d gtdb_30.stagDB -o res_dir
 Where `all/genomes/dir` is a directory, and all fasta files inside the directory will be classified.
 
 Finally, you can find some databases to classify genomes (`gtdb_30.stagDB` in the examples) [here](https://github.com/zellerlab/stag/wiki/Genomes-databases).
+
+
+
+
+Schematic depiction of the STAG workflow. 
+--------------
+
+(a) Example taxonomic tree alongside
+thirteen (partial) 16S sequences in a multiple sequence alignment (MSA). Four positions in the
+MSA are highlighted for the information they contain to distinguish the different clades shown.
+For example, at position 455, a ‘G’ distinguishes Enterobacteriaceae from Erwiniaceae. To
+leverage this information, STAG trains one LASSO logistic regression classifier for each node in
+the tree; coefficients corresponding to aligned bases are shown in b, c and d. For example, a ‘C’ at
+position 648 is learnt to facilitate discrimination of Escherichia coli from Escherichia albertii.
+
+To annotate a new sequence, it is first aligned to the MSA constructed during training. Second, the
+sequence is classified along the tree, following the path with the highest posterior probabilities
+(as returned by the node classifiers). Finally, the taxonomic lineage of the new sequence is
+inferred from the probabilities accrued in the previous step; this in particular entails the decision
+of which ranks not to assign.
+
+<img src="https://github.com/zellerlab/stag/blob/master/pics/fig1.png">
+
